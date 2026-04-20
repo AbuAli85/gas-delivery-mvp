@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { Flame, ChevronLeft, ShieldCheck, Zap, Phone } from "lucide-react";
+import { Flame, ChevronLeft, ShieldCheck, Zap, Phone, User } from "lucide-react";
+import { getCustomerPhone } from "./CustomerLogin";
 import { FIXED_ORDER_PRICE } from "../../../shared/domain";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 
 export default function Home() {
   const [, navigate] = useLocation();
+  const customerPhone = getCustomerPhone();
 
   const { data: providers } = trpc.providers.list.useQuery(undefined, {
     refetchInterval: 30000,
@@ -107,6 +110,22 @@ export default function Home() {
           تحتاج مساعدة؟ تواصل معنا عبر واتساب
         </a>
 
+        {/* ── Customer Login / Profile ── */}
+        <div className="mt-3 flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
+          <div className="flex items-center gap-2">
+            <User className="w-3.5 h-3.5 text-white/40" />
+            <p className="text-xs text-white/40">
+              {customerPhone ? customerPhone : "حسابك"}
+            </p>
+          </div>
+          <a
+            href="/customer/login"
+            className="text-xs font-bold text-blue-400 border border-blue-400/30 rounded-lg px-3 py-1 hover:bg-blue-400/10"
+          >
+            {customerPhone ? "تغيير الحساب" : "تسجيل دخول"}
+          </a>
+        </div>
+
         {/* ── Provider portal ── */}
         <div className="mt-3 flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
           <p className="text-xs text-white/40">بوابة المزودين</p>
@@ -122,6 +141,12 @@ export default function Home() {
               className="text-xs font-bold text-orange-400 border border-orange-400/30 rounded-lg px-3 py-1 hover:bg-orange-400/10"
             >
               + انضم كمزوّد
+            </a>
+            <a
+              href="/admin"
+              className="text-xs font-bold text-gray-400 border border-gray-500/30 rounded-lg px-3 py-1 hover:bg-gray-500/10"
+            >
+              إدارة
             </a>
           </div>
         </div>

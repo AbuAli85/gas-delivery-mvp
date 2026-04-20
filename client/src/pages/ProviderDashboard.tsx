@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { toast } from "sonner";
 import {
   Flame, MapPin, Phone, Package, Clock, CheckCircle2,
   XCircle, Truck, History, ToggleLeft, ToggleRight, Loader2,
   ChevronDown, ChevronUp, Wallet, Star, AlertCircle,
-  UserCheck, UserX, Users
+  UserCheck, UserX, Users, Bell, BellOff, Navigation
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
@@ -149,6 +149,87 @@ export default function ProviderDashboard() {
 
   const utils = trpc.useUtils();
 
+  // ── Web Push Notifications ────────────────────────────────────────────────
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>(
+    typeof Notification !== "undefined" ? Notification.permission : "default"
+  );
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const { data: vapidData } = trpc.providers.getVapidPublicKey.useQuery();
+  const savePushSub = trpc.providers.savePushSubscription.useMutation();
+
+  const subscribeToPush = useCallback(async () => {
+    if (!vapidData?.publicKey) return;
+    try {
+      const permission = await Notification.requestPermission();
+      setPushPermission(permission);
+      if (permission !== "granted") {
+        toast.error("لم يتم منح إذن الإشعارات");
+        return;
+      }
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: vapidData.publicKey,
+      });
+      const json = sub.toJSON();
+      await savePushSub.mutateAsync({
+        providerId: id,
+        pinHash: pinHash!,
+        endpoint: sub.endpoint,
+        p256dh: json.keys?.p256dh ?? "",
+        auth: json.keys?.auth ?? "",
+      });
+      setPushSubscribed(true);
+      toast.success("تم تفعيل الإشعارات! ستصلك إشعارات الطلبات الجديدة.");
+    } catch (err) {
+      toast.error("فشل تفعيل الإشعارات");
+      console.error(err);
+    }
+  }, [vapidData, id, pinHash, savePushSub]);
+
+  // Check if already subscribed on mount
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.serviceWorker) return;
+    navigator.serviceWorker.getRegistration("/sw.js").then(async (reg) => {
+      if (!reg) return;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) setPushSubscribed(true);
+    });
+  }, []);
+
+  // ── Provider Location Updates (while delivering) ──────────────────────────
+  const locationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const updateLocation = trpc.providers.updateLocation.useMutation();
+
+  const startLocationUpdates = useCallback(() => {
+    if (locationIntervalRef.current) return;
+    const sendLocation = () => {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition((pos) => {
+        updateLocation.mutate({
+          providerId: id,
+          pinHash: pinHash!,
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+      });
+    };
+    sendLocation();
+    locationIntervalRef.current = setInterval(sendLocation, 10000);
+  }, [id, pinHash, updateLocation]);
+
+  const stopLocationUpdates = useCallback(() => {
+    if (locationIntervalRef.current) {
+      clearInterval(locationIntervalRef.current);
+      locationIntervalRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => stopLocationUpdates();
+  }, [stopLocationUpdates]);
+
   const { data: provider, isLoading: providerLoading } = trpc.providers.getById.useQuery(
     { providerId: id },
     { enabled: !!id, refetchInterval: 8000 }
@@ -211,6 +292,7 @@ export default function ProviderDashboard() {
     onSuccess: () => {
       toast.success("بدأ التوصيل!");
       utils.providers.getActiveOrder.invalidate({ providerId: id });
+      startLocationUpdates(); // Start sending GPS every 10s
     },
     onError: (err) => toast.error(err.message || "فشل بدء التوصيل"),
   });
@@ -220,6 +302,7 @@ export default function ProviderDashboard() {
       toast.success("تم التوصيل! عمل رائع.");
       utils.providers.getActiveOrder.invalidate({ providerId: id });
       utils.providers.getById.invalidate({ providerId: id });
+      stopLocationUpdates(); // Stop sending GPS after delivery
     },
     onError: (err) => toast.error(err.message || "فشل تأكيد التوصيل"),
   });
@@ -536,6 +619,45 @@ export default function ProviderDashboard() {
         })()}
 
 
+
+        {/* ── Push Notifications Button ── */}
+        {typeof Notification !== "undefined" && pushPermission !== "denied" && (
+          <button
+            onClick={pushSubscribed ? undefined : subscribeToPush}
+            disabled={savePushSub.isPending}
+            className={`w-full flex items-center gap-3 rounded-2xl px-5 py-4 shadow-sm transition-colors ${
+              pushSubscribed
+                ? "bg-emerald-50 border border-emerald-200"
+                : "bg-white border border-dashed border-primary/40 hover:bg-primary/5"
+            }`}
+          >
+            {savePushSub.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            ) : pushSubscribed ? (
+              <Bell className="w-4 h-4 text-emerald-600" />
+            ) : (
+              <BellOff className="w-4 h-4 text-primary" />
+            )}
+            <div className="text-right flex-1">
+              <p className={`text-sm font-semibold ${
+                pushSubscribed ? "text-emerald-700" : "text-gray-700"
+              }`}>
+                {pushSubscribed ? "الإشعارات مفعلة" : "تفعيل إشعارات الطلبات"}
+              </p>
+              <p className="text-xs text-gray-400">
+                {pushSubscribed
+                  ? "ستصلك إشعار فوري عند وصول طلب جديد"
+                  : "اضغط لتلقي إشعارات الطلبات الجديدة حتى عند إغلاق التطبيق"}
+              </p>
+            </div>
+            {locationIntervalRef.current && (
+              <div className="flex items-center gap-1 text-xs text-violet-600 bg-violet-50 px-2 py-1 rounded-full">
+                <Navigation className="w-3 h-3" />
+                مباشر
+              </div>
+            )}
+          </button>
+        )}
 
         {/* ── Order History ── */}
         <button

@@ -544,9 +544,6 @@ export default function LocationPicker() {
             initialZoom={12}
             onMapReady={handleMapReady}
             onLoadError={(msg) => toast.error(msg)}
-            mapTypeControl={false}
-            streetViewControl={false}
-            fullscreenControl={false}
           />
 
           {/* Places Autocomplete search bar — overlaid at top of map */}

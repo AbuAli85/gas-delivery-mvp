@@ -15,6 +15,8 @@ import {
   updateOrder,
   countActiveAssignments,
   getProviderById,
+  getAllOrders,
+  countOrders,
 } from "../db";
 import { resolveZone, selectNextProvider } from "../assignmentEngine";
 import {
@@ -78,6 +80,20 @@ async function doAssignProvider(orderId: number): Promise<void> {
     assignedProviderId: provider.id,
     assignedAt: new Date(),
   });
+
+  // Send Web Push notification to the assigned provider
+  try {
+    const { getPushSubscriptionsByProvider, deletePushSubscription } = await import("../db");
+    const { sendPushNotification } = await import("../_core/webPush");
+    const subs = await getPushSubscriptionsByProvider(provider.id);
+    for (const sub of subs) {
+      const ok = await sendPushNotification(
+        { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+        { title: "طلب جديد!", body: `طلب رقم #${orderId} بانتظارك. افتح التطبيق للقبول أو الرفض.`, tag: `order-${orderId}` }
+      );
+      if (!ok) await deletePushSubscription(sub.endpoint);
+    }
+  } catch (_) {}
 
   try {
     await notifyOwner({
@@ -461,7 +477,7 @@ export const ordersRouter = router({
 
       return {
         orderId: order.id,
-        status: order.status,
+        status: order.status as string,
         paymentStatus: order.paymentStatus,
         paymentMethod: order.paymentMethod,
         estimatedMinutes: order.estimatedMinutes,
@@ -484,5 +500,90 @@ export const ordersRouter = router({
         acceptedAt: order.acceptedAt,
         deliveredAt: order.deliveredAt,
       };
+    }),
+
+  // ─── Admin: List all orders ───────────────────────────────────────────────
+  adminListOrders: publicProcedure
+    .input(z.object({
+      adminPin: z.string(),
+      status: z.string().optional(),
+      limit: z.number().min(1).max(200).default(50),
+      offset: z.number().min(0).default(0),
+    }))
+    .query(async ({ input }) => {
+      if (input.adminPin !== (process.env.ADMIN_PIN ?? "1234")) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "كلمة مرور المشرف غير صحيحة" });
+      }
+      const rows = await getAllOrders({ status: input.status, limit: input.limit, offset: input.offset });
+      const total = await countOrders(input.status);
+      return {
+        orders: rows.map((o) => ({
+          id: o.id,
+          status: o.status,
+          paymentStatus: o.paymentStatus,
+          paymentMethod: o.paymentMethod,
+          totalPrice: o.totalPrice,
+          customerAddress: o.customerAddress,
+          customerPhone: o.customerPhone,
+          assignedProviderId: o.assignedProviderId,
+          createdAt: o.createdAt,
+          deliveredAt: o.deliveredAt,
+        })),
+        total,
+      };
+    }),
+
+  // ─── Admin: Force-cancel an order ────────────────────────────────────────
+  adminCancelOrder: publicProcedure
+    .input(z.object({ adminPin: z.string(), orderId: z.number() }))
+    .mutation(async ({ input }) => {
+      if (input.adminPin !== (process.env.ADMIN_PIN ?? "1234")) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "كلمة مرور المشرف غير صحيحة" });
+      }
+      const order = await getOrderById(input.orderId);
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "الطلب غير موجود" });
+      if (order.status === "delivered" || order.status === "cancelled") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "لا يمكن إلغاء هذا الطلب" });
+      }
+      // Free the assigned provider if any
+      if (order.assignedProviderId) {
+        await setProviderActiveOrder(order.assignedProviderId, null);
+      }
+      await updateOrder(order.id, { status: "cancelled" });
+      return { success: true };
+    }),
+
+  // ─── Admin: Mark order as delivered (manual override) ────────────────────
+  adminMarkDelivered: publicProcedure
+    .input(z.object({ adminPin: z.string(), orderId: z.number() }))
+    .mutation(async ({ input }) => {
+      if (input.adminPin !== (process.env.ADMIN_PIN ?? "1234")) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "كلمة مرور المشرف غير صحيحة" });
+      }
+      const order = await getOrderById(input.orderId);
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "الطلب غير موجود" });
+      if (order.assignedProviderId) {
+        await setProviderActiveOrder(order.assignedProviderId, null);
+      }
+      await updateOrder(order.id, { status: "delivered", deliveredAt: new Date() });
+      return { success: true };
+    }),
+
+  // ─── Admin: Stats summary ─────────────────────────────────────────────────
+  adminStats: publicProcedure
+    .input(z.object({ adminPin: z.string() }))
+    .query(async ({ input }) => {
+      if (input.adminPin !== (process.env.ADMIN_PIN ?? "1234")) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "كلمة مرور المشرف غير صحيحة" });
+      }
+      const all = await getAllOrders();
+      const total = all.length;
+      const delivered = all.filter((o) => o.status === "delivered").length;
+      const cancelled = all.filter((o) => o.status === "cancelled").length;
+      const pending = all.filter((o) => ["pending", "assigned", "accepted", "out_for_delivery"].includes(o.status)).length;
+      const revenue = all
+        .filter((o) => o.status === "delivered")
+        .reduce((sum, o) => sum + parseFloat(String(o.totalPrice ?? "0")), 0);
+      return { total, delivered, cancelled, pending, revenue };
     }),
 });

@@ -191,3 +191,46 @@ export const savedLocations = mysqlTable("saved_locations", {
 
 export type SavedLocation = typeof savedLocations.$inferSelect;
 export type InsertSavedLocation = typeof savedLocations.$inferInsert;
+
+// ─── Push Subscriptions ───────────────────────────────────────────────────────
+// Web Push subscriptions for providers (browser-side push notifications).
+export const pushSubscriptions = mysqlTable("push_subscriptions", {
+  id: int("id").autoincrement().primaryKey(),
+  providerId: int("providerId").notNull(),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type InsertPushSubscription = typeof pushSubscriptions.$inferInsert;
+
+// ─── Customer Sessions (OTP Auth) ─────────────────────────────────────────────
+// Lightweight phone-based OTP sessions — no OAuth required.
+export const customerSessions = mysqlTable("customer_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  phone: varchar("phone", { length: 32 }).notNull(),
+  otpHash: varchar("otpHash", { length: 64 }),
+  otpExpiresAt: timestamp("otpExpiresAt"),
+  verified: boolean("verified").default(false).notNull(),
+  sessionToken: varchar("sessionToken", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CustomerSession = typeof customerSessions.$inferSelect;
+export type InsertCustomerSession = typeof customerSessions.$inferInsert;
+
+// ─── Provider Locations ───────────────────────────────────────────────────────
+// Real-time provider GPS position for live customer map tracking.
+export const providerLocations = mysqlTable("provider_locations", {
+  id: int("id").autoincrement().primaryKey(),
+  providerId: int("providerId").notNull().unique(),
+  lat: float("lat").notNull(),
+  lng: float("lng").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ProviderLocation = typeof providerLocations.$inferSelect;
+export type InsertProviderLocation = typeof providerLocations.$inferInsert;

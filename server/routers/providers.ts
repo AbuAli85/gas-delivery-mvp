@@ -25,7 +25,11 @@ import {
   verifyProviderPin,
   createProvider,
   updateProviderStatus,
+  savePushSubscription,
+  upsertProviderLocation,
+  getProviderLocation,
 } from "../db";
+import { sendPushNotification } from "../_core/webPush";
 import { selectNextProvider } from "../assignmentEngine";
 import { assertAssignmentTransition, assertOrderTransition } from "../../shared/domain";
 
@@ -57,6 +61,19 @@ async function doAssignNext(orderId: number): Promise<void> {
     status: "assigned",
     assignedProviderId: next.id,
   });
+
+  // Send Web Push notification to the assigned provider
+  try {
+    const { getPushSubscriptionsByProvider, deletePushSubscription } = await import("../db");
+    const subs = await getPushSubscriptionsByProvider(next.id);
+    for (const sub of subs) {
+      const ok = await sendPushNotification(
+        { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+        { title: "طلب جديد!", body: `طلب رقم #${orderId} بانتظارك. افتح التطبيق للقبول أو الرفض.`, tag: `order-${orderId}` }
+      );
+      if (!ok) await deletePushSubscription(sub.endpoint);
+    }
+  } catch (_) {}
 
   try {
     await notifyOwner({
@@ -505,5 +522,68 @@ export const providersRouter = router({
       if (!provider) throw new TRPCError({ code: "NOT_FOUND" });
       await updateProviderStatus(input.providerId, "rejected", input.reason);
       return { success: true };
+    }),
+
+  /**
+   * Get VAPID public key for push subscription.
+   */
+  getVapidPublicKey: publicProcedure.query(() => {
+    return { publicKey: ENV.vapidPublicKey };
+  }),
+
+  /**
+   * Save/update provider's Web Push subscription.
+   */
+  savePushSubscription: publicProcedure
+    .input(z.object({
+      providerId: z.number(),
+      pinHash: z.string(),
+      endpoint: z.string().url(),
+      p256dh: z.string(),
+      auth: z.string(),
+    }))
+    .mutation(async ({ input }) => {
+      const provider = await getProviderById(input.providerId);
+      if (!provider) throw new TRPCError({ code: "NOT_FOUND", message: "المزود غير موجود" });
+      const valid = await verifyProviderPin(input.providerId, input.pinHash);
+      if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "رمز PIN غير صحيح" });
+      await savePushSubscription({
+        providerId: input.providerId,
+        endpoint: input.endpoint,
+        p256dh: input.p256dh,
+        auth: input.auth,
+      });
+      return { success: true };
+    }),
+
+  /**
+   * Provider: update their GPS location (called every ~10s while delivering).
+   */
+  updateLocation: publicProcedure
+    .input(z.object({
+      providerId: z.number(),
+      pinHash: z.string(),
+      lat: z.number(),
+      lng: z.number(),
+    }))
+    .mutation(async ({ input }) => {
+      const valid = await verifyProviderPin(input.providerId, input.pinHash);
+      if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "رمز PIN غير صحيح" });
+      await upsertProviderLocation(input.providerId, input.lat, input.lng);
+      return { success: true };
+    }),
+
+  /**
+   * Customer: get provider location for a given order (live tracking).
+   */
+  getLocationForOrder: publicProcedure
+    .input(z.object({ orderId: z.number() }))
+    .query(async ({ input }) => {
+      const order = await getOrderById(input.orderId);
+      if (!order || !order.assignedProviderId) return null;
+      if (order.status !== "out_for_delivery" && order.status !== "accepted") return null;
+      const loc = await getProviderLocation(order.assignedProviderId);
+      if (!loc) return null;
+      return { lat: loc.lat, lng: loc.lng, updatedAt: loc.updatedAt };
     }),
 });

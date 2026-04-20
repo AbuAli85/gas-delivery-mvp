@@ -283,3 +283,48 @@
 - [x] ProviderRegister: reduce step card padding, remove summary card on step 2, cleaner field layout
 - [x] ProviderOnboarding: minimal status card with 3 steps, remove excessive copy
 - [x] ProviderDashboard: cleaner toggle, compact order cards, remove score/commission cards (keep as simple numbers), admin panel as collapsible section
+
+## Feature: Web Push Notifications for Providers
+- [x] Add push_subscriptions table (id, providerId, endpoint, p256dh, auth, createdAt)
+- [x] Generate and apply migration SQL for push_subscriptions
+- [x] Add providers.savePushSubscription publicProcedure (store VAPID subscription)
+- [x] Add server-side VAPID key generation and web-push helper (server/_core/webPush.ts)
+- [x] Trigger push notification to provider on new order assignment (assignNextProvider)
+- [x] Trigger push notification to provider on order cancellation
+- [x] Add service worker (client/public/sw.js) for background push handling
+- [x] Add usePushNotifications hook in ProviderDashboard to subscribe/unsubscribe
+- [x] Show "تفعيل الإشعارات" button in ProviderDashboard when permission not granted
+- [x] Update todo.md when complete
+
+## Feature: Live Customer Map with Provider Location
+- [x] Add providers.getLocation publicProcedure (returns lat/lng of assigned provider for an orderId)
+- [x] Add providers.updateLocation publicProcedure (provider reports their GPS position)
+- [x] Add provider_locations table (lat, lng, providerId, updatedAt)
+- [x] Build LiveMap component: customer-facing map showing delivery pin + provider moving dot
+- [x] Integrate LiveMap into OrderTracking page (shown when status = out_for_delivery)
+- [x] ProviderDashboard: GPS auto-updates every 10s while delivering (startDelivery triggers)
+- [x] Update todo.md when complete
+
+## Feature: Phone OTP Authentication for Customers
+- [x] Add customer_sessions table (id, phone, otpHash, otpExpiresAt, verified, sessionToken, createdAt)
+- [x] Generate and apply migration SQL for customer_sessions
+- [x] Add customerAuth.requestOtp publicProcedure (generate 6-digit OTP, store hashed, send via Twilio or console log)
+- [x] Add customerAuth.verifyOtp publicProcedure (verify OTP, return sessionToken)
+- [x] OTP SMS sending via Twilio (falls back to console.log in dev)
+- [x] Build CustomerLogin page (/customer/login) — phone input → 6-box OTP entry → verified
+- [x] Store sessionToken + phone in localStorage
+- [x] Customer login link shown on Home page
+- [x] Update todo.md when complete
+
+## Feature: Admin Order Management Panel
+- [x] Build AdminPanel page at /admin (PIN-protected)
+- [x] Add orders.adminListOrders publicProcedure (all orders with status filter, limit, offset)
+- [x] Add orders.adminCancelOrder publicProcedure (force-cancel any order)
+- [x] Add orders.adminMarkDelivered publicProcedure (manual delivery override)
+- [x] Add orders.adminStats publicProcedure (total, delivered, cancelled, pending, revenue)
+- [x] AdminPanel: stats grid (total, delivered, active, cancelled + revenue)
+- [x] AdminPanel: status filter chips (all / pending / assigned / accepted / out_for_delivery / delivered / cancelled)
+- [x] AdminPanel: expandable order rows with details + action buttons
+- [x] AdminPanel: auto-refresh every 15 seconds
+- [x] Admin link shown on Home page footer
+- [x] Update todo.md when complete

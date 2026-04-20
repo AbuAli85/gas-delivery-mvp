@@ -13,6 +13,14 @@ import {
   savedLocations,
   users,
   zones,
+  pushSubscriptions,
+  customerSessions,
+  providerLocations,
+  type PushSubscription,
+  type InsertPushSubscription,
+  type CustomerSession,
+  type InsertCustomerSession,
+  type ProviderLocation,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -468,4 +476,114 @@ export async function getPendingProviders(): Promise<Provider[]> {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(providers).where(eq(providers.providerStatus, "pending_review"));
+}
+
+// ─── Push Subscriptions ───────────────────────────────────────────────────────
+
+export async function savePushSubscription(data: InsertPushSubscription): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  // Remove old subscriptions for this provider first (one active sub per provider)
+  await db.delete(pushSubscriptions).where(eq(pushSubscriptions.providerId, data.providerId));
+  await db.insert(pushSubscriptions).values(data);
+}
+
+export async function getPushSubscriptionsByProvider(providerId: number): Promise<PushSubscription[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(pushSubscriptions).where(eq(pushSubscriptions.providerId, providerId));
+}
+
+export async function deletePushSubscription(endpoint: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
+}
+
+// ─── Customer Sessions (OTP) ──────────────────────────────────────────────────
+
+export async function upsertCustomerSession(phone: string, otpHash: string, expiresAt: Date): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const existing = await db.select().from(customerSessions).where(eq(customerSessions.phone, phone)).limit(1);
+  if (existing.length > 0) {
+    await db.update(customerSessions)
+      .set({ otpHash, otpExpiresAt: expiresAt, verified: false, sessionToken: null })
+      .where(eq(customerSessions.phone, phone));
+  } else {
+    await db.insert(customerSessions).values({ phone, otpHash, otpExpiresAt: expiresAt });
+  }
+}
+
+export async function getCustomerSessionByPhone(phone: string): Promise<CustomerSession | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(customerSessions).where(eq(customerSessions.phone, phone)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function verifyCustomerOtp(phone: string, sessionToken: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(customerSessions)
+    .set({ verified: true, sessionToken, otpHash: null })
+    .where(eq(customerSessions.phone, phone));
+}
+
+export async function getCustomerSessionByToken(token: string): Promise<CustomerSession | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(customerSessions)
+    .where(and(eq(customerSessions.sessionToken, token), eq(customerSessions.verified, true)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+// ─── Provider Locations ───────────────────────────────────────────────────────
+
+export async function upsertProviderLocation(providerId: number, lat: number, lng: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const existing = await db.select().from(providerLocations).where(eq(providerLocations.providerId, providerId)).limit(1);
+  if (existing.length > 0) {
+    await db.update(providerLocations).set({ lat, lng }).where(eq(providerLocations.providerId, providerId));
+  } else {
+    await db.insert(providerLocations).values({ providerId, lat, lng });
+  }
+}
+
+export async function getProviderLocation(providerId: number): Promise<ProviderLocation | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(providerLocations).where(eq(providerLocations.providerId, providerId)).limit(1);
+  return rows[0] ?? null;
+}
+
+// ─── Admin Order Helpers ──────────────────────────────────────────────────────
+
+export async function getAllOrders(opts?: {
+  limit?: number;
+  offset?: number;
+  status?: string;
+}): Promise<Order[]> {
+  const db = await getDb();
+  if (!db) return [];
+  let query = db.select().from(orders).$dynamic();
+  if (opts?.status) {
+    query = query.where(eq(orders.status, opts.status as Order["status"]));
+  }
+  query = query.orderBy(orders.createdAt);
+  if (opts?.limit) query = query.limit(opts.limit);
+  if (opts?.offset) query = query.offset(opts.offset);
+  const rows = await query;
+  // Return newest first
+  return rows.reverse();
+}
+
+export async function countOrders(status?: string): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db.select().from(orders);
+  if (status) return rows.filter((r) => r.status === status).length;
+  return rows.length;
 }

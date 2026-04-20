@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { ChevronRight, MapPin, Clock, Phone, CheckCircle2, Circle, Loader2, XCircle } from "lucide-react";
+import { ChevronRight, MapPin, Clock, Phone, CheckCircle2, Circle, Loader2, XCircle, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { MapView } from "@/components/Map";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_STEPS, type OrderStatus } from "../../../shared/domain";
 
 export default function OrderTracking() {
@@ -22,6 +23,11 @@ export default function OrderTracking() {
     onError: (err) => toast.error(err.message),
   });
 
+  const [showMap, setShowMap] = useState(false);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const providerMarkerRef = useRef<google.maps.Marker | null>(null);
+  const customerMarkerRef = useRef<google.maps.Marker | null>(null);
+
   const { data: order, isLoading } = trpc.orders.getOrderStatus.useQuery(
     { orderId: id },
     {
@@ -33,6 +39,39 @@ export default function OrderTracking() {
       },
     }
   );
+
+  // Live provider location — poll every 8s when order is out for delivery
+  const { data: providerLoc } = trpc.providers.getLocationForOrder.useQuery(
+    { orderId: id },
+    {
+      enabled: !!id && (order?.status === "out_for_delivery" || order?.status === "accepted"),
+      refetchInterval: 8000,
+    }
+  );
+
+  // Update provider marker on map when location changes
+  useEffect(() => {
+    if (!mapRef.current || !providerLoc) return;
+    const pos = { lat: providerLoc.lat, lng: providerLoc.lng };
+    if (providerMarkerRef.current) {
+      providerMarkerRef.current.setPosition(pos);
+    } else {
+      providerMarkerRef.current = new google.maps.Marker({
+        position: pos,
+        map: mapRef.current,
+        title: "موقع المزود",
+        icon: {
+          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+          scale: 6,
+          fillColor: "#f97316",
+          fillOpacity: 1,
+          strokeColor: "#fff",
+          strokeWeight: 2,
+        },
+      });
+    }
+    mapRef.current.panTo(pos);
+  }, [providerLoc]);
 
   if (isLoading || !order) {
     return (
@@ -153,6 +192,76 @@ export default function OrderTracking() {
             </div>
           )}
         </div>
+
+        {/* Live Map — shown when provider is on the way */}
+        {(order.status === "out_for_delivery" || order.status === "accepted") && (
+          <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+            <button
+              onClick={() => setShowMap((v) => !v)}
+              className="w-full flex items-center justify-between px-5 py-4"
+            >
+              <div className="flex items-center gap-2">
+                <Navigation className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold text-gray-700">
+                  {providerLoc ? "تتبع المزود مباشرة" : "خريطة التوصيل"}
+                </span>
+                {providerLoc && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                )}
+              </div>
+              <span className="text-xs text-gray-400">{showMap ? "إخفاء" : "عرض"}</span>
+            </button>
+            {showMap && (
+              <div className="h-56">
+                <MapView
+                  className="w-full h-full"
+                  initialCenter={providerLoc ?? { lat: 23.5859, lng: 58.4059 }}
+                  initialZoom={14}
+                  onMapReady={(map) => {
+                    mapRef.current = map;
+                    // Add customer marker if we have their location
+                    if (order.customerLat && order.customerLng) {
+                      customerMarkerRef.current = new google.maps.Marker({
+                        position: { lat: Number(order.customerLat), lng: Number(order.customerLng) },
+                        map,
+                        title: "موقع التسليم",
+                        icon: {
+                          path: google.maps.SymbolPath.CIRCLE,
+                          scale: 8,
+                          fillColor: "#3b82f6",
+                          fillOpacity: 1,
+                          strokeColor: "#fff",
+                          strokeWeight: 2,
+                        },
+                      });
+                    }
+                    // Add provider marker if location available
+                    if (providerLoc) {
+                      providerMarkerRef.current = new google.maps.Marker({
+                        position: { lat: providerLoc.lat, lng: providerLoc.lng },
+                        map,
+                        title: "موقع المزود",
+                        icon: {
+                          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                          scale: 6,
+                          fillColor: "#f97316",
+                          fillOpacity: 1,
+                          strokeColor: "#fff",
+                          strokeWeight: 2,
+                        },
+                      });
+                    }
+                  }}
+                />
+              </div>
+            )}
+            {!providerLoc && showMap && (
+              <p className="text-xs text-gray-400 text-center pb-4">
+                سيظهر موقع المزود عند بدء التوصيل
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Delivery Details */}
         <div className="bg-white rounded-3xl shadow-sm p-5 space-y-3">

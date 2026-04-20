@@ -21,6 +21,12 @@ import ProviderOnboarding from "./pages/ProviderOnboarding";
 // Location picker
 import LocationPicker from "./pages/LocationPicker";
 
+// Customer auth
+import CustomerLogin from "./pages/CustomerLogin";
+
+// Admin
+import AdminPanel from "./pages/AdminPanel";
+
 function Router() {
   return (
     <Switch>
@@ -33,6 +39,8 @@ function Router() {
       <Route path="/order/payment" component={Payment} />
       <Route path="/order/placed/:orderId" component={OrderPlaced} />
       <Route path="/order/track/:orderId" component={OrderTracking} />
+      <Route path="/customer/login" component={CustomerLogin} />
+      <Route path="/admin" component={AdminPanel} />
 
       {/* Provider flow */}
       <Route path="/provider/register" component={ProviderRegister} />
