@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
 import { makeRequest, type GeocodingResult } from "../_core/map";
-import { getSavedLocations, upsertSavedLocation, deleteSavedLocation } from "../db";
+import { getSavedLocations, upsertSavedLocation, deleteSavedLocation, getAllZones } from "../db";
 
 /**
  * Saved locations router.
@@ -93,4 +93,19 @@ export const locationsRouter = router({
       await deleteSavedLocation(input.id, input.sessionKey);
       return { success: true };
     }),
+
+  /**
+   * List all active delivery zones with their polygon boundaries.
+   * Used by the map to draw zone overlays.
+   */
+  listZones: publicProcedure.query(async () => {
+    const zones = await getAllZones();
+    return zones.map((z) => ({
+      id: z.id,
+      name: z.name,
+      centerLat: z.centerLat,
+      centerLng: z.centerLng,
+      polygon: z.polygon,
+    }));
+  }),
 });

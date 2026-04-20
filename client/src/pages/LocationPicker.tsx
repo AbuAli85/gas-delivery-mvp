@@ -6,11 +6,11 @@
  *   2. عند اختيار "موقع آخر":
  *      a. المواقع المحفوظة (المنزل / العمل)
  *      b. مناطق مسقط المحددة مسبقاً
- *      c. خريطة كاملة مع دبوس قابل للسحب
+ *      c. خريطة كاملة مع دبوس قابل للسحب وحدود مناطق التوصيل
  *   3. تأكيد → الانتقال إلى /order/summary
  */
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
@@ -77,6 +77,17 @@ function forwardGeocodeWithCallback(
   });
 }
 
+// ── Zone colour palette ───────────────────────────────────────────────────────
+// Each zone gets a distinct colour. Colours cycle if there are more than 6 zones.
+const ZONE_COLORS = [
+  { stroke: "#f97316", fill: "#f97316" }, // orange
+  { stroke: "#3b82f6", fill: "#3b82f6" }, // blue
+  { stroke: "#22c55e", fill: "#22c55e" }, // green
+  { stroke: "#a855f7", fill: "#a855f7" }, // purple
+  { stroke: "#eab308", fill: "#eab308" }, // yellow
+  { stroke: "#ec4899", fill: "#ec4899" }, // pink
+];
+
 // ── Muscat area presets (Arabic names) ───────────────────────────────────────
 const MUSCAT_PRESETS = [
   { label: "مسقط القديمة / مطرح", lat: 23.6139, lng: 58.5922 },
@@ -94,6 +105,14 @@ interface LocationResult {
   address: string;
 }
 
+interface ZoneData {
+  id: number;
+  name: string;
+  centerLat: number;
+  centerLng: number;
+  polygon: Array<{ lat: number; lng: number }>;
+}
+
 type Step = "choose" | "map";
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -108,12 +127,18 @@ export default function LocationPicker() {
   const [mapCoords, setMapCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [savingLabel, setSavingLabel] = useState<"home" | "work" | null>(null);
   const [searchBusy, setSearchBusy] = useState(false);
+  const [activeZoneId, setActiveZoneId] = useState<number | null>(null);
 
   // Saved locations from backend
   const { data: savedLocs, refetch: refetchSaved } = trpc.locations.list.useQuery(
     { sessionKey },
     { staleTime: 0 }
   );
+
+  // Zone boundaries from backend
+  const { data: zones } = trpc.locations.listZones.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000, // zones rarely change
+  });
 
   const saveLocationMutation = trpc.locations.save.useMutation({
     onSuccess: () => {
@@ -124,6 +149,14 @@ export default function LocationPicker() {
   });
 
   const geocodeAddressMutation = trpc.locations.geocodeAddress.useMutation();
+
+  // ── Map refs ─────────────────────────────────────────────────────────────
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const markerRef = useRef<google.maps.Marker | null>(null);
+  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+  // Keep refs to drawn polygons and their label markers so we can update styles
+  const zonePolygonsRef = useRef<Map<number, google.maps.Polygon>>(new Map());
+  const zoneLabelMarkersRef = useRef<Map<number, google.maps.Marker>>(new Map());
 
   // ── Detect current location ──────────────────────────────────────────────
   const handleUseCurrentLocation = async () => {
@@ -161,11 +194,94 @@ export default function LocationPicker() {
     navigate("/order/summary");
   };
 
-  // ── Map picker (classic Marker — works without a Google Cloud "Map ID"; AdvancedMarker needs mapId) ──
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const markerRef = useRef<google.maps.Marker | null>(null);
-  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+  // ── Point-in-polygon check (ray casting) ─────────────────────────────────
+  const findActiveZone = useCallback(
+    (lat: number, lng: number, zoneList: ZoneData[]): number | null => {
+      for (const zone of zoneList) {
+        const poly = zone.polygon;
+        let inside = false;
+        for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+          const xi = poly[i].lng, yi = poly[i].lat;
+          const xj = poly[j].lng, yj = poly[j].lat;
+          const intersect =
+            yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi;
+          if (intersect) inside = !inside;
+        }
+        if (inside) return zone.id;
+      }
+      return null;
+    },
+    []
+  );
 
+  // ── Update polygon highlight when active zone changes ────────────────────
+  const updateZoneHighlights = useCallback((newActiveId: number | null) => {
+    zonePolygonsRef.current.forEach((poly, zoneId) => {
+      const idx = Array.from(zonePolygonsRef.current.keys()).indexOf(zoneId);
+      const color = ZONE_COLORS[idx % ZONE_COLORS.length];
+      const isActive = zoneId === newActiveId;
+      poly.setOptions({
+        strokeOpacity: isActive ? 1 : 0.7,
+        strokeWeight: isActive ? 3 : 1.5,
+        fillOpacity: isActive ? 0.18 : 0.06,
+        strokeColor: color.stroke,
+        fillColor: color.fill,
+        zIndex: isActive ? 2 : 1,
+      });
+    });
+  }, []);
+
+  // ── Draw zone polygons on the map ─────────────────────────────────────────
+  const drawZones = useCallback(
+    (map: google.maps.Map, zoneList: ZoneData[]) => {
+      // Clear any previously drawn polygons
+      zonePolygonsRef.current.forEach((p) => p.setMap(null));
+      zonePolygonsRef.current.clear();
+      zoneLabelMarkersRef.current.forEach((m) => m.setMap(null));
+      zoneLabelMarkersRef.current.clear();
+
+      zoneList.forEach((zone, idx) => {
+        const color = ZONE_COLORS[idx % ZONE_COLORS.length];
+
+        // Draw polygon boundary
+        const polygon = new google.maps.Polygon({
+          paths: zone.polygon,
+          strokeColor: color.stroke,
+          strokeOpacity: 0.7,
+          strokeWeight: 1.5,
+          fillColor: color.fill,
+          fillOpacity: 0.06,
+          map,
+          zIndex: 1,
+          clickable: false,
+        });
+        zonePolygonsRef.current.set(zone.id, polygon);
+
+        // Zone name label using a transparent marker with a custom label
+        const labelMarker = new google.maps.Marker({
+          position: { lat: zone.centerLat, lng: zone.centerLng },
+          map,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 0,
+          },
+          label: {
+            text: zone.name,
+            color: color.stroke,
+            fontSize: "11px",
+            fontWeight: "700",
+            fontFamily: "Cairo, sans-serif",
+          },
+          clickable: false,
+          zIndex: 3,
+        });
+        zoneLabelMarkersRef.current.set(zone.id, labelMarker);
+      });
+    },
+    []
+  );
+
+  // ── Re-draw zones when map becomes ready and zone data arrives ────────────
   const applyResolvedAddress = useCallback((addr: string) => {
     setMapAddress(addr);
     setAddressQuery(addr);
@@ -187,6 +303,7 @@ export default function LocationPicker() {
         position: defaultCenter,
         title: "موقع التوصيل",
         draggable: true,
+        zIndex: 10,
       });
 
       setMapCoords(defaultCenter);
@@ -214,6 +331,21 @@ export default function LocationPicker() {
     },
     [applyResolvedAddress]
   );
+
+  // Draw zones whenever the map is ready and zone data is loaded
+  useEffect(() => {
+    if (mapRef.current && zones && zones.length > 0) {
+      drawZones(mapRef.current, zones);
+    }
+  }, [zones, drawZones]);
+
+  // Update active zone highlight whenever pin moves
+  useEffect(() => {
+    if (!mapCoords || !zones) return;
+    const newActiveId = findActiveZone(mapCoords.lat, mapCoords.lng, zones);
+    setActiveZoneId(newActiveId);
+    updateZoneHighlights(newActiveId);
+  }, [mapCoords, zones, findActiveZone, updateZoneHighlights]);
 
   const handleAddressSearch = useCallback(async () => {
     const q = addressQuery.trim();
@@ -335,6 +467,54 @@ export default function LocationPicker() {
             onMapReady={handleMapReady}
             onLoadError={(msg) => toast.error(msg)}
           />
+
+          {/* Zone legend overlay */}
+          {zones && zones.length > 0 && (
+            <div
+              className="absolute bottom-3 left-3 rounded-xl p-2.5 flex flex-col gap-1.5"
+              style={{
+                background: "rgba(0,0,0,0.72)",
+                backdropFilter: "blur(6px)",
+                maxWidth: "160px",
+                zIndex: 20,
+              }}
+              dir="rtl"
+            >
+              <p className="text-white/50 text-[9px] uppercase tracking-widest mb-0.5">
+                مناطق التوصيل
+              </p>
+              {zones.map((zone, idx) => {
+                const color = ZONE_COLORS[idx % ZONE_COLORS.length];
+                const isActive = zone.id === activeZoneId;
+                return (
+                  <div key={zone.id} className="flex items-center gap-1.5">
+                    <span
+                      className="w-2.5 h-2.5 rounded-sm shrink-0 transition-all"
+                      style={{
+                        background: color.fill,
+                        opacity: isActive ? 1 : 0.5,
+                        boxShadow: isActive ? `0 0 6px ${color.fill}` : "none",
+                      }}
+                    />
+                    <span
+                      className="text-[10px] font-medium leading-tight transition-colors"
+                      style={{ color: isActive ? color.stroke : "rgba(255,255,255,0.55)" }}
+                    >
+                      {zone.name}
+                    </span>
+                    {isActive && (
+                      <Check className="w-2.5 h-2.5 shrink-0" style={{ color: color.stroke }} />
+                    )}
+                  </div>
+                );
+              })}
+              {activeZoneId === null && mapCoords && (
+                <p className="text-orange-400/80 text-[9px] mt-0.5 leading-tight">
+                  خارج نطاق التوصيل
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Address: type / select full text + search */}

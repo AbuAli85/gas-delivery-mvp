@@ -224,3 +224,10 @@
 - [x] Translate backend error messages in orders.ts and providers.ts
 - [x] Run pnpm test to confirm 99/99 still pass
 - [x] Save checkpoint after full translation
+
+## Zone Boundary Map Overlay (User Request)
+- [x] Add locations.listZones publicProcedure to expose zone id, name, centerLat, centerLng, polygon
+- [x] Draw colour-coded Google Maps Polygon for each zone in handleMapReady
+- [x] Add InfoWindow label at zone center showing zone name
+- [x] Highlight the zone containing the current pin (active zone indicator)
+- [x] Add compact legend overlay on the map
