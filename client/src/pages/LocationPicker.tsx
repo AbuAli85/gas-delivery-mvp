@@ -14,7 +14,6 @@ import { useState, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
-  Flame,
   Loader2,
   MapPin,
   Navigation,
@@ -23,8 +22,10 @@ import {
   ChevronRight,
   Check,
   Plus,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { MapView } from "@/components/Map";
 import { trpc } from "@/lib/trpc";
 
@@ -47,7 +48,7 @@ async function reverseGeocode(lat: number, lng: number, geocoder?: google.maps.G
     try {
       const result = await gc.geocode({ location: { lat, lng } });
       if (result.results?.[0]?.formatted_address) {
-        return result.results[0].formatted_address.split(",").slice(0, 3).join(",").trim();
+        return result.results[0].formatted_address.trim();
       }
     } catch {
       // silent — fall through to coordinate fallback
@@ -83,8 +84,10 @@ export default function LocationPicker() {
   const [step, setStep] = useState<Step>("choose");
   const [locating, setLocating] = useState(false);
   const [mapAddress, setMapAddress] = useState<string>("");
+  const [addressQuery, setAddressQuery] = useState<string>("");
   const [mapCoords, setMapCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [savingLabel, setSavingLabel] = useState<"home" | "work" | null>(null);
+  const [searchBusy, setSearchBusy] = useState(false);
 
   // Saved locations from backend
   const { data: savedLocs, refetch: refetchSaved } = trpc.locations.list.useQuery(
@@ -137,11 +140,18 @@ export default function LocationPicker() {
   };
 
   // ── Map picker (classic Marker — works without a Google Cloud "Map ID"; AdvancedMarker needs mapId) ──
+  const mapRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.Marker | null>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
 
+  const applyResolvedAddress = useCallback((addr: string) => {
+    setMapAddress(addr);
+    setAddressQuery(addr);
+  }, []);
+
   const handleMapReady = useCallback(
     (map: google.maps.Map) => {
+      mapRef.current = map;
       const geocoder = new google.maps.Geocoder();
       geocoderRef.current = geocoder;
       _geocoderSingleton = geocoder;
@@ -158,7 +168,7 @@ export default function LocationPicker() {
       });
 
       setMapCoords(defaultCenter);
-      reverseGeocode(defaultCenter.lat, defaultCenter.lng, geocoder).then(setMapAddress);
+      reverseGeocode(defaultCenter.lat, defaultCenter.lng, geocoder).then(applyResolvedAddress);
 
       markerRef.current.addListener("dragend", async () => {
         const pos = markerRef.current?.getPosition();
@@ -167,7 +177,7 @@ export default function LocationPicker() {
         const lng = pos.lng();
         setMapCoords({ lat, lng });
         const addr = await reverseGeocode(lat, lng, geocoder);
-        setMapAddress(addr);
+        applyResolvedAddress(addr);
       });
 
       map.addListener("click", async (e: google.maps.MapMouseEvent) => {
@@ -177,15 +187,64 @@ export default function LocationPicker() {
         markerRef.current?.setPosition(e.latLng);
         setMapCoords({ lat, lng });
         const addr = await reverseGeocode(lat, lng, geocoder);
-        setMapAddress(addr);
+        applyResolvedAddress(addr);
       });
     },
-    []
+    [applyResolvedAddress]
   );
+
+  const handleAddressSearch = useCallback(async () => {
+    const q = addressQuery.trim();
+    if (!q) {
+      toast.error("اكتب عنواناً للبحث");
+      return;
+    }
+    const geocoder = geocoderRef.current;
+    const map = mapRef.current;
+    const marker = markerRef.current;
+    if (!geocoder || !map || !marker) {
+      toast.error("انتظر حتى تظهر الخريطة ثم أعد المحاولة.");
+      return;
+    }
+    setSearchBusy(true);
+    try {
+      const { results } = await geocoder.geocode({
+        address: q,
+        region: "om",
+      });
+      const hit = results?.[0];
+      const loc = hit?.geometry?.location;
+      if (!hit || !loc) {
+        toast.error("لم يُعثر على عنوان مطابق. جرّب صياغة أخرى أو اختر من الخريطة.");
+        return;
+      }
+      const lat = loc.lat();
+      const lng = loc.lng();
+      const formatted = hit.formatted_address?.trim() || q;
+      marker.setPosition({ lat, lng });
+      map.panTo({ lat, lng });
+      map.setZoom(15);
+      setMapCoords({ lat, lng });
+      applyResolvedAddress(formatted);
+    } catch {
+      toast.error("تعذّر البحث عن العنوان.");
+    } finally {
+      setSearchBusy(false);
+    }
+  }, [addressQuery, applyResolvedAddress]);
+
+  const confirmedAddress = () =>
+    addressQuery.trim() ||
+    mapAddress.trim() ||
+    (mapCoords ? `${mapCoords.lat.toFixed(4)}, ${mapCoords.lng.toFixed(4)}` : "");
 
   const handleConfirmMapLocation = () => {
     if (!mapCoords) return;
-    proceedWithLocation({ lat: mapCoords.lat, lng: mapCoords.lng, address: mapAddress });
+    proceedWithLocation({
+      lat: mapCoords.lat,
+      lng: mapCoords.lng,
+      address: confirmedAddress(),
+    });
   };
 
   const handleSaveMapLocation = (label: "home" | "work") => {
@@ -196,7 +255,7 @@ export default function LocationPicker() {
       label,
       lat: mapCoords.lat,
       lng: mapCoords.lng,
-      address: mapAddress,
+      address: confirmedAddress(),
     });
   };
 
@@ -214,7 +273,9 @@ export default function LocationPicker() {
           </button>
           <div>
             <p className="text-white font-bold text-base">اختر موقع التوصيل</p>
-            <p className="text-white/50 text-xs">اضغط على الخريطة لتحديد الموقع</p>
+            <p className="text-white/50 text-xs">
+              اضغط على الخريطة أو اكتب العنوان ثم اضغط بحث
+            </p>
           </div>
         </div>
 
@@ -229,20 +290,46 @@ export default function LocationPicker() {
           />
         </div>
 
-        {/* Address display + confirm */}
-        <div className="px-4 pt-3 pb-6">
+        {/* Address: type / select full text + search */}
+        <div className="px-4 pt-3 pb-6" dir="rtl">
           <div className="bg-white/10 rounded-2xl p-4 mb-3">
-            <div className="flex items-start gap-3">
-              <MapPin className="w-4 h-4 text-orange-400 mt-0.5 shrink-0" />
+            <div className="flex items-start gap-3 mb-3">
+              <MapPin className="w-4 h-4 text-orange-400 mt-1 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-white/50 text-[10px] uppercase tracking-wide mb-0.5">
-                  الموقع المحدد
+                <p className="text-white/50 text-[10px] uppercase tracking-wide mb-1">
+                  عنوان التوصيل (يمكنك التعديل والبحث)
                 </p>
-                <p className="text-white text-sm leading-snug truncate">
-                  {mapAddress || "اسحب الدبوس إلى موقع التوصيل"}
-                </p>
+                <Textarea
+                  value={addressQuery}
+                  onChange={(e) => setAddressQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void handleAddressSearch();
+                    }
+                  }}
+                  placeholder="اكتب العنوان أو الحيّ، ثم Enter أو «بحث»"
+                  rows={3}
+                  disabled={searchBusy}
+                  className="min-h-[88px] resize-y bg-black/25 border-white/15 text-white text-sm leading-relaxed placeholder:text-white/35 focus-visible:border-orange-400/50 focus-visible:ring-orange-400/20"
+                />
               </div>
             </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full rounded-xl bg-white/10 text-white border border-white/15 hover:bg-white/15"
+              disabled={searchBusy}
+              onClick={() => void handleAddressSearch()}
+            >
+              {searchBusy ? (
+                <Loader2 className="w-4 h-4 animate-spin ml-2" />
+              ) : (
+                <Search className="w-4 h-4 ml-2" />
+              )}
+              بحث عن العنوان
+            </Button>
           </div>
 
           {/* Save shortcuts */}
