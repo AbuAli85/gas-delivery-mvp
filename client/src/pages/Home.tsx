@@ -186,6 +186,25 @@ export default function Home() {
           )}
         </div>
 
+        {/* Provider Portal Link */}
+        <div className="mt-4 bg-white rounded-2xl shadow-sm p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-gray-700">Are you a provider?</p>
+            <p className="text-[10px] text-gray-400">Access your delivery dashboard</p>
+          </div>
+          <div className="flex gap-2">
+            {[4, 5, 6].map((pid) => (
+              <a
+                key={pid}
+                href={`/provider/${pid}`}
+                className="text-xs font-bold text-primary border border-primary/30 rounded-lg px-2 py-1 hover:bg-primary/5"
+              >
+                #{pid}
+              </a>
+            ))}
+          </div>
+        </div>
+
         {/* Trust badges */}
         <div className="grid grid-cols-3 gap-3 mt-4 pb-8">
           {[

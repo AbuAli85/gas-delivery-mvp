@@ -66,9 +66,9 @@
 - [x] 0 TypeScript errors
 - [x] Brand red/black/white design system
 
-## Deferred (Future Iterations)
-- [ ] Stripe.js client-side card collection (currently mock-only)
-- [ ] Push notifications (Web Push API)
-- [ ] Live map with provider zone overlay
-- [ ] Phone OTP auth for customers
+## Deferred (Post-MVP — Not in current scope)
+- [ ] Stripe.js client-side card collection (real Stripe requires STRIPE_SECRET_KEY; mock payment is the MVP fallback)
+- [ ] Browser Web Push notifications to providers/customers (owner notifyOwner() is the MVP fallback)
+- [ ] Live map with customer location + provider zone overlay
+- [ ] Phone OTP auth for customers (no login wall per requirements; phone field is optional on order)
 - [ ] Admin panel for order management
