@@ -50,15 +50,35 @@ function isOmanResult(result: google.maps.GeocoderResult): boolean {
   ) ?? false;
 }
 
+/** Returns true if the address is a Google Plus Code (e.g. "M5J5+C67, Seeb, Oman") */
+function isPlusCode(address: string): boolean {
+  return /^[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}/.test(address);
+}
+
+/** Build a clean human-readable address from geocoder components (Oman only). */
+function buildCleanAddress(result: google.maps.GeocoderResult): string {
+  const comps = result.address_components ?? [];
+  const get = (type: string) => comps.find((c) => c.types.includes(type))?.long_name ?? "";
+  const sublocality = get("sublocality_level_1") || get("sublocality");
+  const locality = get("locality");
+  const admin2 = get("administrative_area_level_2");
+  const admin1 = get("administrative_area_level_1");
+  const country = get("country");
+  const parts = [sublocality, locality || admin2, admin1, country].filter(Boolean);
+  return parts.length >= 2 ? parts.join("، ") : result.formatted_address?.trim() ?? "";
+}
+
 async function reverseGeocode(lat: number, lng: number, geocoder?: google.maps.Geocoder | null): Promise<string> {
   const gc = geocoder ?? _geocoderSingleton;
   if (gc) {
     try {
       const result = await gc.geocode({ location: { lat, lng }, region: "om" });
-      // Only use the result if it's in Oman — avoids cross-border mismatches
-      const omanResult = result.results?.find(isOmanResult);
-      if (omanResult?.formatted_address) {
-        return omanResult.formatted_address.trim();
+      // Only use Oman results, skip Plus Codes
+      const omanResult = result.results?.find(
+        (r) => isOmanResult(r) && !isPlusCode(r.formatted_address ?? "")
+      );
+      if (omanResult) {
+        return buildCleanAddress(omanResult);
       }
     } catch {
       // silent — fall through to coordinate fallback
@@ -236,9 +256,9 @@ export default function LocationPicker() {
       const color = ZONE_COLORS[idx % ZONE_COLORS.length];
       const isActive = zoneId === newActiveId;
       poly.setOptions({
-        strokeOpacity: isActive ? 1 : 0.7,
-        strokeWeight: isActive ? 3 : 1.5,
-        fillOpacity: isActive ? 0.18 : 0.06,
+        strokeOpacity: isActive ? 1 : 0.9,
+        strokeWeight: isActive ? 3.5 : 2.5,
+        fillOpacity: isActive ? 0.22 : 0.12,
         strokeColor: color.stroke,
         fillColor: color.fill,
         zIndex: isActive ? 2 : 1,
@@ -258,33 +278,37 @@ export default function LocationPicker() {
       zoneList.forEach((zone, idx) => {
         const color = ZONE_COLORS[idx % ZONE_COLORS.length];
 
-        // Draw polygon boundary
+        // Draw polygon boundary — strong visible stroke
         const polygon = new google.maps.Polygon({
           paths: zone.polygon,
           strokeColor: color.stroke,
-          strokeOpacity: 0.7,
-          strokeWeight: 1.5,
+          strokeOpacity: 0.9,
+          strokeWeight: 2.5,
           fillColor: color.fill,
-          fillOpacity: 0.06,
+          fillOpacity: 0.12,
           map,
           zIndex: 1,
           clickable: false,
         });
         zonePolygonsRef.current.set(zone.id, polygon);
 
-        // Zone name label using a transparent marker with a custom label
+        // Zone name label — white text with dark shadow for legibility on any map tile
         const labelMarker = new google.maps.Marker({
           position: { lat: zone.centerLat, lng: zone.centerLng },
           map,
           icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 0,
+            // Use a small rounded rectangle as background for the label
+            url: `data:image/svg+xml;utf8,${encodeURIComponent(
+              `<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="none"/></svg>`
+            )}`,
+            scaledSize: new google.maps.Size(1, 1),
+            anchor: new google.maps.Point(0, 0),
           },
           label: {
             text: zone.name,
-            color: color.stroke,
-            fontSize: "11px",
-            fontWeight: "700",
+            color: "#ffffff",
+            fontSize: "12px",
+            fontWeight: "800",
             fontFamily: "Cairo, sans-serif",
           },
           clickable: false,
@@ -535,10 +559,11 @@ export default function LocationPicker() {
               <input
                 ref={autocompleteInputRef}
                 type="text"
+                dir="rtl"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="ابحث عن عنوان أو مكان..."
-                className="w-full h-11 pr-10 pl-9 rounded-xl text-sm text-white placeholder:text-white/40 outline-none border border-white/20 focus:border-orange-400/60 transition-colors"
+                className="w-full h-11 pr-10 pl-9 rounded-xl text-sm text-white placeholder:text-white/40 outline-none border border-white/20 focus:border-orange-400/60 transition-colors text-right"
                 style={{
                   background: "rgba(10,10,10,0.88)",
                   backdropFilter: "blur(10px)",
