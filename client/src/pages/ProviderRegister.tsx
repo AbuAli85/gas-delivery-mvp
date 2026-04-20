@@ -8,7 +8,7 @@
  *   Step 4: Submitted → redirect to onboarding status page
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
@@ -67,9 +67,27 @@ function StepDot({ idx, current }: { idx: number; current: number }) {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
+// ── Scroll focused input into view when keyboard opens ──────────────────────
+function useKeyboardScrollFix() {
+  useEffect(() => {
+    const handleFocus = (e: FocusEvent) => {
+      const el = e.target as HTMLElement;
+      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+        // Small delay to let the keyboard fully open
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 300);
+      }
+    };
+    document.addEventListener("focusin", handleFocus, true);
+    return () => document.removeEventListener("focusin", handleFocus, true);
+  }, []);
+}
+
 export default function ProviderRegister() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState(0);
+  useKeyboardScrollFix();
 
   // Step 1 fields
   const [name, setName] = useState("");
@@ -166,7 +184,7 @@ export default function ProviderRegister() {
     "bg-black/30 border-white/15 text-white placeholder:text-white/30 focus-visible:border-orange-400/50 focus-visible:ring-orange-400/20 h-11 rounded-xl text-sm";
 
   return (
-    <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }} dir="rtl">
+    <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)", overflowY: "auto" }} dir="rtl">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-12 pb-4">
         {step > 0 && step < 3 ? (
