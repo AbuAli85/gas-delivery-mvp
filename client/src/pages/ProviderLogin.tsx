@@ -256,10 +256,6 @@ export default function ProviderLogin() {
           </Button>
         )}
 
-        <p className="text-xs text-gray-400 mt-4">
-          الرمز الافتراضي للتجربة: <strong>1234</strong>
-        </p>
-
         <button
           onClick={() => navigate("/provider/login")}
           className="text-xs text-gray-400 underline mt-3 block mx-auto"

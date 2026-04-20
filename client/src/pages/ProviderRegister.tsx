@@ -98,7 +98,7 @@ export default function ProviderRegister() {
   const [zoneId, setZoneId] = useState<number | null>(null);
   const [vehicleType, setVehicleType] = useState("");
   const [vehiclePlate, setVehiclePlate] = useState("");
-  const [nationalId, setNationalId] = useState("");
+
 
   // Step 3 fields
   const [pin, setPin] = useState("");
@@ -141,7 +141,7 @@ export default function ProviderRegister() {
       pinHash,
       vehicleType: vehicleType.trim() || undefined,
       vehiclePlate: vehiclePlate.trim() || undefined,
-      nationalId: nationalId.trim() || undefined,
+
     });
   };
 
@@ -313,14 +313,7 @@ export default function ProviderRegister() {
                   className={inputClass}
                 />
               </Field>
-              <Field icon={<User className="w-4 h-4" />} label="رقم الهوية الوطنية (اختياري)">
-                <Input
-                  value={nationalId}
-                  onChange={(e) => setNationalId(e.target.value)}
-                  placeholder="رقم الهوية أو جواز السفر"
-                  className={inputClass}
-                />
-              </Field>
+
             </Card>
             <Button
               size="lg"

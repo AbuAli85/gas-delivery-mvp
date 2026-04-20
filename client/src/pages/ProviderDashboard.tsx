@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import {
   Flame, MapPin, Phone, Package, Clock, CheckCircle2,
   XCircle, Truck, History, ToggleLeft, ToggleRight, Loader2,
-  ChevronDown, ChevronUp, TrendingUp, Wallet, Star, AlertCircle,
+  ChevronDown, ChevronUp, Wallet, Star, AlertCircle,
   UserCheck, UserX, Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -459,39 +459,40 @@ export default function ProviderDashboard() {
           </div>
         )}
 
-        {/* ── Stats: Commission + Score ── */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-2xl shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Wallet className="w-4 h-4 text-primary" />
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">العمولة</p>
+        {/* ── Stats: Commission + Score + Deliveries in one row ── */}
+        {(() => {
+          const accepted = provider.acceptedOrders ?? 0;
+          const rejected = provider.rejectedOrders ?? 0;
+          const total = accepted + rejected;
+          const rate = total > 0 ? Math.round((accepted / total) * 100) : 100;
+          return (
+            <div className="bg-white rounded-2xl shadow-sm p-4 grid grid-cols-3 gap-2 text-center">
+              <div>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Wallet className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <p className="text-base font-black text-gray-900">
+                  {parseFloat(String(provider.totalCommission ?? "0")).toFixed(3)}
+                </p>
+                <p className="text-[10px] text-gray-400">عمولة (OMR)</p>
+              </div>
+              <div>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Star className="w-3.5 h-3.5 text-amber-500" />
+                </div>
+                <p className="text-base font-black text-gray-900">{rate}%</p>
+                <p className="text-[10px] text-gray-400">نسبة القبول</p>
+              </div>
+              <div>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Truck className="w-3.5 h-3.5 text-green-500" />
+                </div>
+                <p className="text-base font-black text-gray-900">{provider.totalOrders ?? 0}</p>
+                <p className="text-[10px] text-gray-400">توصيلة</p>
+              </div>
             </div>
-            <p className="text-xl font-black text-gray-900">
-              OMR {parseFloat(String(provider.totalCommission ?? "0")).toFixed(3)}
-            </p>
-            <p className="text-xs text-gray-400 mt-0.5">{provider.totalOrders ?? 0} توصيلة</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Star className="w-4 h-4 text-amber-500" />
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">التقييم</p>
-            </div>
-            {(() => {
-              const accepted = provider.acceptedOrders ?? 0;
-              const rejected = provider.rejectedOrders ?? 0;
-              const total = accepted + rejected;
-              const rate = total > 0 ? Math.round((accepted / total) * 100) : 100;
-              return (
-                <>
-                  <p className="text-xl font-black text-gray-900">{rate}%</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {accepted} مقبول · {rejected} مرفوض
-                  </p>
-                </>
-              );
-            })()}
-          </div>
-        </div>
+          );
+        })()}
 
         {/* ── Score Warning ── */}
         {(() => {
@@ -515,27 +516,7 @@ export default function ProviderDashboard() {
           return null;
         })()}
 
-        {/* ── Performance Trend ── */}
-        <div className="bg-white rounded-2xl shadow-sm p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="w-4 h-4 text-primary" />
-            <p className="text-sm font-semibold text-gray-700">الأداء</p>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div>
-              <p className="text-lg font-black text-gray-900">{provider.totalOrders ?? 0}</p>
-              <p className="text-xs text-gray-400">موصّلة</p>
-            </div>
-            <div>
-              <p className="text-lg font-black text-green-600">{provider.acceptedOrders ?? 0}</p>
-              <p className="text-xs text-gray-400">مقبولة</p>
-            </div>
-            <div>
-              <p className="text-lg font-black text-red-500">{provider.rejectedOrders ?? 0}</p>
-              <p className="text-xs text-gray-400">مرفوضة</p>
-            </div>
-          </div>
-        </div>
+
 
         {/* ── Order History ── */}
         <button

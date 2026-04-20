@@ -14,13 +14,10 @@ import {
   XCircle,
   Loader2,
   Flame,
-  Phone,
-  Lock,
   ChevronRight,
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 
 async function sha256(text: string): Promise<string> {
@@ -68,13 +65,12 @@ export default function ProviderOnboarding() {
   const [, navigate] = useLocation();
 
   // Auth state — read from sessionStorage or ask user
-  const [phone, setPhone] = useState(() => sessionStorage.getItem("providerRegPhone") ?? "");
-  const [pin, setPin] = useState(() => sessionStorage.getItem("providerRegPin") ?? "");
+  const [phone] = useState(() => sessionStorage.getItem("providerRegPhone") ?? "");
+  const [pin] = useState(() => sessionStorage.getItem("providerRegPin") ?? "");
   const [pinHash, setPinHash] = useState<string | null>(null);
   const [authed, setAuthed] = useState(false);
-  const [authLoading, setAuthLoading] = useState(false);
 
-  // Auto-auth if we have stored creds
+  // Auto-auth if we have stored creds, otherwise redirect to login
   useEffect(() => {
     const storedPhone = sessionStorage.getItem("providerRegPhone");
     const storedPin = sessionStorage.getItem("providerRegPin");
@@ -83,19 +79,11 @@ export default function ProviderOnboarding() {
         setPinHash(h);
         setAuthed(true);
       });
+    } else {
+      // No stored creds — send to provider login selector
+      setTimeout(() => navigate("/provider/login"), 1200);
     }
   }, []);
-
-  const handleAuth = async () => {
-    if (!phone.trim() || !pin.trim()) return;
-    setAuthLoading(true);
-    const h = await sha256(pin);
-    setPinHash(h);
-    setAuthed(true);
-    setAuthLoading(false);
-    sessionStorage.setItem("providerRegPhone", phone.trim());
-    sessionStorage.setItem("providerRegPin", pin);
-  };
 
   const { data, isLoading, error, refetch } = trpc.providers.getStatus.useQuery(
     { phone: phone.trim(), pinHash: pinHash ?? "" },
@@ -137,52 +125,11 @@ export default function ProviderOnboarding() {
       </div>
 
       <div className="px-4 pb-8">
-        {/* ── Auth gate ── */}
+        {/* ── Auth gate: redirect to login if no stored creds ── */}
         {!authed && (
-          <div
-            className="rounded-2xl p-5 mb-4"
-            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
-          >
-            <p className="text-white/70 text-sm mb-4 leading-relaxed">
-              أدخل رقم هاتفك والرمز السري الذي اخترته عند التسجيل للاطلاع على حالة طلبك.
-            </p>
-            <div className="mb-3">
-              <div className="flex items-center gap-2 mb-1.5">
-                <Phone className="w-4 h-4 text-orange-400" />
-                <label className="text-white/60 text-xs">رقم الهاتف</label>
-              </div>
-              <Input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+968 9X XXX XXXX"
-                type="tel"
-                className={inputClass}
-              />
-            </div>
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-1.5">
-                <Lock className="w-4 h-4 text-orange-400" />
-                <label className="text-white/60 text-xs">الرمز السري</label>
-              </div>
-              <Input
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                placeholder="الرمز السري"
-                type="password"
-                inputMode="numeric"
-                className={inputClass}
-              />
-            </div>
-            <Button
-              size="lg"
-              className="w-full rounded-2xl font-bold text-base h-12"
-              style={{ background: "oklch(0.53 0.22 27)" }}
-              disabled={!phone.trim() || !pin.trim() || authLoading}
-              onClick={handleAuth}
-            >
-              {authLoading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : null}
-              عرض الحالة
-            </Button>
+          <div className="flex flex-col items-center py-16 gap-4 text-center">
+            <Loader2 className="w-8 h-8 text-orange-400 animate-spin" />
+            <p className="text-white/50 text-sm">جاري التحقق من بياناتك…</p>
           </div>
         )}
 

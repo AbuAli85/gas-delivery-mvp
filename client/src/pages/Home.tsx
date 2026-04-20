@@ -1,41 +1,26 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
-import { Flame, Loader2, ChevronLeft, ShieldCheck, Zap, Phone } from "lucide-react";
+import { Flame, ChevronLeft, ShieldCheck, Zap, Phone } from "lucide-react";
 import { FIXED_ORDER_PRICE } from "../../../shared/domain";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 
-interface LocationResult {
-  lat: number;
-  lng: number;
-  address: string;
-}
-
 export default function Home() {
   const [, navigate] = useLocation();
-  const [locating] = useState(false);
 
-  // Live provider count for urgency signal
   const { data: providers } = trpc.providers.list.useQuery(undefined, {
     refetchInterval: 30000,
   });
   const onlineCount = providers?.filter((p) => p.isAvailable).length ?? 0;
 
-  const handleOrder = () => {
-    navigate("/order/location");
-  };
-
-  const isLoading = locating;
-
   return (
     <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }}>
-      {/* ── Hero ─────────────────────────────────────────────────────── */}
+      {/* ── Hero ── */}
       <div
-        className="relative flex flex-col items-center justify-center px-6 pt-14 pb-8 text-white"
+        className="flex flex-col items-center justify-center px-6 pt-14 pb-8 text-white"
         style={{
           background:
             "linear-gradient(170deg, oklch(0.09 0 0) 0%, oklch(0.16 0 0) 45%, oklch(0.48 0.22 27) 100%)",
-          minHeight: "52vh",
+          minHeight: "50vh",
         }}
       >
         {/* Brand mark */}
@@ -47,18 +32,14 @@ export default function Home() {
             <p className="text-[10px] text-white/50 uppercase tracking-widest">توصيل غاز</p>
             <p className="text-base font-bold leading-none">مسقط</p>
           </div>
-          {/* Live provider badge */}
           {onlineCount > 0 && (
             <div className="mr-3 flex items-center gap-1.5 bg-green-500/20 border border-green-500/30 rounded-full px-3 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-[11px] text-green-300 font-semibold">
-                {onlineCount} متاح
-              </span>
+              <span className="text-[11px] text-green-300 font-semibold">{onlineCount} متاح</span>
             </div>
           )}
         </div>
 
-        {/* Arabic headline */}
         <h1 className="text-4xl font-extrabold text-center leading-tight mb-3">
           توصيل غاز خلال <span className="text-orange-400">٣٠ دقيقة</span>
         </h1>
@@ -67,7 +48,7 @@ export default function Home() {
         </p>
       </div>
 
-      {/* ── Order card ───────────────────────────────────────────────── */}
+      {/* ── Order card ── */}
       <div className="flex-1 px-4 -mt-5 pb-6">
         <div className="bg-white rounded-3xl shadow-2xl p-5">
           {/* Price strip */}
@@ -79,26 +60,15 @@ export default function Home() {
             </div>
           </div>
 
-          {/* CTA button */}
           <Button
             size="lg"
             className="w-full rounded-2xl font-extrabold text-lg shadow-lg shadow-primary/30 transition-transform active:scale-95"
             style={{ height: "64px", background: "oklch(0.53 0.22 27)" }}
-            onClick={handleOrder}
-            disabled={isLoading}
+            onClick={() => navigate("/order/location")}
           >
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                جارٍ تحديد موقعك…
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <Flame className="w-5 h-5" />
-                اطلب الغاز الآن
-                <ChevronLeft className="w-5 h-5" />
-              </span>
-            )}
+            <Flame className="w-5 h-5" />
+            اطلب الغاز الآن
+            <ChevronLeft className="w-5 h-5" />
           </Button>
 
           <p className="text-center text-[11px] text-gray-400 mt-3">
@@ -106,7 +76,7 @@ export default function Home() {
           </p>
         </div>
 
-        {/* ── Trust strip ─────────────────────────────────────────── */}
+        {/* ── Trust strip ── */}
         <div className="mt-4 grid grid-cols-3 gap-2">
           {[
             { icon: ShieldCheck, line1: "مضمون",       line2: "استرداد كامل إن لم يصل" },
@@ -124,10 +94,7 @@ export default function Home() {
           ))}
         </div>
 
-        {/* ── FAQ accordion ───────────────────────────────────────── */}
-        <FAQ />
-
-        {/* ── WhatsApp fallback ───────────────────────────────────── */}
+        {/* ── WhatsApp fallback ── */}
         <a
           href="https://wa.me/96891000001?text=أريد%20طلب%20غاز"
           target="_blank"
@@ -140,78 +107,25 @@ export default function Home() {
           تحتاج مساعدة؟ تواصل معنا عبر واتساب
         </a>
 
-        {/* ── Provider portal ─────────────────────────────────────── */}
+        {/* ── Provider portal ── */}
         <div className="mt-3 flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
           <p className="text-xs text-white/40">بوابة المزودين</p>
           <div className="flex gap-2 flex-wrap">
-            {[4, 5, 6].map((pid) => (
-              <a
-                key={pid}
-                href={`/provider/${pid}`}
-                className="text-xs font-bold text-primary border border-primary/30 rounded-lg px-2 py-1 hover:bg-primary/10"
-              >
-                #{pid}
-              </a>
-            ))}
+            <a
+              href="/provider/login"
+              className="text-xs font-bold text-primary border border-primary/30 rounded-lg px-3 py-1 hover:bg-primary/10"
+            >
+              دخول المزود
+            </a>
             <a
               href="/provider/register"
-              className="text-xs font-bold text-orange-400 border border-orange-400/30 rounded-lg px-2 py-1 hover:bg-orange-400/10"
+              className="text-xs font-bold text-orange-400 border border-orange-400/30 rounded-lg px-3 py-1 hover:bg-orange-400/10"
             >
               + انضم كمزوّد
             </a>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ── FAQ ─────────────────────────────────────────────────────────────────────
-const FAQS = [
-  {
-    q: "كم يستغرق التوصيل؟",
-    a: "عادةً من ٢٠ إلى ٣٠ دقيقة. ستتلقى تحديثات مباشرة عن حالة طلبك بعد الطلب.",
-  },
-  {
-    q: "هل أحتاج إلى إنشاء حساب؟",
-    a: "لا. فقط اضغط على 'اطلب الغاز الآن'، اسمح بالوصول إلى موقعك، وادفع. هذا كل شيء.",
-  },
-  {
-    q: "ما طرق الدفع المتاحة؟",
-    a: "الدفع الإلكتروني بالبطاقة، أو نقداً عند التسليم، أو تحويل بنكي — حسب اختيارك.",
-  },
-  {
-    q: "ماذا لو لم يكن هناك مزود متاح؟",
-    a: "سنُعلمك فوراً ونقدم لك استرداداً كاملاً أو إعادة جدولة.",
-  },
-  {
-    q: "ما المناطق التي تغطونها في مسقط؟",
-    a: "مسقط القديمة / مطرح، الروي / المركز التجاري، والخوير / الغبرة. مناطق إضافية قريباً.",
-  },
-];
-
-function FAQ() {
-  const [open, setOpen] = useState<number | null>(null);
-  return (
-    <div className="mt-4 rounded-2xl overflow-hidden border border-white/10">
-      {FAQS.map((faq, i) => (
-        <div key={i} className="border-b border-white/5 last:border-0">
-          <button
-            className="w-full flex items-center justify-between px-4 py-3 text-right"
-            onClick={() => setOpen(open === i ? null : i)}
-          >
-            <span className="text-xs font-semibold text-white/70 text-right flex-1">{faq.q}</span>
-            <ChevronLeft
-              className={`w-4 h-4 text-white/30 shrink-0 transition-transform mr-2 ${
-                open === i ? "-rotate-90" : ""
-              }`}
-            />
-          </button>
-          {open === i && (
-            <div className="px-4 pb-3 text-xs text-white/50 leading-relaxed text-right">{faq.a}</div>
-          )}
-        </div>
-      ))}
     </div>
   );
 }
