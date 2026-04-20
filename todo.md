@@ -70,7 +70,7 @@
 > These items are intentionally NOT implemented in the MVP. They are listed for future iteration planning only.
 > The MVP is fully functional without them.
 
-- [ ] [POST-MVP] Real Stripe card collection (requires STRIPE_SECRET_KEY secret; mock is current fallback)
+- [ ] [POST-MVP] Real Stripe card collection (requires STRIPE_SECRET_KEY secret; mock is current fallback) — intentionally deferred, not blocking MVP
 - [x] [DONE] Browser Web Push to providers — VAPID + service worker + Bell button in dashboard
 - [x] [DONE] Live customer map with provider GPS tracking in OrderTracking
 - [x] [DONE] Phone OTP auth for customers at /customer/login
