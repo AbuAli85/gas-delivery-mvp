@@ -63,10 +63,12 @@ export default function OrderSummary() {
   });
 
   useEffect(() => {
-    const storedDraft = sessionStorage.getItem("orderDraft");
-    if (storedDraft) {
-      try { setDraft(JSON.parse(storedDraft)); return; } catch { /* fall through */ }
-    }
+    // Always re-create from the current deliveryLocation.
+    // A stale cached draft may have an empty zoneLabel from a previous session
+    // (e.g., the user was outside a zone then moved inside one).
+    // Clearing it ensures we always get a fresh zone resolution from the server.
+    sessionStorage.removeItem("orderDraft");
+
     const storedLoc = sessionStorage.getItem("deliveryLocation");
     if (!storedLoc) { navigate("/order/location"); return; }
     let loc: DeliveryLocation;
