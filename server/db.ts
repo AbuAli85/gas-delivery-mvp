@@ -21,6 +21,8 @@ import {
   type CustomerSession,
   type InsertCustomerSession,
   type ProviderLocation,
+  providerWorkingHours,
+  type ProviderWorkingHours,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -586,4 +588,53 @@ export async function countOrders(status?: string): Promise<number> {
   const rows = await db.select().from(orders);
   if (status) return rows.filter((r) => r.status === status).length;
   return rows.length;
+}
+
+// ─── Provider Working Hours ───────────────────────────────────────────────────
+
+export async function getWorkingHours(providerId: number): Promise<ProviderWorkingHours[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(providerWorkingHours).where(eq(providerWorkingHours.providerId, providerId));
+}
+
+export async function getAllProvidersWorkingHours(): Promise<ProviderWorkingHours[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(providerWorkingHours);
+}
+
+export async function upsertWorkingHoursRow(data: {
+  providerId: number;
+  dayOfWeek: number;
+  openTime: string;
+  closeTime: string;
+  isActive: boolean;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  // Check if row exists
+  const existing = await db
+    .select()
+    .from(providerWorkingHours)
+    .where(
+      and(
+        eq(providerWorkingHours.providerId, data.providerId),
+        eq(providerWorkingHours.dayOfWeek, data.dayOfWeek)
+      )
+    )
+    .limit(1);
+  if (existing.length > 0) {
+    await db
+      .update(providerWorkingHours)
+      .set({ openTime: data.openTime, closeTime: data.closeTime, isActive: data.isActive })
+      .where(
+        and(
+          eq(providerWorkingHours.providerId, data.providerId),
+          eq(providerWorkingHours.dayOfWeek, data.dayOfWeek)
+        )
+      );
+  } else {
+    await db.insert(providerWorkingHours).values(data);
+  }
 }

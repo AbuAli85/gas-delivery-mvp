@@ -328,3 +328,17 @@
 - [x] AdminPanel: auto-refresh every 15 seconds
 - [x] Admin link shown on Home page footer
 - [x] Update todo.md when complete
+
+## Feature: Provider Working Hours
+- [ ] Schema: add provider_working_hours table (id, providerId, dayOfWeek 0-6, openTime HH:MM, closeTime HH:MM, isActive bool)
+- [ ] Generate and apply Drizzle migration SQL
+- [ ] DB helpers: getWorkingHours(providerId), upsertWorkingHours(providerId, schedule)
+- [ ] Backend: providers.getWorkingHours publicProcedure (returns schedule for a provider)
+- [ ] Backend: providers.setWorkingHours protectedProcedure (PIN-auth, upsert full week schedule)
+- [ ] Backend: orders.getServiceStatus publicProcedure (returns isOpen bool + nextOpenTime + schedule)
+- [ ] Backend: createOrderDraft checks if any provider is within working hours (warn but don't block)
+- [ ] Provider UI: WorkingHours editor card in ProviderDashboard (toggle per day + time pickers)
+- [ ] Customer UI: Home page shows "مفتوح الآن" / "مغلق — يفتح الساعة X" badge
+- [ ] Customer UI: OrderSummary shows working hours warning if ordering outside hours
+- [ ] Tests: working hours logic (isOpen, nextOpen, edge cases)
+- [ ] Update todo.md when complete

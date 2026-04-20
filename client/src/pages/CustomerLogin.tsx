@@ -36,11 +36,17 @@ export default function CustomerLogin() {
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [demoOtp, setDemoOtp] = useState<string | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const requestOtp = trpc.customerAuth.requestOtp.useMutation({
-    onSuccess: () => {
-      toast.success("تم إرسال رمز التحقق إلى هاتفك");
+    onSuccess: (data) => {
+      if (data.demoOtp) {
+        setDemoOtp(data.demoOtp);
+        toast.info(`وضع تجريبي — رمزك: ${data.demoOtp}`, { duration: 30000 });
+      } else {
+        toast.success("تم إرسال رمز التحقق إلى هاتفك");
+      }
       setStep("otp");
     },
     onError: (err) => toast.error(err.message || "فشل إرسال الرمز"),
@@ -200,9 +206,28 @@ export default function CustomerLogin() {
             )}
           </div>
 
+          {/* Demo mode: show OTP prominently */}
+          {demoOtp && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 text-center">
+              <p className="text-xs text-amber-600 font-medium mb-1">⚠️ وضع تجريبي — لا يوجد SMS</p>
+              <p className="text-2xl font-black tracking-[0.3em] text-amber-800 font-mono">{demoOtp}</p>
+              <button
+                onClick={() => {
+                  const digits = demoOtp.split("");
+                  setOtp(digits);
+                  setTimeout(() => otpRefs.current[5]?.focus(), 50);
+                }}
+                className="mt-2 text-xs text-amber-700 underline"
+              >
+                ملء تلقائياً
+              </button>
+            </div>
+          )}
+
           <button
             onClick={() => {
               setStep("phone");
+              setDemoOtp(null);
               setOtp(["", "", "", "", "", ""]);
             }}
             className="w-full text-sm text-gray-400 py-2"

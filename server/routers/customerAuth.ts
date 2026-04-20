@@ -30,6 +30,14 @@ function generateSessionToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
+/**
+ * Returns true if Twilio is configured, false otherwise.
+ * When false, OTP is returned in the API response for demo/dev mode.
+ */
+function isTwilioConfigured(): boolean {
+  return !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER);
+}
+
 async function sendOtpSms(phone: string, otp: string): Promise<void> {
   const twilioSid = process.env.TWILIO_ACCOUNT_SID;
   const twilioToken = process.env.TWILIO_AUTH_TOKEN;
@@ -53,8 +61,8 @@ async function sendOtpSms(phone: string, otp: string): Promise<void> {
       throw new Error("فشل إرسال رمز التحقق");
     }
   } else {
-    // Development: log to console
-    console.log(`[OTP DEV] Phone: ${phone} → OTP: ${otp}`);
+    // Demo/dev mode: log to console (OTP returned in API response)
+    console.log(`[OTP DEMO] Phone: ${phone} → OTP: ${otp}`);
   }
 }
 
@@ -77,7 +85,15 @@ export const customerAuthRouter = router({
       await upsertCustomerSession(phone, otpHash, expiresAt);
       await sendOtpSms(phone, otp);
 
-      return { success: true, message: "تم إرسال رمز التحقق إلى هاتفك" };
+      // In demo mode (no Twilio), return the OTP so the customer can see it on screen
+      const demoMode = !isTwilioConfigured();
+      return {
+        success: true,
+        message: demoMode
+          ? `وضع تجريبي — رمزك هو: ${otp}`
+          : "تم إرسال رمز التحقق إلى هاتفك",
+        demoOtp: demoMode ? otp : undefined,
+      };
     }),
 
   /**

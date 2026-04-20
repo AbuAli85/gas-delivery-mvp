@@ -234,3 +234,19 @@ export const providerLocations = mysqlTable("provider_locations", {
 
 export type ProviderLocation = typeof providerLocations.$inferSelect;
 export type InsertProviderLocation = typeof providerLocations.$inferInsert;
+
+// ─── Provider Working Hours ───────────────────────────────────────────────────
+// Weekly schedule per provider. dayOfWeek: 0=Sunday … 6=Saturday (JS convention).
+// openTime / closeTime stored as "HH:MM" 24-hour strings (e.g. "08:00", "22:30").
+export const providerWorkingHours = mysqlTable("provider_working_hours", {
+  id: int("id").autoincrement().primaryKey(),
+  providerId: int("providerId").notNull(),
+  dayOfWeek: int("dayOfWeek").notNull(), // 0-6
+  openTime: varchar("openTime", { length: 5 }).notNull().default("08:00"),  // HH:MM
+  closeTime: varchar("closeTime", { length: 5 }).notNull().default("22:00"), // HH:MM
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type ProviderWorkingHours = typeof providerWorkingHours.$inferSelect;
+export type InsertProviderWorkingHours = typeof providerWorkingHours.$inferInsert;
