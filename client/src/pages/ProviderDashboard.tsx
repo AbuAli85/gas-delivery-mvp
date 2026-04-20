@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import {
   Flame, MapPin, Phone, Package, Clock, CheckCircle2,
   XCircle, Truck, History, ToggleLeft, ToggleRight, Loader2,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, TrendingUp, Wallet, Star, AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
@@ -319,6 +319,84 @@ export default function ProviderDashboard() {
             </p>
           </div>
         )}
+
+        {/* ── Stats: Commission + Score ── */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded-2xl shadow-sm p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Wallet className="w-4 h-4 text-primary" />
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Commission</p>
+            </div>
+            <p className="text-xl font-black text-gray-900">
+              OMR {parseFloat(String(provider.totalCommission ?? "0")).toFixed(3)}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">{provider.totalOrders ?? 0} deliveries</p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Star className="w-4 h-4 text-amber-500" />
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Score</p>
+            </div>
+            {(() => {
+              const accepted = provider.acceptedOrders ?? 0;
+              const rejected = provider.rejectedOrders ?? 0;
+              const total = accepted + rejected;
+              const rate = total > 0 ? Math.round((accepted / total) * 100) : 100;
+              return (
+                <>
+                  <p className="text-xl font-black text-gray-900">{rate}%</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {accepted} accepted · {rejected} rejected
+                  </p>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* ── Score Warning ── */}
+        {(() => {
+          const accepted = provider.acceptedOrders ?? 0;
+          const rejected = provider.rejectedOrders ?? 0;
+          const total = accepted + rejected;
+          const rate = total > 0 ? Math.round((accepted / total) * 100) : 100;
+          if (total >= 5 && rate < 60) {
+            return (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+                <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">Low acceptance rate</p>
+                  <p className="text-xs text-amber-600 mt-0.5">
+                    Your acceptance rate is {rate}%. Accepting more orders improves your ranking and commission opportunities.
+                  </p>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
+        {/* ── Performance Trend ── */}
+        <div className="bg-white rounded-2xl shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <p className="text-sm font-semibold text-gray-700">Performance</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div>
+              <p className="text-lg font-black text-gray-900">{provider.totalOrders ?? 0}</p>
+              <p className="text-xs text-gray-400">Delivered</p>
+            </div>
+            <div>
+              <p className="text-lg font-black text-green-600">{provider.acceptedOrders ?? 0}</p>
+              <p className="text-xs text-gray-400">Accepted</p>
+            </div>
+            <div>
+              <p className="text-lg font-black text-red-500">{provider.rejectedOrders ?? 0}</p>
+              <p className="text-xs text-gray-400">Rejected</p>
+            </div>
+          </div>
+        </div>
 
         {/* ── Order History ── */}
         <button

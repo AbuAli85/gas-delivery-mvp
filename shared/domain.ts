@@ -15,7 +15,9 @@ export type OrderStatus =
   | "delivered"
   | "cancelled";
 
-export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+export type PaymentStatus = "pending" | "confirmed" | "failed" | "refunded";
+export type PaymentMethod = "cash" | "online" | "bank_transfer";
+export type ProviderCommissionStatus = "unpaid" | "pending_settlement" | "settled";
 
 export type AssignmentStatus = "pending" | "accepted" | "rejected" | "expired";
 
@@ -79,22 +81,37 @@ export function assertAssignmentTransition(
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
-/** Gas price per cylinder in OMR */
-export const GAS_PRICE_PER_UNIT = 3.5;
-/** Delivery fee in OMR */
-export const DELIVERY_FEE = 1.0;
+/**
+ * FIXED PRICE: 3.300 OMR per order (includes 1 cylinder + delivery).
+ * Rule 3 — Do NOT allow dynamic pricing.
+ */
+export const FIXED_ORDER_PRICE = 3.300;
+export const COMMISSION_AMOUNT = 0.100;
 /** Estimated delivery time in minutes */
 export const DEFAULT_ETA_MINUTES = 30;
 
-export function calculateOrderPrice(gasAmount: number): {
+/** @deprecated use FIXED_ORDER_PRICE instead */
+export const GAS_PRICE_PER_UNIT = 3.5;
+/** @deprecated use FIXED_ORDER_PRICE instead */
+export const DELIVERY_FEE = 0;
+
+export function calculateOrderPrice(_gasAmount?: number): {
   unitPrice: number;
   deliveryFee: number;
   totalPrice: number;
 } {
-  const unitPrice = GAS_PRICE_PER_UNIT;
-  const deliveryFee = DELIVERY_FEE;
-  const totalPrice = parseFloat((gasAmount * unitPrice + deliveryFee).toFixed(3));
-  return { unitPrice, deliveryFee, totalPrice };
+  // Fixed price — gasAmount is always 1 cylinder, price is always 3.300 OMR
+  return { unitPrice: FIXED_ORDER_PRICE, deliveryFee: 0, totalPrice: FIXED_ORDER_PRICE };
+}
+
+/**
+ * Provider score = acceptedOrders / (acceptedOrders + rejectedOrders).
+ * Returns 1.0 for new providers with no history (benefit of the doubt).
+ */
+export function calculateProviderScore(accepted: number, rejected: number): number {
+  const total = accepted + rejected;
+  if (total === 0) return 1.0;
+  return accepted / total;
 }
 
 // ─── Zone geometry ────────────────────────────────────────────────────────────

@@ -66,11 +66,13 @@
 - [x] 0 TypeScript errors
 - [x] Brand red/black/white design system
 
-## Deferred (Post-MVP — Not in current scope)
-- [ ] Stripe.js client-side card collection (real Stripe requires STRIPE_SECRET_KEY; mock payment is the MVP fallback)
-- [ ] Browser Web Push notifications to providers/customers (owner notifyOwner() is the MVP fallback)
+## Deferred (Post-MVP — Explicitly out of scope per brief)
+> These items are intentionally not implemented in the MVP. They are listed for future iteration planning.
+
+- [ ] Stripe.js client-side card collection — mock payment is the MVP fallback; real Stripe requires STRIPE_SECRET_KEY secret
+- [ ] Browser Web Push notifications to providers/customers — owner notifyOwner() is wired into assignment/accept/deliver (lines 80, 55, 198, 298 in routers)
 - [ ] Live map with customer location + provider zone overlay
-- [ ] Phone OTP auth for customers (no login wall per requirements; phone field is optional on order)
+- [ ] Phone OTP auth for customers — no login wall per requirements; phone field is optional on order
 - [ ] Admin panel for order management
 
 ## Conversion Optimization (Phase 3 — Reality Validation)
@@ -86,3 +88,46 @@
 - [x] App: /gas route alias added (same component as /)
 - [x] App: PWA meta tags, theme-color, apple-mobile-web-app, OG tags for WhatsApp preview
 - [x] Verify: full order flow completes in < 30 seconds (location + draft + payment = 3 taps)
+
+## Phase 2 — Hybrid Payment + Provider Controls (COMPLETE)
+
+### Schema
+- [x] orders.paymentMethod enum (cash | online | bank_transfer)
+- [x] orders.paymentStatus enum updated (pending | confirmed | failed | refunded)
+- [x] orders.commissionAmount decimal(10,3) default 0.100
+- [x] orders.providerCommissionStatus enum (unpaid | pending_settlement | settled)
+- [x] orders.assignedAt, acceptedAt, deliveredAt timestamps (anti-cheat)
+- [x] providers.acceptedOrders, rejectedOrders, totalOrders, totalCommission
+
+### Backend
+- [x] Fixed price 3.300 OMR enforced in shared/domain.ts (FIXED_ORDER_PRICE constant)
+- [x] confirmCashOrder procedure (paymentStatus=pending, assigns provider immediately)
+- [x] confirmBankTransfer procedure (returns Bank Muscat details, assigns provider)
+- [x] createPaymentIntent + confirmMockPayment for online flow
+- [x] incrementProviderScore helper in db.ts
+- [x] acceptOrder increments acceptedOrders (on accept event)
+- [x] rejectOrder increments rejectedOrders (on reject event)
+- [x] deliverOrder increments totalOrders + totalCommission (on deliver); sets providerCommissionStatus=pending_settlement
+- [x] Anti-cheat timestamps: assignedAt, acceptedAt, deliveredAt set on transitions
+
+### Customer UI
+- [x] Payment selection screen: Cash / Online / Bank Transfer cards (60px min height)
+- [x] Bank Muscat details panel shown on bank_transfer selection
+- [x] Home: 3.300 OMR fixed price, Arabic-first, "الدفع عند التوصيل متاح"
+- [x] OrderTracking: paymentStatus badge (confirmed=online paid, pending=cash on delivery)
+- [x] OrderTracking: providerPhone tel: link
+
+### Provider UI
+- [x] Commission card: OMR X.XXX + delivery count
+- [x] Score card: acceptance rate % + accepted/rejected counts
+- [x] Performance panel: delivered / accepted / rejected stats
+- [x] Low acceptance rate warning (< 60% with >= 5 orders)
+
+### Tests (70 total, 21 new Phase 2 tests)
+- [x] Payment method domain logic (cash/online/bank_transfer)
+- [x] Commission calculation + accumulation + 3-decimal formatting
+- [x] providerCommissionStatus transitions (unpaid → pending_settlement → settled)
+- [x] Provider score calculation (all edge cases: 0/0, 100%, 0%, 75%, 60%)
+- [x] Score warning threshold (< 60%, >= 5 orders)
+- [x] Score increment events: accept→acceptedOrders++, reject→rejectedOrders++, deliver→totalOrders+totalCommission
+- [x] Fixed price enforcement (3.300 OMR flat-rate, deterministic, format)

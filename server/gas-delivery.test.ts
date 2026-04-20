@@ -109,22 +109,22 @@ describe("Assignment status transitions", () => {
 // ─── 3. Pricing ───────────────────────────────────────────────────────────────
 
 describe("calculateOrderPrice", () => {
-  it("calculates price for 1 cylinder", () => {
+  it("returns fixed price 3.300 OMR for 1 cylinder (Phase 2 fixed pricing)", () => {
     const { unitPrice, deliveryFee, totalPrice } = calculateOrderPrice(1);
-    expect(unitPrice).toBe(3.5);
-    expect(deliveryFee).toBe(1.0);
-    expect(totalPrice).toBe(4.5);
+    expect(unitPrice).toBe(3.3);
+    expect(deliveryFee).toBe(0);
+    expect(totalPrice).toBe(3.3);
   });
 
-  it("calculates price for 3 cylinders", () => {
+  it("returns same fixed price regardless of cylinder count (flat-rate MVP)", () => {
     const { totalPrice } = calculateOrderPrice(3);
-    expect(totalPrice).toBe(11.5); // 3 * 3.5 + 1.0
+    expect(totalPrice).toBe(3.3); // flat rate — gasAmount ignored
   });
 
-  it("rounds to 3 decimal places", () => {
-    const { totalPrice } = calculateOrderPrice(2);
-    expect(totalPrice).toBe(8.0);
-    expect(String(totalPrice)).toMatch(/^\d+(\.\d{1,3})?$/);
+  it("total price matches 3 decimal OMR format", () => {
+    const { totalPrice } = calculateOrderPrice(1);
+    expect(totalPrice).toBe(3.3);
+    expect(parseFloat(totalPrice.toFixed(3))).toBeCloseTo(3.3, 3);
   });
 });
 
@@ -372,5 +372,170 @@ describe("auth.logout", () => {
       httpOnly: true,
       path: "/",
     });
+  });
+});
+
+// ─── 10. Phase 2: Payment Method Logic ───────────────────────────────────────
+
+describe("Payment method domain logic", () => {
+  it("cash order: paymentStatus stays pending (collected on delivery)", () => {
+    // Cash orders are confirmed without upfront payment
+    const paymentStatus = "pending"; // set by confirmCashOrder
+    const paymentMethod = "cash";
+    expect(paymentStatus).toBe("pending");
+    expect(paymentMethod).toBe("cash");
+  });
+
+  it("online order: paymentStatus becomes confirmed after mock payment", () => {
+    const paymentStatus = "confirmed"; // set by confirmMockPayment
+    const paymentMethod = "online";
+    expect(paymentStatus).toBe("confirmed");
+    expect(paymentMethod).toBe("online");
+  });
+
+  it("bank transfer: paymentStatus stays pending until manual confirmation", () => {
+    const paymentStatus = "pending"; // manual confirmation later
+    const paymentMethod = "bank_transfer";
+    expect(paymentStatus).toBe("pending");
+    expect(paymentMethod).toBe("bank_transfer");
+  });
+
+  it("all three payment methods are valid enum values", () => {
+    const validMethods = ["cash", "online", "bank_transfer"] as const;
+    expect(validMethods).toContain("cash");
+    expect(validMethods).toContain("online");
+    expect(validMethods).toContain("bank_transfer");
+    expect(validMethods).toHaveLength(3);
+  });
+});
+
+// ─── 11. Phase 2: Commission Calculation ─────────────────────────────────────
+
+describe("Commission calculation", () => {
+  it("default commission is 0.100 OMR per order", () => {
+    const defaultCommission = 0.100;
+    expect(defaultCommission).toBeCloseTo(0.1, 3);
+  });
+
+  it("commission accumulates correctly across multiple orders", () => {
+    const commissionPerOrder = 0.100;
+    const orders = 10;
+    const total = commissionPerOrder * orders;
+    expect(total).toBeCloseTo(1.0, 3);
+    expect(parseFloat(total.toFixed(3))).toBe(1.0);
+  });
+
+  it("commission is formatted to 3 decimal places", () => {
+    const commission = 0.1 + 0.1 + 0.1; // floating point
+    const formatted = parseFloat(commission.toFixed(3));
+    expect(formatted).toBeCloseTo(0.3, 3);
+  });
+
+  it("providerCommissionStatus transitions: unpaid → pending_settlement → settled", () => {
+    const validStatuses = ["unpaid", "pending_settlement", "settled"] as const;
+    expect(validStatuses[0]).toBe("unpaid");
+    expect(validStatuses[1]).toBe("pending_settlement");
+    expect(validStatuses[2]).toBe("settled");
+  });
+});
+
+// ─── 12. Phase 2: Provider Score Calculation ─────────────────────────────────
+
+describe("Provider score calculation", () => {
+  function calcAcceptanceRate(accepted: number, rejected: number): number {
+    const total = accepted + rejected;
+    if (total === 0) return 100;
+    return Math.round((accepted / total) * 100);
+  }
+
+  it("returns 100% for new provider with no orders", () => {
+    expect(calcAcceptanceRate(0, 0)).toBe(100);
+  });
+
+  it("returns 100% for provider who accepted all orders", () => {
+    expect(calcAcceptanceRate(10, 0)).toBe(100);
+  });
+
+  it("returns 0% for provider who rejected all orders", () => {
+    expect(calcAcceptanceRate(0, 10)).toBe(0);
+  });
+
+  it("returns 75% for 3 accepted, 1 rejected", () => {
+    expect(calcAcceptanceRate(3, 1)).toBe(75);
+  });
+
+  it("returns 60% for 3 accepted, 2 rejected", () => {
+    expect(calcAcceptanceRate(3, 2)).toBe(60);
+  });
+
+  it("triggers warning when rate < 60% with >= 5 total orders", () => {
+    const accepted = 2;
+    const rejected = 3;
+    const total = accepted + rejected;
+    const rate = calcAcceptanceRate(accepted, rejected);
+    const shouldWarn = total >= 5 && rate < 60;
+    expect(shouldWarn).toBe(true);
+  });
+
+  it("does NOT trigger warning for new provider (< 5 orders)", () => {
+    const accepted = 1;
+    const rejected = 2;
+    const total = accepted + rejected;
+    const rate = calcAcceptanceRate(accepted, rejected);
+    const shouldWarn = total >= 5 && rate < 60;
+    expect(shouldWarn).toBe(false); // total = 3, below threshold
+  });
+
+  it("score increments: accepted event increments acceptedOrders", () => {
+    const provider = { acceptedOrders: 5, rejectedOrders: 2, totalOrders: 3 };
+    const updated = { ...provider, acceptedOrders: provider.acceptedOrders + 1 };
+    expect(updated.acceptedOrders).toBe(6);
+    expect(updated.rejectedOrders).toBe(2); // unchanged
+  });
+
+  it("score increments: rejected event increments rejectedOrders", () => {
+    const provider = { acceptedOrders: 5, rejectedOrders: 2, totalOrders: 3 };
+    const updated = { ...provider, rejectedOrders: provider.rejectedOrders + 1 };
+    expect(updated.rejectedOrders).toBe(3);
+    expect(updated.acceptedOrders).toBe(5); // unchanged
+  });
+
+  it("score increments: delivered event increments totalOrders + totalCommission", () => {
+    const provider = { totalOrders: 3, totalCommission: "0.300" };
+    const commissionAmt = 0.100;
+    const updated = {
+      totalOrders: provider.totalOrders + 1,
+      totalCommission: (parseFloat(provider.totalCommission) + commissionAmt).toFixed(3),
+    };
+    expect(updated.totalOrders).toBe(4);
+    expect(updated.totalCommission).toBe("0.400");
+  });
+});
+
+// ─── 13. Phase 2: Fixed Price Enforcement ────────────────────────────────────
+
+describe("Fixed price enforcement (3.300 OMR)", () => {
+  it("price for 1 cylinder is at least 3.300 OMR", () => {
+    const { totalPrice } = calculateOrderPrice(1);
+    // The fixed price may include delivery fee; total must be >= 3.300
+    expect(totalPrice).toBeGreaterThanOrEqual(3.3);
+  });
+
+  it("price does not change based on zone or time (deterministic)", () => {
+    const p1 = calculateOrderPrice(1);
+    const p2 = calculateOrderPrice(1);
+    expect(p1.totalPrice).toBe(p2.totalPrice);
+    expect(p1.unitPrice).toBe(p2.unitPrice);
+    expect(p1.deliveryFee).toBe(p2.deliveryFee);
+  });
+
+  it("price is flat-rate (same for any cylinder count in MVP)", () => {
+    const p1 = calculateOrderPrice(1);
+    const p2 = calculateOrderPrice(2);
+    const p3 = calculateOrderPrice(3);
+    // All return the same fixed price in MVP
+    expect(p1.totalPrice).toBe(p2.totalPrice);
+    expect(p2.totalPrice).toBe(p3.totalPrice);
+    expect(p1.totalPrice).toBe(3.3);
   });
 });

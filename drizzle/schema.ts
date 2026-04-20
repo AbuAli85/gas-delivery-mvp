@@ -56,9 +56,14 @@ export const providers = mysqlTable("providers", {
   isAvailable: boolean("isAvailable").default(true).notNull(),
   // ID of the currently active order (null = free to accept new orders)
   activeOrderId: int("activeOrderId"),
+  // Scoring system — score = acceptedOrders / (acceptedOrders + rejectedOrders)
+  acceptedOrders: int("acceptedOrders").default(0).notNull(),
+  rejectedOrders: int("rejectedOrders").default(0).notNull(),
+  totalOrders: int("totalOrders").default(0).notNull(),
+  totalCommission: decimal("totalCommission", { precision: 10, scale: 3 }).default("0.000").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+})
 
 export type Provider = typeof providers.$inferSelect;
 export type InsertProvider = typeof providers.$inferInsert;
@@ -98,17 +103,29 @@ export const orders = mysqlTable("orders", {
   assignedProviderId: int("assignedProviderId"),
   // JSON array of provider IDs that have already rejected this order
   rejectedProviderIds: json("rejectedProviderIds").$type<number[]>(),
-  // Payment
-  paymentStatus: mysqlEnum("paymentStatus", ["pending", "paid", "failed", "refunded"])
+  // Payment — hybrid: cash | online | bank_transfer
+  paymentMethod: mysqlEnum("paymentMethod", ["cash", "online", "bank_transfer"])
+    .default("cash")
+    .notNull(),
+  paymentStatus: mysqlEnum("paymentStatus", ["pending", "confirmed", "failed", "refunded"])
     .default("pending")
     .notNull(),
   paymentIntentId: varchar("paymentIntentId", { length: 256 }),
-  paymentMethod: varchar("paymentMethod", { length: 64 }).default("mock"),
-  // Timestamps
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  // Commission tracking
+  commissionAmount: decimal("commissionAmount", { precision: 10, scale: 3 }).default("0.100").notNull(),
+  providerCommissionStatus: mysqlEnum("providerCommissionStatus", [
+    "unpaid",
+    "pending_settlement",
+    "settled",
+  ])
+    .default("unpaid")
+    .notNull(),
+  // Anti-cheat timestamps
+  assignedAt: timestamp("assignedAt"),
   acceptedAt: timestamp("acceptedAt"),
   deliveredAt: timestamp("deliveredAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export type Order = typeof orders.$inferSelect;

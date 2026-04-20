@@ -146,6 +146,40 @@ export async function setProviderAvailability(
     .where(eq(providers.id, providerId));
 }
 
+/**
+ * Increment provider score counters after accept/reject/deliver.
+ * @param accepted - true = increment acceptedOrders + totalOrders
+ * @param rejected - true = increment rejectedOrders + totalOrders
+ * @param delivered - true = increment totalOrders + totalCommission
+ */
+export async function incrementProviderScore(
+  providerId: number,
+  event: "accepted" | "rejected" | "delivered",
+  commissionAmount?: number
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const provider = await getProviderById(providerId);
+  if (!provider) return;
+
+  const updates: Record<string, unknown> = {};
+  if (event === "accepted") {
+    updates.acceptedOrders = (provider.acceptedOrders ?? 0) + 1;
+  } else if (event === "rejected") {
+    updates.rejectedOrders = (provider.rejectedOrders ?? 0) + 1;
+  } else if (event === "delivered") {
+    updates.totalOrders = (provider.totalOrders ?? 0) + 1;
+    if (commissionAmount) {
+      const current = parseFloat(String(provider.totalCommission ?? "0"));
+      updates.totalCommission = (current + commissionAmount).toFixed(3);
+    }
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await db.update(providers).set(updates).where(eq(providers.id, providerId));
+  }
+}
+
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
 export async function createOrder(

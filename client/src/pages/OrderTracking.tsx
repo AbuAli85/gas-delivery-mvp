@@ -176,12 +176,12 @@ export default function OrderTracking() {
             </p>
             <span
               className={`ml-auto text-xs font-semibold px-2 py-1 rounded-full ${
-                order.paymentStatus === "paid"
+                order.paymentStatus === "confirmed"
                   ? "bg-green-100 text-green-700"
                   : "bg-amber-100 text-amber-700"
               }`}
             >
-              {order.paymentStatus === "paid" ? "Paid" : "Pending"}
+              {order.paymentStatus === "confirmed" ? "Paid Online" : order.paymentStatus === "pending" ? "Cash on Delivery" : order.paymentStatus}
             </span>
           </div>
         </div>

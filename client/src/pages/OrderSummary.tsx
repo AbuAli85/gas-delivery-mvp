@@ -28,13 +28,12 @@ export default function OrderSummary() {
     try { setDraft(JSON.parse(stored)); } catch { navigate("/"); }
   }, [navigate]);
 
-  const createIntent = trpc.orders.createPaymentIntent.useMutation({
-    onSuccess: (data) => {
-      sessionStorage.setItem("paymentIntent", JSON.stringify(data));
-      navigate("/order/payment");
-    },
-    onError: (err) => toast.error(err.message || "Payment setup failed"),
-  });
+  function goToPayment() {
+    // Store orderId + price for the payment page
+    sessionStorage.setItem("orderId", String(draft!.orderId));
+    sessionStorage.setItem("totalPrice", String(draft!.totalPrice));
+    navigate("/order/payment");
+  }
 
   if (!draft) return null;
 
@@ -108,15 +107,10 @@ export default function OrderSummary() {
             size="lg"
             className="w-full rounded-2xl font-extrabold text-base shadow-lg shadow-primary/30 active:scale-95 transition-transform"
             style={{ height: "60px", background: "oklch(0.53 0.22 27)" }}
-            onClick={() => createIntent.mutate({ orderId: draft.orderId })}
-            disabled={createIntent.isPending}
+            onClick={goToPayment}
           >
-            {createIntent.isPending ? "Setting up payment…" : (
-              <>
-                Confirm & Pay — OMR {draft.totalPrice.toFixed(3)}
-                <ChevronRight className="w-5 h-5 ml-1" />
-              </>
-            )}
+            Choose Payment — OMR {draft.totalPrice.toFixed(3)}
+            <ChevronRight className="w-5 h-5 ml-1" />
           </Button>
         </div>
 

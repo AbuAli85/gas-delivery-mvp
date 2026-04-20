@@ -18,6 +18,7 @@ import {
   updateOrder,
   getAssignmentsByOrder,
   getAllProviders,
+  incrementProviderScore,
 } from "../db";
 import { selectNextProvider } from "../assignmentEngine";
 import { assertAssignmentTransition, assertOrderTransition } from "../../shared/domain";
@@ -193,11 +194,14 @@ export const providersRouter = router({
         acceptedAt: new Date(),
       });
 
+      // Increment provider score
+      try { await incrementProviderScore(input.providerId, "accepted"); } catch (_) {}
+
       // Notify customer (via owner notification for MVP)
       try {
         await notifyOwner({
           title: `Order #${order.id} Accepted`,
-          content: `Your gas delivery has been accepted by ${assignment.providerId}. ETA: ${order.estimatedMinutes} minutes.`,
+          content: `Gas delivery #${order.id} accepted by provider ${input.providerId}. ETA: ${order.estimatedMinutes} min.`,
         });
       } catch (_) {}
 
@@ -227,6 +231,9 @@ export const providersRouter = router({
         status: "rejected",
         respondedAt: new Date(),
       });
+
+      // Increment rejection score
+      try { await incrementProviderScore(input.providerId, "rejected"); } catch (_) {}
 
       // Free the provider
       await setProviderActiveOrder(input.providerId, null);
@@ -294,10 +301,19 @@ export const providersRouter = router({
         await updateAssignment(assignment.id, { respondedAt: new Date() });
       }
 
+      // Increment delivered score + commission
+      const commissionAmt = parseFloat(String(order.commissionAmount ?? "0.100"));
+      try { await incrementProviderScore(input.providerId, "delivered", commissionAmt); } catch (_) {}
+
+      // Update commission status on order
+      try {
+        await updateOrder(order.id, { providerCommissionStatus: "pending_settlement" });
+      } catch (_) {}
+
       try {
         await notifyOwner({
-          title: `Order #${order.id} Delivered`,
-          content: `Gas delivery #${order.id} has been completed successfully.`,
+          title: `Order #${order.id} Delivered ✓`,
+          content: `Gas delivery #${order.id} completed. Commission: OMR ${commissionAmt.toFixed(3)} pending settlement.`,
         });
       } catch (_) {}
 
