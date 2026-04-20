@@ -231,3 +231,14 @@
 - [x] Add InfoWindow label at zone center showing zone name
 - [x] Highlight the zone containing the current pin (active zone indicator)
 - [x] Add compact legend overlay on the map
+
+## Map Page Screenshot Review Fixes
+- [x] Fix zone legend: names showing in English (Old Muscat / Mutrah, Ruwi / CBD, Al Khuwair / Ghubrah) — must be Arabic
+- [x] Fix header back-button: ChevronRight icon should be ChevronLeft for RTL (pointing left = go back)
+- [x] Fix map height: map is too short, should fill more vertical space on mobile
+- [x] Fix address textarea: showing wrong geocoded address — region bias already set to 'om' (Oman); address shown is the Google Maps reverse geocode result for the default Muscat center pin
+- [x] Fix legend position: legend overlaps map controls, moved to bottom-right
+- [x] Improve map: hide satellite/map type toggle (not needed for delivery UX)
+- [x] Improve map: hide Street View pegman (not needed)
+- [x] Improve map: add fullscreen button removal (cleaner look)
+- [x] Improve overall polish: tighten spacing, ensure all text is Arabic

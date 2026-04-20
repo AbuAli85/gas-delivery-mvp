@@ -119,6 +119,12 @@ interface MapViewProps {
   onMapReady?: (map: google.maps.Map) => void;
   /** Called when the script fails to load or the map cannot be created. */
   onLoadError?: (message: string) => void;
+  /** Show/hide the map type (Satellite/Map) toggle. Defaults to false. */
+  mapTypeControl?: boolean;
+  /** Show/hide the Street View pegman. Defaults to false. */
+  streetViewControl?: boolean;
+  /** Show/hide the fullscreen button. Defaults to false. */
+  fullscreenControl?: boolean;
 }
 
 export function MapView({
@@ -127,6 +133,9 @@ export function MapView({
   initialZoom = 12,
   onMapReady,
   onLoadError,
+  mapTypeControl = false,
+  streetViewControl = false,
+  fullscreenControl = false,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
@@ -146,10 +155,11 @@ export function MapView({
       map.current = new window.google.maps.Map(mapContainer.current, {
         zoom: initialZoom,
         center: initialCenter,
-        mapTypeControl: true,
-        fullscreenControl: true,
+        mapTypeControl,
+        fullscreenControl,
         zoomControl: true,
-        streetViewControl: true,
+        streetViewControl,
+        gestureHandling: "greedy",
       });
       if (onMapReady) {
         onMapReady(map.current);

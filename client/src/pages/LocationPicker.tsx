@@ -19,7 +19,7 @@ import {
   Navigation,
   Home as HomeIcon,
   Briefcase,
-  ChevronRight,
+  ChevronLeft,
   Check,
   Plus,
   Search,
@@ -42,13 +42,22 @@ function getSessionKey(): string {
 // ── Reverse geocode via Google Maps Geocoder (Manus proxy — no API key needed) ──
 let _geocoderSingleton: google.maps.Geocoder | null = null;
 
+/** Filter a geocoder result to only accept Oman addresses. */
+function isOmanResult(result: google.maps.GeocoderResult): boolean {
+  return result.address_components?.some(
+    (c) => c.types.includes("country") && (c.short_name === "OM" || c.long_name === "Oman")
+  ) ?? false;
+}
+
 async function reverseGeocode(lat: number, lng: number, geocoder?: google.maps.Geocoder | null): Promise<string> {
   const gc = geocoder ?? _geocoderSingleton;
   if (gc) {
     try {
-      const result = await gc.geocode({ location: { lat, lng } });
-      if (result.results?.[0]?.formatted_address) {
-        return result.results[0].formatted_address.trim();
+      const result = await gc.geocode({ location: { lat, lng }, region: "om" });
+      // Only use the result if it's in Oman — avoids cross-border mismatches
+      const omanResult = result.results?.find(isOmanResult);
+      if (omanResult?.formatted_address) {
+        return omanResult.formatted_address.trim();
       }
     } catch {
       // silent — fall through to coordinate fallback
@@ -443,12 +452,12 @@ export default function LocationPicker() {
     return (
       <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }}>
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 pt-12 pb-3">
+        <div className="flex items-center gap-3 px-4 pt-12 pb-3" dir="rtl">
           <button
             onClick={() => setStep("choose")}
-            className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center"
+            className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0"
           >
-            <ChevronRight className="w-5 h-5 text-white" />
+            <ChevronLeft className="w-5 h-5 text-white" />
           </button>
           <div>
             <p className="text-white font-bold text-base">اختر موقع التوصيل</p>
@@ -459,23 +468,26 @@ export default function LocationPicker() {
         </div>
 
         {/* Map */}
-        <div className="relative flex-1 mx-4 rounded-2xl overflow-hidden" style={{ height: "52vh" }}>
+        <div className="relative mx-4 rounded-2xl overflow-hidden" style={{ height: "58vh", minHeight: "320px" }}>
           <MapView
             className="w-full h-full"
             initialCenter={{ lat: 23.5880, lng: 58.3829 }}
             initialZoom={12}
             onMapReady={handleMapReady}
             onLoadError={(msg) => toast.error(msg)}
+            mapTypeControl={false}
+            streetViewControl={false}
+            fullscreenControl={false}
           />
 
-          {/* Zone legend overlay */}
+          {/* Zone legend overlay — bottom-right to avoid overlapping zoom controls */}
           {zones && zones.length > 0 && (
             <div
-              className="absolute bottom-3 left-3 rounded-xl p-2.5 flex flex-col gap-1.5"
+              className="absolute bottom-3 right-3 rounded-xl p-2.5 flex flex-col gap-1.5"
               style={{
-                background: "rgba(0,0,0,0.72)",
-                backdropFilter: "blur(6px)",
-                maxWidth: "160px",
+                background: "rgba(0,0,0,0.78)",
+                backdropFilter: "blur(8px)",
+                maxWidth: "170px",
                 zIndex: 20,
               }}
               dir="rtl"
@@ -604,12 +616,12 @@ export default function LocationPicker() {
   return (
     <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-12 pb-4">
+      <div className="flex items-center gap-3 px-4 pt-12 pb-4" dir="rtl">
         <button
           onClick={() => navigate("/")}
-          className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center"
+          className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0"
         >
-          <ChevronRight className="w-5 h-5 text-white" />
+          <ChevronLeft className="w-5 h-5 text-white" />
         </button>
         <div>
           <p className="text-white font-bold text-lg">موقع التوصيل</p>
