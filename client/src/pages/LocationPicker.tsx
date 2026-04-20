@@ -57,6 +57,26 @@ async function reverseGeocode(lat: number, lng: number, geocoder?: google.maps.G
   return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 }
 
+/** JS Geocoder is callback-based in many builds; `await geocoder.geocode()` can be undefined and throw on destructuring. */
+function forwardGeocodeWithCallback(
+  geocoder: google.maps.Geocoder,
+  request: google.maps.GeocoderRequest
+): Promise<google.maps.GeocoderResult[]> {
+  return new Promise((resolve, reject) => {
+    geocoder.geocode(request, (results, status) => {
+      if (status === "OK" && results?.length) {
+        resolve(results);
+        return;
+      }
+      if (status === "ZERO_RESULTS") {
+        resolve([]);
+        return;
+      }
+      reject(new Error(String(status)));
+    });
+  });
+}
+
 // ── Muscat area presets (Arabic names) ───────────────────────────────────────
 const MUSCAT_PRESETS = [
   { label: "مسقط القديمة / مطرح", lat: 23.6139, lng: 58.5922 },
@@ -102,6 +122,8 @@ export default function LocationPicker() {
       toast.success("تم حفظ الموقع!");
     },
   });
+
+  const geocodeAddressMutation = trpc.locations.geocodeAddress.useMutation();
 
   // ── Detect current location ──────────────────────────────────────────────
   const handleUseCurrentLocation = async () => {
@@ -202,25 +224,50 @@ export default function LocationPicker() {
     const geocoder = geocoderRef.current;
     const map = mapRef.current;
     const marker = markerRef.current;
-    if (!geocoder || !map || !marker) {
+    if (!map || !marker) {
       toast.error("انتظر حتى تظهر الخريطة ثم أعد المحاولة.");
       return;
     }
     setSearchBusy(true);
     try {
-      const { results } = await geocoder.geocode({
-        address: q,
-        region: "om",
-      });
-      const hit = results?.[0];
-      const loc = hit?.geometry?.location;
-      if (!hit || !loc) {
+      let lat: number | null = null;
+      let lng: number | null = null;
+      let formatted = q;
+
+      try {
+        const res = await geocodeAddressMutation.mutateAsync({ address: q });
+        if (res.ok) {
+          lat = res.lat;
+          lng = res.lng;
+          formatted = (res.formattedAddress ?? q).trim();
+        }
+      } catch {
+        // Server geocode unavailable — try browser Geocoder below.
+      }
+
+      if ((lat == null || lng == null) && geocoder) {
+        try {
+          const results = await forwardGeocodeWithCallback(geocoder, {
+            address: q,
+            region: "om",
+          });
+          const hit = results[0];
+          const loc = hit?.geometry?.location;
+          if (hit && loc) {
+            lat = typeof loc.lat === "function" ? loc.lat() : loc.lat;
+            lng = typeof loc.lng === "function" ? loc.lng() : loc.lng;
+            formatted = hit.formatted_address?.trim() || q;
+          }
+        } catch {
+          // Both paths failed
+        }
+      }
+
+      if (lat == null || lng == null) {
         toast.error("لم يُعثر على عنوان مطابق. جرّب صياغة أخرى أو اختر من الخريطة.");
         return;
       }
-      const lat = loc.lat();
-      const lng = loc.lng();
-      const formatted = hit.formatted_address?.trim() || q;
+
       marker.setPosition({ lat, lng });
       map.panTo({ lat, lng });
       map.setZoom(15);
@@ -231,7 +278,7 @@ export default function LocationPicker() {
     } finally {
       setSearchBusy(false);
     }
-  }, [addressQuery, applyResolvedAddress]);
+  }, [addressQuery, applyResolvedAddress, geocodeAddressMutation]);
 
   const confirmedAddress = () =>
     addressQuery.trim() ||

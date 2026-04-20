@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
+import { makeRequest, type GeocodingResult } from "../_core/map";
 import { getSavedLocations, upsertSavedLocation, deleteSavedLocation } from "../db";
 
 /**
@@ -8,6 +9,40 @@ import { getSavedLocations, upsertSavedLocation, deleteSavedLocation } from "../
  * Supports up to 3 locations per session: home, work, other.
  */
 export const locationsRouter = router({
+  /**
+   * Forward geocode (address → coordinates) via server Maps proxy.
+   * Used when the browser Geocoder JS API fails or returns nothing (common with some proxies).
+   */
+  geocodeAddress: publicProcedure
+    .input(z.object({ address: z.string().min(1).max(512) }))
+    .mutation(async ({ input }) => {
+      try {
+        const data = await makeRequest<GeocodingResult>("/maps/api/geocode/json", {
+          address: input.address,
+          region: "om",
+          language: "ar",
+        });
+        if (data.status !== "OK" || !data.results?.[0]) {
+          return { ok: false as const, status: data.status ?? "UNKNOWN" };
+        }
+        const r = data.results[0];
+        const loc = r.geometry.location;
+        const lat = typeof loc.lat === "number" ? loc.lat : Number((loc as { lat?: number }).lat);
+        const lng = typeof loc.lng === "number" ? loc.lng : Number((loc as { lng?: number }).lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          return { ok: false as const, status: "INVALID_RESPONSE" };
+        }
+        return {
+          ok: true as const,
+          lat,
+          lng,
+          formattedAddress: r.formatted_address,
+        };
+      } catch {
+        return { ok: false as const, status: "REQUEST_FAILED" };
+      }
+    }),
+
   /**
    * List saved locations for a session.
    */
