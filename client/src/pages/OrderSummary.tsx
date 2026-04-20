@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { ChevronRight, Flame, MapPin, Clock, ShieldCheck, Loader2, Edit2 } from "lucide-react";
+import {
+  ChevronRight, Flame, MapPin, Clock, ShieldCheck,
+  Loader2, Edit2, Package, AlertTriangle, CheckCircle2
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 
@@ -94,125 +97,189 @@ export default function OrderSummary() {
     navigate("/order/location");
   }
 
+  // ── Loading state ──────────────────────────────────────────────────────────
   if (creating || !draft) {
     return (
-      <div className="mobile-screen flex items-center justify-center" style={{ background: "oklch(0.09 0 0)" }}>
+      <div className="mobile-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-10 h-10 text-orange-400 animate-spin mx-auto mb-3" />
-          <p className="text-white/60 text-sm">جارٍ البحث عن مزودين قريبين منك…</p>
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          </div>
+          <p className="text-gray-700 font-semibold">جارٍ تجهيز طلبك…</p>
+          <p className="text-sm text-gray-400 mt-1">نبحث عن أقرب مزود متاح</p>
         </div>
       </div>
     );
   }
 
   const address = draft.address || deliveryLoc?.address;
+  const inZone = !!draft.zoneLabel;
+  const canProceed = inZone;
 
   return (
-    <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }}>
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-12 pb-4">
-        <button
-          onClick={() => navigate("/")}
-          className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center"
-        >
-          <ChevronRight className="w-5 h-5 text-white" />
-        </button>
-        <div className="flex-1">
-          <h1 className="text-base font-bold text-white">ملخص الطلب</h1>
-          <p className="text-white/40 text-xs">راجع تفاصيل طلبك قبل الدفع</p>
+    <div className="mobile-screen bg-gray-50">
+      {/* ── Header ── */}
+      <div
+        className="px-4 pt-12 pb-5 text-white"
+        style={{ background: "linear-gradient(135deg, oklch(0.12 0 0) 0%, oklch(0.53 0.22 27) 100%)" }}
+      >
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/")}
+            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0"
+          >
+            <ChevronRight className="w-5 h-5 text-white" />
+          </button>
+          <div>
+            <h1 className="text-base font-bold text-white">ملخص الطلب</h1>
+            <p className="text-white/50 text-xs">راجع تفاصيل طلبك قبل الدفع</p>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 px-4 pb-8 space-y-3">
-        <div className="bg-white rounded-3xl shadow-xl p-5">
-          {/* Item row */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Flame className="w-6 h-6 text-primary" />
+      <div className="flex-1 px-4 py-4 space-y-3 pb-8">
+
+        {/* ── Product card ── */}
+        <div className="bg-white rounded-3xl shadow-sm p-5">
+          <div className="flex items-center gap-4 mb-5">
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
+              style={{ background: "linear-gradient(135deg, oklch(0.12 0 0), oklch(0.53 0.22 27))" }}
+            >
+              <Flame className="w-7 h-7 text-orange-300" />
             </div>
-            <div className="flex-1">
-              <p className="font-bold text-gray-900">أسطوانة غاز LPG</p>
-              <p className="text-sm text-gray-500">
+            <div>
+              <p className="font-extrabold text-gray-900 text-base">أسطوانة غاز LPG</p>
+              <p className="text-sm text-gray-400 flex items-center gap-1 mt-0.5">
+                <Package className="w-3.5 h-3.5" />
                 {draft.gasAmount} {draft.gasAmount === 1 ? "أسطوانة" : "أسطوانات"}
               </p>
             </div>
           </div>
 
           {/* Price breakdown */}
-          <div className="space-y-2 border-t border-gray-100 pt-4 mb-4">
+          <div className="space-y-2.5 border-t border-gray-100 pt-4 mb-4">
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">الغاز × {draft.gasAmount}</span>
-              <span className="font-semibold">OMR {(draft.gasAmount * draft.unitPrice).toFixed(3)}</span>
+              <span className="font-semibold text-gray-800">
+                OMR {(draft.gasAmount * draft.unitPrice).toFixed(3)}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">رسوم التوصيل</span>
-              <span className="font-semibold">OMR {draft.deliveryFee.toFixed(3)}</span>
+              <span className={`font-semibold ${draft.deliveryFee === 0 ? "text-green-600" : "text-gray-800"}`}>
+                {draft.deliveryFee === 0 ? "مجاناً" : `OMR ${draft.deliveryFee.toFixed(3)}`}
+              </span>
             </div>
-            <div className="flex justify-between border-t border-gray-100 pt-2">
+            <div className="flex justify-between border-t border-gray-100 pt-3 mt-1">
               <span className="font-extrabold text-gray-900 text-base">الإجمالي</span>
-              <span className="font-extrabold text-xl text-primary">OMR {draft.totalPrice.toFixed(3)}</span>
+              <span className="font-extrabold text-2xl" style={{ color: "oklch(0.53 0.22 27)" }}>
+                OMR {draft.totalPrice.toFixed(3)}
+              </span>
             </div>
           </div>
 
-          {/* ETA */}
-          <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-4">
-            <Clock className="w-4 h-4 text-primary" />
-            <span>الوقت المتوقع: {draft.estimatedMinutes} دقيقة</span>
+          {/* ETA badge */}
+          <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5 mb-4">
+            <Clock className="w-4 h-4 text-primary shrink-0" />
+            <span className="text-sm text-gray-600">
+              الوقت المتوقع:{" "}
+              <strong className="text-gray-900">{draft.estimatedMinutes} دقيقة</strong>
+            </span>
           </div>
 
           {/* Delivery address */}
           {address && (
-            <div className="flex items-start gap-2 bg-gray-50 rounded-2xl p-3 mb-4 border border-gray-100" dir="rtl">
-              <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+            <div
+              className={`flex items-start gap-3 rounded-2xl p-3.5 mb-4 border ${
+                inZone
+                  ? "bg-emerald-50 border-emerald-100"
+                  : "bg-amber-50 border-amber-200"
+              }`}
+              dir="rtl"
+            >
+              <MapPin className={`w-4 h-4 mt-0.5 shrink-0 ${inZone ? "text-emerald-600" : "text-amber-600"}`} />
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">عنوان التوصيل</p>
                 <p className="text-sm text-gray-800 leading-snug">{address}</p>
-                {draft.zoneLabel && (
-                  <span className="inline-flex items-center mt-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs font-semibold">
-                    {draft.zoneLabel}
+                {inZone && (
+                  <span className="inline-flex items-center gap-1 mt-1.5 rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-semibold">
+                    <CheckCircle2 className="w-3 h-3" />
+                    {draft.zoneLabel} — ضمن نطاق التوصيل
                   </span>
                 )}
               </div>
               <button
                 type="button"
                 onClick={changeLocation}
-                className="shrink-0 text-primary hover:text-primary/80 transition-colors"
+                className="shrink-0 w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-500 hover:text-primary transition-colors"
                 title="تغيير الموقع"
               >
-                <Edit2 className="w-4 h-4" />
+                <Edit2 className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
 
-          {/* Warnings */}
-          {!draft.zoneLabel && (
-            <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-800 mb-4">
-              ⚠️ الموقع خارج نطاق التوصيل — اضغط <Edit2 className="w-3 h-3 inline" /> لتغيير الموقع.
-            </div>
-          )}
-          {draft.zoneLabel && !draft.hasProviders && (
-            <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-700 mb-4">
-              ⚠️ التوافر محدود في منطقتك — سيتم وضع طلبك في قائمة الانتظار.
+          {/* Zone warning — only shown when truly outside zone */}
+          {!inZone && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 mb-4">
+              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800">خارج نطاق التوصيل</p>
+                <p className="text-xs text-amber-600 mt-0.5">
+                  موقعك الحالي خارج مناطق التوصيل المتاحة.{" "}
+                  <button onClick={changeLocation} className="underline font-semibold">
+                    غيّر الموقع
+                  </button>
+                </p>
+              </div>
             </div>
           )}
 
-          {/* CTA */}
+          {/* Limited availability warning */}
+          {inZone && !draft.hasProviders && (
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3 mb-4">
+              <Clock className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-blue-800">توافر محدود</p>
+                <p className="text-xs text-blue-600 mt-0.5">
+                  لا يوجد مزودون متاحون الآن — سيُعالج طلبك عند توفر مزود.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* CTA button */}
           <Button
             size="lg"
-            className="w-full rounded-2xl font-extrabold text-base shadow-lg shadow-primary/30 active:scale-95 transition-transform"
-            style={{ height: "60px", background: "oklch(0.53 0.22 27)" }}
+            className="w-full rounded-2xl font-extrabold text-base text-white shadow-lg active:scale-95 transition-transform"
+            style={{
+              height: "60px",
+              background: canProceed
+                ? "linear-gradient(135deg, oklch(0.45 0.22 27), oklch(0.60 0.22 27))"
+                : "oklch(0.80 0 0)",
+              boxShadow: canProceed ? "0 8px 24px oklch(0.53 0.22 27 / 0.35)" : "none",
+            }}
             onClick={goToPayment}
-            disabled={!draft.zoneLabel}
+            disabled={!canProceed}
           >
-            اختر طريقة الدفع — OMR {draft.totalPrice.toFixed(3)}
-            <ChevronRight className="w-5 h-5 mr-1" />
+            {canProceed ? (
+              <>
+                اختر طريقة الدفع
+                <span className="mx-2 opacity-60">·</span>
+                OMR {draft.totalPrice.toFixed(3)}
+                <ChevronRight className="w-5 h-5 mr-2 shrink-0" />
+              </>
+            ) : (
+              "الموقع خارج نطاق التوصيل"
+            )}
           </Button>
         </div>
 
         {/* Trust note */}
-        <div className="flex items-center gap-2 px-2">
-          <ShieldCheck className="w-4 h-4 text-green-400 shrink-0" />
-          <p className="text-xs text-white/40">توصيل مضمون أو استرداد كامل. لا رسوم خفية.</p>
+        <div className="flex items-center justify-center gap-2 py-1">
+          <ShieldCheck className="w-4 h-4 text-green-500 shrink-0" />
+          <p className="text-xs text-gray-400">توصيل مضمون أو استرداد كامل · لا رسوم خفية</p>
         </div>
       </div>
     </div>
