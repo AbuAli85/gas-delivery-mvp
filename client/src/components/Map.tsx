@@ -86,12 +86,6 @@ declare global {
   }
 }
 
-const API_KEY = import.meta.env.VITE_FRONTEND_FORGE_API_KEY as string | undefined;
-const FORGE_BASE_URL =
-  import.meta.env.VITE_FRONTEND_FORGE_API_URL ||
-  "https://forge.butterfly-effect.dev";
-const MAPS_PROXY_URL = `${FORGE_BASE_URL}/v1/maps/proxy`;
-
 /** Single shared loader so concurrent MapViews do not append duplicate scripts. */
 let mapsScriptPromise: Promise<void> | null = null;
 
@@ -99,15 +93,12 @@ function loadMapScript(): Promise<void> {
   if (typeof window !== "undefined" && window.google?.maps) {
     return Promise.resolve();
   }
-  if (!API_KEY?.trim()) {
-    return Promise.reject(
-      new Error("Missing VITE_FRONTEND_FORGE_API_KEY — map cannot load.")
-    );
-  }
   if (!mapsScriptPromise) {
     mapsScriptPromise = new Promise((resolve, reject) => {
       const script = document.createElement("script");
-      script.src = `${MAPS_PROXY_URL}/maps/api/js?key=${encodeURIComponent(API_KEY)}&v=weekly&libraries=places,geocoding,geometry`;
+      // Route through the local server proxy (/api/maps/*) which adds the
+      // required Origin header that browser <script> tags cannot send.
+      script.src = `/api/maps/maps/api/js?v=weekly&libraries=places,geocoding,geometry`;
       script.async = true;
       script.onload = () => resolve();
       script.onerror = () => {
