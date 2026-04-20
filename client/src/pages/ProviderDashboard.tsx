@@ -5,7 +5,7 @@ import {
   Flame, MapPin, Phone, Package, Clock, CheckCircle2,
   XCircle, Truck, History, ToggleLeft, ToggleRight, Loader2,
   ChevronDown, ChevronUp, Wallet, Star, AlertCircle,
-  UserCheck, UserX, Users, Bell, BellOff, Navigation
+  UserCheck, UserX, Users, Bell, BellOff, Navigation, ShieldCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
@@ -657,6 +657,20 @@ export default function ProviderDashboard() {
               </div>
             )}
           </button>
+        )}
+
+        {/* ── Admin Panel Link (admin provider only) ── */}
+        {id === ADMIN_PROVIDER_ID && (
+          <a
+            href="/admin"
+            className="w-full flex items-center justify-between bg-gray-900 rounded-2xl shadow-sm px-5 py-4 hover:bg-gray-800 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-orange-400" />
+              <span className="text-sm font-semibold text-white">لوحة إدارة الطلبات</span>
+            </div>
+            <span className="text-xs text-gray-400">عرض كل الطلبات والإحصائيات</span>
+          </a>
         )}
 
         {/* ── Order History ── */}

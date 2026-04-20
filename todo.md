@@ -71,10 +71,10 @@
 > The MVP is fully functional without them.
 
 - [ ] [POST-MVP] Real Stripe card collection (requires STRIPE_SECRET_KEY secret; mock is current fallback)
-- [ ] [POST-MVP] Browser Web Push to providers/customers (notifyOwner() is current server-side fallback)
-- [ ] [POST-MVP] Live customer map with provider zone overlay (LocationPicker map handles delivery selection only)
-- [ ] [POST-MVP] Phone OTP auth for customers (no login wall per requirements; phone is optional field)
-- [ ] [POST-MVP] Admin panel for order management
+- [x] [DONE] Browser Web Push to providers — VAPID + service worker + Bell button in dashboard
+- [x] [DONE] Live customer map with provider GPS tracking in OrderTracking
+- [x] [DONE] Phone OTP auth for customers at /customer/login
+- [x] [DONE] Admin panel for order management at /admin (PIN-protected)
 
 ## Conversion Optimization (Phase 3 — Reality Validation)
 - [x] Home: Arabic tagline + "Guaranteed delivery or refund" trust badge
