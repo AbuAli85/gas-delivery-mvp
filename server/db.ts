@@ -5,10 +5,12 @@ import {
   Order,
   OrderAssignment,
   Provider,
+  SavedLocation,
   Zone,
   orderAssignments,
   orders,
   providers,
+  savedLocations,
   users,
   zones,
 } from "../drizzle/schema";
@@ -324,4 +326,61 @@ export async function countActiveAssignments(orderId: number): Promise<number> {
       )
     );
   return result.length;
+}
+
+// ─── Saved Locations ─────────────────────────────────────────────────────────
+
+export async function getSavedLocations(sessionKey: string): Promise<SavedLocation[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(savedLocations)
+    .where(eq(savedLocations.sessionKey, sessionKey))
+    .limit(3);
+}
+
+export async function upsertSavedLocation(data: {
+  sessionKey: string;
+  label: "home" | "work" | "other";
+  lat: number;
+  lng: number;
+  address?: string | null;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  // Upsert by sessionKey + label (one Home, one Work per session)
+  const existing = await db
+    .select()
+    .from(savedLocations)
+    .where(
+      and(
+        eq(savedLocations.sessionKey, data.sessionKey),
+        eq(savedLocations.label, data.label)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db
+      .update(savedLocations)
+      .set({ lat: data.lat, lng: data.lng, address: data.address ?? null })
+      .where(eq(savedLocations.id, existing[0].id));
+  } else {
+    await db.insert(savedLocations).values({
+      sessionKey: data.sessionKey,
+      label: data.label,
+      lat: data.lat,
+      lng: data.lng,
+      address: data.address ?? null,
+    });
+  }
+}
+
+export async function deleteSavedLocation(id: number, sessionKey: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .delete(savedLocations)
+    .where(and(eq(savedLocations.id, id), eq(savedLocations.sessionKey, sessionKey)));
 }

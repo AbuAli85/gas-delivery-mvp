@@ -1,9 +1,28 @@
+/**
+ * OrderSummary — reads deliveryLocation from sessionStorage (set by LocationPicker),
+ * calls createOrderDraft on mount, then shows price/ETA/address and a CTA to payment.
+ */
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { ArrowLeft, Flame, MapPin, Clock, ChevronRight, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  Flame,
+  MapPin,
+  Clock,
+  ChevronRight,
+  ShieldCheck,
+  Loader2,
+  Edit2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
+
+interface DeliveryLocation {
+  lat: number;
+  lng: number;
+  address: string;
+}
 
 interface OrderDraft {
   orderId: number;
@@ -16,26 +35,110 @@ interface OrderDraft {
   zoneLabel: string;
   hasProviders: boolean;
   address?: string;
+  deliveryLat?: number;
+  deliveryLng?: number;
 }
 
 export default function OrderSummary() {
   const [, navigate] = useLocation();
   const [draft, setDraft] = useState<OrderDraft | null>(null);
+  const [deliveryLoc, setDeliveryLoc] = useState<DeliveryLocation | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  const createDraft = trpc.orders.createOrderDraft.useMutation({
+    onSuccess: (data) => {
+      const loc = deliveryLoc;
+      const d: OrderDraft = {
+        orderId: data.orderId,
+        gasAmount: 1,
+        unitPrice: data.unitPrice,
+        deliveryFee: data.deliveryFee,
+        totalPrice: data.totalPrice,
+        currency: data.currency,
+        estimatedMinutes: data.estimatedMinutes,
+        zoneLabel: data.zoneLabel,
+        hasProviders: data.hasProviders,
+        address: loc?.address,
+        deliveryLat: loc?.lat,
+        deliveryLng: loc?.lng,
+      };
+      sessionStorage.setItem("orderDraft", JSON.stringify(d));
+      setDraft(d);
+      setCreating(false);
+    },
+    onError: (err) => {
+      toast.error(err.message || "Could not create order. Try again.");
+      setCreating(false);
+    },
+  });
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("orderDraft");
-    if (!stored) { navigate("/"); return; }
-    try { setDraft(JSON.parse(stored)); } catch { navigate("/"); }
-  }, [navigate]);
+    // Check if we already have a draft (e.g. back-navigation)
+    const storedDraft = sessionStorage.getItem("orderDraft");
+    if (storedDraft) {
+      try {
+        setDraft(JSON.parse(storedDraft));
+        return;
+      } catch {
+        // fall through to re-create
+      }
+    }
+
+    // Read delivery location set by LocationPicker
+    const storedLoc = sessionStorage.getItem("deliveryLocation");
+    if (!storedLoc) {
+      navigate("/order/location");
+      return;
+    }
+
+    let loc: DeliveryLocation;
+    try {
+      loc = JSON.parse(storedLoc);
+    } catch {
+      navigate("/order/location");
+      return;
+    }
+
+    setDeliveryLoc(loc);
+    setCreating(true);
+    createDraft.mutate({
+      customerLat: loc.lat,
+      customerLng: loc.lng,
+      customerAddress: loc.address,
+      gasAmount: 1,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function goToPayment() {
-    // Store orderId + price for the payment page
     sessionStorage.setItem("orderId", String(draft!.orderId));
     sessionStorage.setItem("totalPrice", String(draft!.totalPrice));
     navigate("/order/payment");
   }
 
-  if (!draft) return null;
+  function changeLocation() {
+    // Clear draft so it gets re-created with new location
+    sessionStorage.removeItem("orderDraft");
+    sessionStorage.removeItem("deliveryLocation");
+    navigate("/order/location");
+  }
+
+  // ── Loading state ────────────────────────────────────────────────────────
+  if (creating || !draft) {
+    return (
+      <div
+        className="mobile-screen flex items-center justify-center"
+        style={{ background: "oklch(0.09 0 0)" }}
+      >
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-orange-400 animate-spin mx-auto mb-3" />
+          <p className="text-white/60 text-sm">Finding providers near you…</p>
+        </div>
+      </div>
+    );
+  }
+
+  const address = draft.address || deliveryLoc?.address;
 
   return (
     <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }}>
@@ -47,7 +150,10 @@ export default function OrderSummary() {
         >
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
-        <h1 className="text-base font-bold text-white">Order Summary</h1>
+        <div className="flex-1">
+          <h1 className="text-base font-bold text-white">ملخص الطلب</h1>
+          <p className="text-white/40 text-xs">Order Summary</p>
+        </div>
       </div>
 
       <div className="flex-1 px-4 pb-8 space-y-3">
@@ -60,7 +166,9 @@ export default function OrderSummary() {
             </div>
             <div className="flex-1">
               <p className="font-bold text-gray-900">LPG Gas Cylinder</p>
-              <p className="text-sm text-gray-500">{draft.gasAmount} cylinder{draft.gasAmount > 1 ? "s" : ""}</p>
+              <p className="text-sm text-gray-500">
+                {draft.gasAmount} cylinder{draft.gasAmount > 1 ? "s" : ""}
+              </p>
             </div>
           </div>
 
@@ -68,7 +176,9 @@ export default function OrderSummary() {
           <div className="space-y-2 border-t border-gray-100 pt-4 mb-4">
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Gas × {draft.gasAmount}</span>
-              <span className="font-semibold">OMR {(draft.gasAmount * draft.unitPrice).toFixed(3)}</span>
+              <span className="font-semibold">
+                OMR {(draft.gasAmount * draft.unitPrice).toFixed(3)}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Delivery</span>
@@ -83,18 +193,39 @@ export default function OrderSummary() {
           </div>
 
           {/* Delivery meta */}
-          <div className="flex gap-4 text-sm text-gray-500 mb-5">
-            <div className="flex items-center gap-1.5">
+          <div className="flex gap-4 text-sm text-gray-500 mb-4">
+            <div className="flex items-center gap-1.5 shrink-0">
               <Clock className="w-4 h-4 text-primary" />
               <span>{draft.estimatedMinutes} min</span>
             </div>
-            {draft.address && (
+            {draft.zoneLabel && (
               <div className="flex items-center gap-1.5 truncate">
-                <MapPin className="w-4 h-4 text-primary shrink-0" />
-                <span className="truncate text-xs">{draft.address}</span>
+                <span className="text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium">
+                  {draft.zoneLabel}
+                </span>
               </div>
             )}
           </div>
+
+          {/* Delivery address — editable */}
+          {address && (
+            <div className="flex items-start gap-2 bg-gray-50 rounded-2xl p-3 mb-4">
+              <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
+                  Delivery address
+                </p>
+                <p className="text-sm text-gray-700 leading-snug">{address}</p>
+              </div>
+              <button
+                onClick={changeLocation}
+                className="shrink-0 text-primary hover:text-primary/80 transition-colors"
+                title="Change location"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           {!draft.hasProviders && (
             <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-700 mb-4">
@@ -109,7 +240,7 @@ export default function OrderSummary() {
             style={{ height: "60px", background: "oklch(0.53 0.22 27)" }}
             onClick={goToPayment}
           >
-            Choose Payment — OMR {draft.totalPrice.toFixed(3)}
+            اختر طريقة الدفع — OMR {draft.totalPrice.toFixed(3)}
             <ChevronRight className="w-5 h-5 ml-1" />
           </Button>
         </div>

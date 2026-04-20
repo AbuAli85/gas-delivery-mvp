@@ -99,11 +99,17 @@ export const ordersRouter = router({
   createOrderDraft: publicProcedure
     .input(
       z.object({
+        // Ordering location — where the customer is (analytics only)
         customerLat: z.number(),
         customerLng: z.number(),
         customerAddress: z.string().optional(),
         customerPhone: z.string().optional(),
         customerName: z.string().optional(),
+        // Delivery location — where the gas should be delivered.
+        // If omitted, falls back to customerLat/Lng for zone resolution.
+        deliveryLat: z.number().optional(),
+        deliveryLng: z.number().optional(),
+        deliveryAddress: z.string().optional(),
         // gasAmount is always 1 — kept for API compatibility
         gasAmount: z.number().min(1).max(1).default(1),
       })
@@ -112,13 +118,13 @@ export const ordersRouter = router({
       // Fixed price — always 3.300 OMR
       const { unitPrice, deliveryFee, totalPrice } = calculateOrderPrice();
 
-      // Resolve zone
-      const allZones = await getAllZones();
-      const customerLocation: LatLng = {
-        lat: input.customerLat,
-        lng: input.customerLng,
-      };
+      // Zone resolution MUST use deliveryLat/Lng when provided.
+      // Falls back to customerLat/Lng (ordering location) when delivery location is absent.
+      const resolutionLat = input.deliveryLat ?? input.customerLat;
+      const resolutionLng = input.deliveryLng ?? input.customerLng;
+      const deliveryLocation: LatLng = { lat: resolutionLat, lng: resolutionLng };
 
+      const allZones = await getAllZones();
       const zonesWithProviders = await Promise.all(
         allZones.map(async (zone) => ({
           zone,
@@ -126,7 +132,7 @@ export const ordersRouter = router({
         }))
       );
 
-      const resolved = resolveZone(customerLocation, zonesWithProviders);
+      const resolved = resolveZone(deliveryLocation, zonesWithProviders);
 
       const orderId = await createOrder({
         customerLat: input.customerLat,
@@ -134,6 +140,10 @@ export const ordersRouter = router({
         customerAddress: input.customerAddress ?? null,
         customerPhone: input.customerPhone ?? null,
         customerName: input.customerName ?? null,
+        // Delivery location fields
+        deliveryLat: input.deliveryLat ?? null,
+        deliveryLng: input.deliveryLng ?? null,
+        deliveryAddress: input.deliveryAddress ?? input.customerAddress ?? null,
         gasAmount: "1",
         totalPrice: String(totalPrice),
         currency: "OMR",
@@ -156,6 +166,10 @@ export const ordersRouter = router({
         estimatedMinutes: DEFAULT_ETA_MINUTES,
         zoneLabel: resolved?.zone.name ?? "Muscat",
         hasProviders: (resolved?.providers.length ?? 0) > 0,
+        // Echo back the resolved delivery location
+        deliveryLat: input.deliveryLat ?? input.customerLat,
+        deliveryLng: input.deliveryLng ?? input.customerLng,
+        deliveryAddress: input.deliveryAddress ?? input.customerAddress ?? null,
       };
     }),
 
@@ -371,7 +385,14 @@ export const ordersRouter = router({
         estimatedMinutes: order.estimatedMinutes,
         totalPrice: order.totalPrice,
         currency: order.currency,
+        // Ordering location (where customer was)
         customerAddress: order.customerAddress,
+        customerLat: order.customerLat,
+        customerLng: order.customerLng,
+        // Delivery location (where gas should be delivered)
+        deliveryAddress: order.deliveryAddress ?? order.customerAddress,
+        deliveryLat: order.deliveryLat ?? order.customerLat,
+        deliveryLng: order.deliveryLng ?? order.customerLng,
         assignedProviderId: order.assignedProviderId,
         providerName,
         providerPhone,

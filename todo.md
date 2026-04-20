@@ -131,3 +131,39 @@
 - [x] Score warning threshold (< 60%, >= 5 orders)
 - [x] Score increment events: accept→acceptedOrders++, reject→rejectedOrders++, deliver→totalOrders+totalCommission
 - [x] Fixed price enforcement (3.300 OMR flat-rate, deterministic, format)
+
+## Flexible Delivery Location System (COMPLETE)
+
+### Schema
+- [x] orders.deliveryLat, deliveryLng, deliveryAddress (zone resolution uses these)
+- [x] orders.orderingLat/orderingLng — served by existing customerLat/customerLng columns (analytics only; no separate columns needed)
+- [x] saved_locations table (id, sessionKey, label: home|work|other, lat, lng, address, createdAt)
+
+### Backend
+- [x] createOrderDraft uses deliveryLat/deliveryLng for zone resolution
+- [x] getOrderStatus returns deliveryAddress
+- [x] locations.save / locations.list / locations.delete procedures
+- [x] Session-key-based saved locations (no auth required)
+
+### Customer UI
+- [x] LocationPicker page (/order/location) — two-option cards
+- [x] Current location: single tap, auto-detect, < 3 seconds
+- [x] Choose another: 6 Muscat area presets + map picker + saved locations
+- [x] Map picker: tap anywhere on map to set delivery pin
+- [x] Saved locations: Home / Work / Other quick-select chips
+- [x] Save location button after map selection
+- [x] Arabic-first labels on all options
+- [x] OrderSummary reads deliveryLocation from sessionStorage
+- [x] OrderSummary shows delivery address with edit (pencil) button
+- [x] OrderSummary edit button → back to LocationPicker
+- [x] Home CTA navigates to /order/location
+
+### Tests (81 total, 11 new Phase 3 tests)
+- [x] Zone resolution uses delivery coords (not ordering coords)
+- [x] Returns null for coords outside Muscat
+- [x] Different zones for different delivery locations
+- [x] Valid/invalid location labels (home/work/other)
+- [x] Muscat preset coordinates (all 6 presets in valid bounding box)
+- [x] Unique preset labels
+- [x] Address formatting (coords fallback, truncation)
+- [x] Session key generation format

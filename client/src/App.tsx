@@ -15,6 +15,9 @@ import OrderTracking from "./pages/OrderTracking";
 // Provider pages
 import ProviderDashboard from "./pages/ProviderDashboard";
 
+// Location picker
+import LocationPicker from "./pages/LocationPicker";
+
 function Router() {
   return (
     <Switch>
@@ -22,6 +25,7 @@ function Router() {
       <Route path="/" component={Home} />
       {/* /gas — shareable WhatsApp entry point */}
       <Route path="/gas" component={Home} />
+      <Route path="/order/location" component={LocationPicker} />
       <Route path="/order/summary" component={OrderSummary} />
       <Route path="/order/payment" component={Payment} />
       <Route path="/order/placed/:orderId" component={OrderPlaced} />

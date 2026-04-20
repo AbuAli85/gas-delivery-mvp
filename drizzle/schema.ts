@@ -120,6 +120,12 @@ export const orders = mysqlTable("orders", {
   ])
     .default("unpaid")
     .notNull(),
+  // Delivery location — where the gas should be delivered.
+  // If null, falls back to customerLat/Lng (ordering location).
+  // Zone resolution ALWAYS uses deliveryLat/deliveryLng when present.
+  deliveryLat: float("deliveryLat"),
+  deliveryLng: float("deliveryLng"),
+  deliveryAddress: text("deliveryAddress"),
   // Anti-cheat timestamps
   assignedAt: timestamp("assignedAt"),
   acceptedAt: timestamp("acceptedAt"),
@@ -152,3 +158,21 @@ export const orderAssignments = mysqlTable("order_assignments", {
 
 export type OrderAssignment = typeof orderAssignments.$inferSelect;
 export type InsertOrderAssignment = typeof orderAssignments.$inferInsert;
+
+// ─── Saved Locations ─────────────────────────────────────────────────────────
+// Lightweight saved locations keyed by a browser sessionKey (no login required).
+// Customers can save up to 3 locations: home, work, or other.
+export const savedLocations = mysqlTable("saved_locations", {
+  id: int("id").autoincrement().primaryKey(),
+  // Anonymous session key stored in localStorage — no auth required
+  sessionKey: varchar("sessionKey", { length: 64 }).notNull(),
+  label: mysqlEnum("label", ["home", "work", "other"]).default("other").notNull(),
+  lat: float("lat").notNull(),
+  lng: float("lng").notNull(),
+  address: text("address"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SavedLocation = typeof savedLocations.$inferSelect;
+export type InsertSavedLocation = typeof savedLocations.$inferInsert;

@@ -52,52 +52,12 @@ export default function Home() {
   });
   const onlineCount = providers?.filter((p) => p.isAvailable).length ?? 0;
 
-  const createDraft = trpc.orders.createOrderDraft.useMutation({
-    onSuccess: (data) => {
-      sessionStorage.setItem(
-        "orderDraft",
-        JSON.stringify({
-          orderId: data.orderId,
-          gasAmount: 1,
-          unitPrice: data.unitPrice,
-          deliveryFee: data.deliveryFee,
-          totalPrice: data.totalPrice,
-          currency: data.currency,
-          estimatedMinutes: data.estimatedMinutes,
-          zoneLabel: data.zoneLabel,
-          hasProviders: data.hasProviders,
-          address: location?.address,
-        })
-      );
-      navigate("/order/summary");
-    },
-    onError: (err) => {
-      toast.error(err.message || "Could not create order. Try again.");
-      setLocating(false);
-    },
-  });
-
-  const handleOrder = async () => {
-    setLocating(true);
-    try {
-      let loc = location;
-      if (!loc) {
-        loc = await detectLocation();
-        setLocation(loc);
-      }
-      createDraft.mutate({
-        customerLat: loc.lat,
-        customerLng: loc.lng,
-        customerAddress: loc.address,
-        gasAmount: 1,
-      });
-    } catch {
-      toast.error("Could not detect your location. Please allow location access.");
-      setLocating(false);
-    }
+  const handleOrder = () => {
+    // Navigate to location picker — user chooses current or alternate delivery location
+    navigate("/order/location");
   };
 
-  const isLoading = locating || createDraft.isPending;
+  const isLoading = locating;
 
   return (
     <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }}>
@@ -182,7 +142,7 @@ export default function Home() {
             {isLoading ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="w-5 h-5 animate-spin" />
-                {locating && !createDraft.isPending ? "Finding your location…" : "Creating order…"}
+                {"Detecting location…"}
               </span>
             ) : (
               <span className="flex items-center gap-2">

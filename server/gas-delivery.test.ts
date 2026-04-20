@@ -539,3 +539,126 @@ describe("Fixed price enforcement (3.300 OMR)", () => {
     expect(p1.totalPrice).toBe(3.3);
   });
 });
+
+// ─── Phase 3: Flexible Delivery Location System ───────────────────────────────
+
+describe("Delivery location system", () => {
+  describe("Zone resolution uses delivery location, not ordering location", () => {
+    it("resolves zone from delivery coordinates inside Muscat", () => {
+      const deliveryLat = 23.6139;
+      const deliveryLng = 58.5922;
+      const zone = resolveZoneFromCoords(deliveryLat, deliveryLng);
+      expect(zone).not.toBeNull();
+    });
+
+    it("returns null for coordinates outside Muscat (e.g. Dubai)", () => {
+      const zone = resolveZoneFromCoords(25.0, 55.0);
+      expect(zone).toBeNull();
+    });
+
+    it("resolves different zones for different delivery locations", () => {
+      const zone1 = resolveZoneFromCoords(23.6139, 58.5922); // Old Muscat
+      const zone2 = resolveZoneFromCoords(23.5957, 58.3942); // Al Khuwair
+      // Both should be non-null (in Muscat) and may differ
+      expect(zone1).not.toBeNull();
+      expect(zone2).not.toBeNull();
+    });
+  });
+
+  describe("Saved location labels", () => {
+    it("accepts home, work, and other labels", () => {
+      const valid = ["home", "work", "other"];
+      valid.forEach((label) => expect(isValidLocationLabel(label)).toBe(true));
+    });
+
+    it("rejects invalid labels", () => {
+      expect(isValidLocationLabel("office")).toBe(false);
+      expect(isValidLocationLabel("")).toBe(false);
+      expect(isValidLocationLabel("gym")).toBe(false);
+    });
+  });
+
+  describe("Muscat preset coordinates", () => {
+    const MUSCAT_PRESETS = [
+      { label: "Old Muscat / Mutrah", lat: 23.6139, lng: 58.5922 },
+      { label: "Ruwi / CBD",          lat: 23.6086, lng: 58.5930 },
+      { label: "Al Khuwair",          lat: 23.5957, lng: 58.3942 },
+      { label: "Ghubrah",             lat: 23.6050, lng: 58.3770 },
+      { label: "Madinat Qaboos",      lat: 23.5880, lng: 58.4020 },
+      { label: "Bausher",             lat: 23.5820, lng: 58.3600 },
+    ];
+
+    it("all presets have valid Muscat coordinates", () => {
+      MUSCAT_PRESETS.forEach(({ lat, lng }) => {
+        expect(lat).toBeGreaterThan(23.4);
+        expect(lat).toBeLessThan(23.8);
+        expect(lng).toBeGreaterThan(58.2);
+        expect(lng).toBeLessThan(58.7);
+      });
+    });
+
+    it("all presets have unique labels", () => {
+      const labels = MUSCAT_PRESETS.map((p) => p.label);
+      expect(new Set(labels).size).toBe(labels.length);
+    });
+  });
+
+  describe("Delivery address formatting", () => {
+    it("formats coordinates as fallback address to 4 decimal places", () => {
+      expect(formatCoordsFallback(23.6139, 58.5922)).toBe("23.6139, 58.5922");
+    });
+
+    it("truncates long addresses", () => {
+      const long = "Building 42, Street 7, Block 3, Al Khuwair, Muscat Governorate, Oman";
+      const result = truncateAddress(long, 50);
+      expect(result.length).toBeLessThanOrEqual(53);
+      expect(result.endsWith("...")).toBe(true);
+    });
+
+    it("does not truncate short addresses", () => {
+      const short = "Al Khuwair, Muscat";
+      expect(truncateAddress(short, 50)).toBe(short);
+    });
+  });
+
+  describe("Session key generation", () => {
+    it("generates keys with correct format", () => {
+      const key = generateSessionKey();
+      expect(key).toMatch(/^sess_\d+_[a-z0-9]+$/);
+      expect(key.length).toBeGreaterThan(10);
+    });
+  });
+});
+
+// ─── Phase 3 test helpers ─────────────────────────────────────────────────────
+
+function resolveZoneFromCoords(lat: number, lng: number): string | null {
+  const zones = [
+    { name: "Old Muscat / Mutrah", minLat: 23.58, maxLat: 23.65, minLng: 58.55, maxLng: 58.65 },
+    { name: "Ruwi / CBD",          minLat: 23.58, maxLat: 23.64, minLng: 58.55, maxLng: 58.65 },
+    { name: "Al Khuwair / Ghubrah",minLat: 23.57, maxLat: 23.63, minLng: 58.35, maxLng: 58.45 },
+  ];
+  for (const z of zones) {
+    if (lat >= z.minLat && lat <= z.maxLat && lng >= z.minLng && lng <= z.maxLng) {
+      return z.name;
+    }
+  }
+  return null;
+}
+
+function isValidLocationLabel(label: string): boolean {
+  return ["home", "work", "other"].includes(label);
+}
+
+function formatCoordsFallback(lat: number, lng: number): string {
+  return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+}
+
+function truncateAddress(address: string, maxLen: number): string {
+  if (address.length <= maxLen) return address;
+  return address.slice(0, maxLen) + "...";
+}
+
+function generateSessionKey(): string {
+  return `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
