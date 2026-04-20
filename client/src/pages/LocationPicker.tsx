@@ -254,8 +254,8 @@ export default function LocationPicker() {
           const hit = results[0];
           const loc = hit?.geometry?.location;
           if (hit && loc) {
-            lat = typeof loc.lat === "function" ? loc.lat() : loc.lat;
-            lng = typeof loc.lng === "function" ? loc.lng() : loc.lng;
+            lat = (typeof loc.lat === "function" ? loc.lat() : loc.lat) as number;
+            lng = (typeof loc.lng === "function" ? loc.lng() : loc.lng) as number;
             formatted = hit.formatted_address?.trim() || q;
           }
         } catch {
