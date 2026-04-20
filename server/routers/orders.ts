@@ -164,7 +164,8 @@ export const ordersRouter = router({
         totalPrice,
         currency: "OMR",
         estimatedMinutes: DEFAULT_ETA_MINUTES,
-        zoneLabel: resolved?.zone.name ?? "Muscat",
+        // Only set when the pin lies inside a zone polygon — matches delivery coords.
+        zoneLabel: resolved?.zone.name ?? "",
         hasProviders: (resolved?.providers.length ?? 0) > 0,
         // Echo back the resolved delivery location
         deliveryLat: input.deliveryLat ?? input.customerLat,

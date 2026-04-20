@@ -102,6 +102,9 @@ export default function OrderSummary() {
       customerLat: loc.lat,
       customerLng: loc.lng,
       customerAddress: loc.address,
+      deliveryLat: loc.lat,
+      deliveryLng: loc.lng,
+      deliveryAddress: loc.address,
       gasAmount: 1,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -188,42 +191,58 @@ export default function OrderSummary() {
             </div>
           </div>
 
-          {/* Delivery meta */}
+          {/* ETA */}
           <div className="flex gap-4 text-sm text-gray-500 mb-4">
             <div className="flex items-center gap-1.5 shrink-0">
               <Clock className="w-4 h-4 text-primary" />
               <span>{draft.estimatedMinutes} دقيقة</span>
             </div>
-            {draft.zoneLabel && (
-              <div className="flex items-center gap-1.5 truncate">
-                <span className="text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium">
-                  {draft.zoneLabel}
-                </span>
+          </div>
+
+          {/* Location + provider zone — same pin; zone only if polygon match */}
+          <div className="rounded-2xl border border-gray-100 bg-gray-50/80 p-3 mb-4 space-y-3" dir="rtl">
+            <div>
+              <p className="text-[10px] text-gray-400 font-medium mb-1">منطقة مزوّدي الخدمة (حسب موقع الخريطة)</p>
+              {draft.zoneLabel ? (
+                <div className="flex flex-wrap items-center gap-2 text-sm text-gray-800 leading-snug">
+                  <span className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-xs font-semibold">
+                    {draft.zoneLabel}
+                  </span>
+                  <span className="text-gray-500 text-xs">نفس موقع الدبوس والعنوان أدناه</span>
+                </div>
+              ) : (
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  لا توجد منطقة مزوّدين تطابق هذا الموقع على الخريطة — العنوان أدناه هو مرجع التوصيل فقط.
+                </p>
+              )}
+            </div>
+            {address && (
+              <div className="flex items-start gap-2 bg-white rounded-xl p-3 border border-gray-100">
+                <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
+                    عنوان التوصيل
+                  </p>
+                  <p className="text-sm text-gray-800 leading-snug">{address}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={changeLocation}
+                  className="shrink-0 text-primary hover:text-primary/80 transition-colors"
+                  title="تغيير الموقع"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
               </div>
             )}
           </div>
 
-          {/* Delivery address — editable */}
-          {address && (
-            <div className="flex items-start gap-2 bg-gray-50 rounded-2xl p-3 mb-4">
-              <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
-                  عنوان التوصيل
-                </p>
-                <p className="text-sm text-gray-700 leading-snug">{address}</p>
-              </div>
-              <button
-                onClick={changeLocation}
-                className="shrink-0 text-primary hover:text-primary/80 transition-colors"
-                title="تغيير الموقع"
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
+          {!draft.zoneLabel && (
+            <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-800 mb-4">
+              ⚠️ موقع التوصيل خارج حدود مناطق المزوّدين. اضغط القلم واختر موقعاً داخل مسقط (أو المناطق المغطاة) للمتابعة إلى الدفع.
             </div>
           )}
-
-          {!draft.hasProviders && (
+          {draft.zoneLabel && !draft.hasProviders && (
             <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-700 mb-4">
               ⚠️ التوافر محدود في منطقتك — سيتم وضع طلبك في قائمة الانتظار.
             </div>
@@ -235,6 +254,8 @@ export default function OrderSummary() {
             className="w-full rounded-2xl font-extrabold text-base shadow-lg shadow-primary/30 active:scale-95 transition-transform"
             style={{ height: "60px", background: "oklch(0.53 0.22 27)" }}
             onClick={goToPayment}
+            disabled={!draft.zoneLabel}
+            title={!draft.zoneLabel ? "عدّل موقع التوصيل ليكون داخل منطقة خدمة مزوّد" : undefined}
           >
             اختر طريقة الدفع — OMR {draft.totalPrice.toFixed(3)}
             <ChevronRight className="w-5 h-5 mr-1" />

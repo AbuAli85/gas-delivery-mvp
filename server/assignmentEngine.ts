@@ -13,11 +13,12 @@ export interface ZoneWithProviders {
 }
 
 /**
- * Find the best zone for a customer location.
+ * Find the best zone for a delivery location.
  * Strategy:
- *   1. Find all zones whose polygon contains the customer point.
- *   2. If multiple, pick the one whose center is closest.
- *   3. If none contain the point, fall back to the closest zone center.
+ *   1. Keep only zones whose polygon contains the point (no “nearest center” guess —
+ *      that mislabels orders when the pin is outside Muscat polygons, e.g. Seeb).
+ *   2. If multiple contain the point, pick the one whose center is closest.
+ *   3. If none contain the point, return null (no provider zone linked to this pin).
  */
 export function resolveZone(
   customerLocation: LatLng,
@@ -30,10 +31,11 @@ export function resolveZone(
     return isPointInPolygon(customerLocation, polygon);
   });
 
-  const candidates = containing.length > 0 ? containing : zonesWithProviders;
+  if (containing.length === 0) {
+    return null;
+  }
 
-  // Sort by distance to zone center, ascending
-  candidates.sort((a, b) => {
+  containing.sort((a, b) => {
     const da = haversineKm(customerLocation, {
       lat: a.zone.centerLat,
       lng: a.zone.centerLng,
@@ -45,7 +47,7 @@ export function resolveZone(
     return da - db;
   });
 
-  return candidates[0] ?? null;
+  return containing[0] ?? null;
 }
 
 /**

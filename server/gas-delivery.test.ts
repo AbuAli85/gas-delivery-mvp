@@ -5,7 +5,7 @@
  * 1. Order status transitions (valid + invalid)
  * 2. Assignment status transitions (valid + invalid)
  * 3. Pricing calculation
- * 4. Zone resolution (point-in-polygon + nearest fallback)
+ * 4. Zone resolution (point-in-polygon; outside → null)
  * 5. Provider selection (exclusion list, availability)
  * 6. Single active assignment invariant
  * 7. Rejection → reassignment flow
@@ -221,11 +221,9 @@ describe("resolveZone", () => {
     expect(result?.zone.id).toBe(1);
   });
 
-  it("falls back to nearest zone when point is outside all polygons", () => {
-    // Point in the middle of the sea — not in any polygon
-    const result = resolveZone({ lat: 23.50, lng: 58.80 }, zonesWithProviders);
-    expect(result).not.toBeNull();
-    expect([1, 2]).toContain(result?.zone.id);
+  it("returns null when point is outside all polygons (no nearest-zone guess)", () => {
+    const result = resolveZone({ lat: 23.5, lng: 58.8 }, zonesWithProviders);
+    expect(result).toBeNull();
   });
 
   it("returns null for empty zones list", () => {
