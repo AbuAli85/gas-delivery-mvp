@@ -185,7 +185,7 @@ export default function ProviderRegister() {
   );
 
   const inputClass =
-    "bg-black/30 border-white/15 text-white placeholder:text-white/30 focus-visible:border-orange-400/50 focus-visible:ring-orange-400/20 h-11 rounded-xl text-sm";
+    "bg-black/30 border-white/15 text-white placeholder:text-white/30 focus-visible:border-orange-400/50 focus-visible:ring-orange-400/20 h-11 rounded-xl text-sm px-4 py-2.5";
 
   return (
     <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)", overflowY: "auto" }} dir="rtl">
@@ -237,7 +237,7 @@ export default function ProviderRegister() {
                   autoComplete="name"
                   enterKeyHint="next"
                   spellCheck={false}
-                  className={`${inputClass} [unicode-bidi:plaintext]`}
+                  className={`${inputClass} [unicode-bidi:plaintext] text-start`}
                 />
               </Field>
               <Field icon={<Phone className="w-4 h-4" />} label="رقم الهاتف (عُمان) *" htmlFor="provider-reg-phone">
@@ -255,13 +255,18 @@ export default function ProviderRegister() {
                   className={`${inputClass} [unicode-bidi:plaintext] text-left`}
                 />
               </Field>
-              <Field icon={<Mail className="w-4 h-4" />} label="البريد الإلكتروني (اختياري)">
+              <Field icon={<Mail className="w-4 h-4" />} label="البريد الإلكتروني (اختياري)" htmlFor="provider-reg-email">
                 <Input
+                  id="provider-reg-email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="example@mail.com"
                   type="email"
-                  className={inputClass}
+                  dir="ltr"
+                  autoComplete="email"
+                  enterKeyHint="done"
+                  spellCheck={false}
+                  className={`${inputClass} [unicode-bidi:plaintext] text-left`}
                 />
               </Field>
             </Card>
