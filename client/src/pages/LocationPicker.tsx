@@ -335,7 +335,7 @@ export default function LocationPicker() {
 
       const defaultCenter = { lat: 23.5880, lng: 58.3829 };
       map.setCenter(defaultCenter);
-      map.setZoom(12);
+      map.setZoom(11); // zoom 11 shows all 3 Muscat zones clearly
 
       markerRef.current = new google.maps.Marker({
         map,
@@ -624,9 +624,12 @@ export default function LocationPicker() {
                 );
               })}
               {activeZoneId === null && mapCoords && (
-                <p className="text-orange-400/80 text-[9px] mt-0.5 leading-tight">
-                  خارج نطاق التوصيل
-                </p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" />
+                  <p className="text-orange-300 text-[10px] font-semibold leading-tight">
+                    خارج نطاق التوصيل
+                  </p>
+                </div>
               )}
             </div>
           )}

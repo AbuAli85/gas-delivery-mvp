@@ -264,11 +264,11 @@
 - [x] Notify owner on new registration via notifyOwner()
 
 ## Map Page Screenshot Review #2
-- [ ] Fix address field: showing "Al Rawdah - W57 - Abu Dhabi - United Arab Emirates" — must filter to Oman only and show clean Arabic-friendly address
-- [ ] Fix search bar: text input direction is LTR (Sur al hadid shown left-aligned) — must be RTL
-- [ ] Fix zone polygons: not visible on map — zone boundaries are not rendering (no colored polygon outlines visible)
-- [ ] Fix legend: "خارج نطاق التوصيل" text color is orange but hard to read — improve contrast
-- [ ] Fix map: zone label markers (InfoWindow labels) not visible — zone names not showing on map
-- [ ] Enhance: map should start at a tighter zoom showing all 3 zones clearly
-- [ ] Enhance: search bar placeholder text should be Arabic RTL aligned
-- [ ] Enhance: address field should show clean Oman address (strip non-Oman components)
+- [x] Fix address field: showing "Al Rawdah - W57 - Abu Dhabi - United Arab Emirates" — must filter to Oman only and show clean Arabic-friendly address
+- [x] Fix search bar: text input direction is LTR (Sur al hadid shown left-aligned) — must be RTL
+- [x] Fix zone polygons: not visible on map — zone boundaries are not rendering (no colored polygon outlines visible)
+- [x] Fix legend: "خارج نطاق التوصيل" text color is orange but hard to read — improve contrast
+- [x] Fix map: zone label markers (InfoWindow labels) not visible — zone names not showing on map
+- [x] Enhance: map should start at a tighter zoom showing all 3 zones clearly
+- [x] Enhance: search bar placeholder text should be Arabic RTL aligned
+- [x] Enhance: address field should show clean Oman address (strip non-Oman components)
