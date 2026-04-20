@@ -10,6 +10,19 @@ const WA_ICON = (
   </svg>
 );
 
+// Arabic status labels
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case "pending":         return "جارٍ البحث عن مزود…";
+    case "assigned":        return "تم تعيين مزود";
+    case "accepted":        return "المزود قبل الطلب ✓";
+    case "out_for_delivery":return "في الطريق إليك!";
+    case "delivered":       return "تم التوصيل ✓";
+    case "cancelled":       return "تم إلغاء الطلب";
+    default:                return "جارٍ المعالجة…";
+  }
+}
+
 export default function OrderPlaced() {
   const { orderId } = useParams<{ orderId: string }>();
   const [, navigate] = useLocation();
@@ -24,19 +37,7 @@ export default function OrderPlaced() {
     sessionStorage.removeItem("orderDraft");
   }, []);
 
-  const statusLabel = order
-    ? order.status === "pending"
-      ? "Finding provider…"
-      : order.status === "assigned"
-      ? "Provider assigned"
-      : order.status === "accepted"
-      ? "Provider accepted ✓"
-      : order.status === "out_for_delivery"
-      ? "On the way!"
-      : order.status === "delivered"
-      ? "Delivered ✓"
-      : order.status
-    : "Processing…";
+  const statusLabel = order ? getStatusLabel(order.status) : "جارٍ المعالجة…";
 
   const waText = encodeURIComponent(
     `طلبت غاز — رقم الطلب #${id}. تتبع: ${window.location.origin}/order/track/${id}`
@@ -55,13 +56,13 @@ export default function OrderPlaced() {
         <div className="w-20 h-20 rounded-full bg-white/15 backdrop-blur flex items-center justify-center mb-5">
           <CheckCircle2 className="w-10 h-10 text-white" />
         </div>
-        <h1 className="text-3xl font-extrabold text-center mb-2">Order Placed!</h1>
-        <p className="text-white/60 text-center text-sm" dir="rtl">
+        <h1 className="text-3xl font-extrabold text-center mb-2">تم تقديم الطلب!</h1>
+        <p className="text-white/60 text-center text-sm">
           تم تأكيد طلبك — نبحث عن أقرب مزود
         </p>
         {id > 0 && (
           <div className="mt-4 bg-white/10 backdrop-blur rounded-full px-5 py-2 text-sm font-mono">
-            Order #{id}
+            طلب رقم #{id}
           </div>
         )}
       </div>
@@ -75,12 +76,12 @@ export default function OrderPlaced() {
               <Flame className="w-5 h-5 text-primary animate-pulse" />
             </div>
             <div className="flex-1">
-              <p className="text-xs text-gray-400">Status</p>
+              <p className="text-xs text-gray-400">الحالة</p>
               <p className="font-bold text-gray-900">{statusLabel}</p>
             </div>
             {order?.providerName && (
-              <div className="text-right">
-                <p className="text-xs text-gray-400">Provider</p>
+              <div className="text-left">
+                <p className="text-xs text-gray-400">المزود</p>
                 <p className="text-sm font-semibold text-gray-800">{order.providerName}</p>
               </div>
             )}
@@ -91,7 +92,7 @@ export default function OrderPlaced() {
             {order?.estimatedMinutes && (
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Clock className="w-4 h-4 text-gray-400" />
-                <span>Estimated: <strong>{order.estimatedMinutes} min</strong></span>
+                <span>الوقت المتوقع: <strong>{order.estimatedMinutes} دقيقة</strong></span>
               </div>
             )}
             {order?.customerAddress && (
@@ -102,7 +103,7 @@ export default function OrderPlaced() {
             )}
             {order?.totalPrice && (
               <p className="text-sm text-gray-600">
-                Total: <strong>OMR {parseFloat(order.totalPrice).toFixed(3)}</strong>
+                الإجمالي: <strong>OMR {parseFloat(order.totalPrice).toFixed(3)}</strong>
               </p>
             )}
           </div>
@@ -114,8 +115,8 @@ export default function OrderPlaced() {
             style={{ height: "60px", background: "oklch(0.53 0.22 27)" }}
             onClick={() => navigate(`/order/track/${id}`)}
           >
-            Track My Order
-            <ChevronRight className="w-5 h-5 ml-1" />
+            تتبع طلبي
+            <ChevronRight className="w-5 h-5 mr-1" />
           </Button>
         </div>
 
@@ -127,14 +128,14 @@ export default function OrderPlaced() {
           className="flex items-center justify-center gap-2 w-full rounded-2xl border border-white/10 py-3 text-sm text-white/40 hover:text-white/60 transition-colors"
         >
           {WA_ICON}
-          Share order on WhatsApp
+          مشاركة الطلب عبر واتساب
         </a>
 
         <button
           onClick={() => navigate("/")}
           className="w-full text-center text-sm text-white/30 py-2"
         >
-          ← Back to Home
+          العودة إلى الرئيسية ←
         </button>
       </div>
     </div>

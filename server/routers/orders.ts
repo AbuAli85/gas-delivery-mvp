@@ -30,7 +30,7 @@ import {
 
 async function doAssignProvider(orderId: number): Promise<void> {
   const order = await getOrderById(orderId);
-  if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+  if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "الطلب غير موجود" });
 
   const rejectedIds: number[] = Array.isArray(order.rejectedProviderIds)
     ? (order.rejectedProviderIds as number[])
@@ -38,7 +38,7 @@ async function doAssignProvider(orderId: number): Promise<void> {
 
   if (!order.zoneId) {
     await updateOrder(orderId, { status: "cancelled" });
-    throw new TRPCError({ code: "BAD_REQUEST", message: "No zone resolved for order" });
+    throw new TRPCError({ code: "BAD_REQUEST", message: "لم يتم تحديد منطقة للطلب" });
   }
 
   const available = await getAvailableProvidersByZone(order.zoneId, rejectedIds);
@@ -48,7 +48,7 @@ async function doAssignProvider(orderId: number): Promise<void> {
     await updateOrder(orderId, { status: "cancelled" });
     throw new TRPCError({
       code: "NOT_FOUND",
-      message: "No available providers in your area",
+      message: "لا يوجد مزودون متاحون في منطقتك",
     });
   }
 
@@ -181,9 +181,9 @@ export const ordersRouter = router({
     .input(z.object({ orderId: z.number() }))
     .mutation(async ({ input }) => {
       const order = await getOrderById(input.orderId);
-      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "الطلب غير موجود" });
       if (order.status !== "draft") {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Order already processed" });
+        throw new TRPCError({ code: "BAD_REQUEST", message: "تمت معالجة الطلب مسبقاً" });
       }
 
       assertOrderTransition(order.status, "pending");
@@ -209,9 +209,9 @@ export const ordersRouter = router({
     .input(z.object({ orderId: z.number() }))
     .mutation(async ({ input }) => {
       const order = await getOrderById(input.orderId);
-      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "الطلب غير موجود" });
       if (order.status !== "draft") {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Order already processed" });
+        throw new TRPCError({ code: "BAD_REQUEST", message: "تمت معالجة الطلب مسبقاً" });
       }
 
       assertOrderTransition(order.status, "pending");
@@ -245,9 +245,9 @@ export const ordersRouter = router({
     .input(z.object({ orderId: z.number() }))
     .mutation(async ({ input }) => {
       const order = await getOrderById(input.orderId);
-      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "الطلب غير موجود" });
       if (order.status !== "draft") {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Order is not in draft state" });
+        throw new TRPCError({ code: "BAD_REQUEST", message: "الطلب ليس في حالة مسودة" });
       }
 
       const stripeKey = process.env.STRIPE_SECRET_KEY;
@@ -303,9 +303,9 @@ export const ordersRouter = router({
     .input(z.object({ orderId: z.number() }))
     .mutation(async ({ input }) => {
       const order = await getOrderById(input.orderId);
-      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "الطلب غير موجود" });
       if (order.status !== "draft") {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Order already processed" });
+        throw new TRPCError({ code: "BAD_REQUEST", message: "تمت معالجة الطلب مسبقاً" });
       }
 
       assertOrderTransition(order.status, "pending");
@@ -342,7 +342,7 @@ export const ordersRouter = router({
         .limit(1);
 
       const order = result[0];
-      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found for payment intent" });
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "الطلب غير موجود لهذه العملية" });
       if (order.paymentStatus === "confirmed") return { success: true, orderId: order.id };
 
       assertOrderTransition(order.status, "pending");
@@ -366,13 +366,13 @@ export const ordersRouter = router({
     .input(z.object({ orderId: z.number() }))
     .mutation(async ({ input }) => {
       const order = await getOrderById(input.orderId);
-      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "الطلب غير موجود" });
 
       const cancellable = ["draft", "pending", "assigned"];
       if (!cancellable.includes(order.status)) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: `Cannot cancel order in status '${order.status}'`,
+          message: `لا يمكن إلغاء الطلب في الحالة '${order.status}'`,
         });
       }
 
@@ -406,7 +406,7 @@ export const ordersRouter = router({
     .input(z.object({ orderId: z.number() }))
     .query(async ({ input }) => {
       const order = await getOrderById(input.orderId);
-      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "الطلب غير موجود" });
 
       // ── Assignment expiry check (Fix 4) ──────────────────────────────────────
       // If order is in 'assigned' state and the active assignment has been pending

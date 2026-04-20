@@ -66,7 +66,7 @@ describe("Order status transitions", () => {
 
   it("throws on invalid transition via assertOrderTransition", () => {
     expect(() => assertOrderTransition("delivered", "pending")).toThrow(
-      "Invalid order transition"
+      "انتقال غير صالح للطلب"
     );
   });
 
@@ -101,7 +101,7 @@ describe("Assignment status transitions", () => {
 
   it("throws on invalid assignment transition", () => {
     expect(() => assertAssignmentTransition("accepted", "rejected")).toThrow(
-      "Invalid assignment transition"
+      "انتقال غير صالح للتكليف"
     );
   });
 });
@@ -716,7 +716,7 @@ describe("Fix 3: Order cancellation state machine", () => {
   });
 
   it("assertOrderTransition throws for delivered → cancelled", () => {
-    expect(() => assertOrderTransition("delivered", "cancelled")).toThrow("Invalid order transition");
+    expect(() => assertOrderTransition("delivered", "cancelled")).toThrow("انتقال غير صالح للطلب");
   });
 });
 

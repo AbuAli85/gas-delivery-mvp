@@ -55,7 +55,7 @@ export default function ProviderLogin() {
       setIsVerifying(false);
       setPin(["", "", "", ""]);
       inputRefs[0].current?.focus();
-      toast.error(err.message === "Invalid PIN" ? "❌ رمز خاطئ — Wrong PIN" : "Error verifying PIN");
+      toast.error(err.message === "Invalid PIN" ? "❌ رمز خاطئ — حاول مجدداً" : "خطأ في التحقق من الرمز");
     },
   });
 
@@ -103,7 +103,7 @@ export default function ProviderLogin() {
         >
           <Flame className="w-5 h-5 text-white" />
         </div>
-        <span className="text-white font-extrabold text-xl tracking-tight">GasNow</span>
+        <span className="text-white font-extrabold text-xl tracking-tight">توصيل غاز</span>
       </div>
 
       {/* Card */}
@@ -115,12 +115,12 @@ export default function ProviderLogin() {
           <Lock className="w-7 h-7" style={{ color: "oklch(0.53 0.22 27)" }} />
         </div>
 
-        <h1 className="text-2xl font-extrabold text-gray-900 mb-1">Provider Login</h1>
-        <p className="text-gray-500 text-sm mb-1">أدخل رمز الدخول</p>
-        <p className="text-gray-400 text-xs mb-6">Enter your 4-digit PIN</p>
+        <h1 className="text-2xl font-extrabold text-gray-900 mb-1">دخول المزود</h1>
+        <p className="text-gray-500 text-sm mb-1">أدخل رمز الدخول المكون من ٤ أرقام</p>
+        <p className="text-gray-400 text-xs mb-6">مزود رقم #{providerId}</p>
 
         {/* PIN inputs */}
-        <div className="flex gap-3 justify-center mb-6">
+        <div className="flex gap-3 justify-center mb-6" dir="ltr">
           {pin.map((digit, i) => (
             <input
               key={i}
@@ -147,7 +147,7 @@ export default function ProviderLogin() {
         {isVerifying && (
           <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
             <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Verifying…</span>
+            <span>جارٍ التحقق…</span>
           </div>
         )}
 
@@ -158,12 +158,12 @@ export default function ProviderLogin() {
             onClick={handleSubmit}
             disabled={pin.some((d) => d === "")}
           >
-            تأكيد · Confirm
+            تأكيد الدخول
           </Button>
         )}
 
         <p className="text-xs text-gray-400 mt-4">
-          Default PIN for demo: <strong>1234</strong>
+          الرمز الافتراضي للتجربة: <strong>1234</strong>
         </p>
       </div>
     </div>

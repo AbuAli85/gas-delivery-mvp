@@ -63,7 +63,7 @@ export function canTransitionAssignment(
 export function assertOrderTransition(from: OrderStatus, to: OrderStatus): void {
   if (!canTransitionOrder(from, to)) {
     throw new Error(
-      `Invalid order transition: ${from} → ${to}`
+      `انتقال غير صالح للطلب: ${from} → ${to}`
     );
   }
 }
@@ -74,7 +74,7 @@ export function assertAssignmentTransition(
 ): void {
   if (!canTransitionAssignment(from, to)) {
     throw new Error(
-      `Invalid assignment transition: ${from} → ${to}`
+      `انتقال غير صالح للتكليف: ${from} → ${to}`
     );
   }
 }
@@ -160,13 +160,13 @@ export function isPointInPolygon(point: LatLng, polygon: LatLng[]): boolean {
 // ─── Order status display helpers ─────────────────────────────────────────────
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  draft:            "Draft",
-  pending:          "Finding Provider…",
-  assigned:         "Provider Assigned",
-  accepted:         "Order Accepted",
-  out_for_delivery: "On the Way",
-  delivered:        "Delivered",
-  cancelled:        "Cancelled",
+  draft:            "مسودة",
+  pending:          "جارٍ البحث عن مزود…",
+  assigned:         "تم تعيين مزود",
+  accepted:         "تم قبول الطلب",
+  out_for_delivery: "في الطريق إليك",
+  delivered:        "تم التوصيل",
+  cancelled:        "تم الإلغاء",
 };
 
 export const ORDER_STATUS_STEPS: OrderStatus[] = [

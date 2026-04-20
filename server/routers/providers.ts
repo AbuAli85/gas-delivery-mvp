@@ -70,7 +70,7 @@ const withPin = z.object({ providerId: z.number(), pinHash: z.string() });
 async function assertPin(providerId: number, pinHash: string): Promise<void> {
   const valid = await verifyProviderPin(providerId, pinHash);
   if (!valid) {
-    throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid PIN" });
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "رمز غير صحيح" });
   }
 }
 
@@ -188,9 +188,9 @@ export const providersRouter = router({
     .mutation(async ({ input }) => {
       await assertPin(input.providerId, input.pinHash);
       const assignment = await getAssignmentById(input.assignmentId);
-      if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "Assignment not found" });
+      if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "التكليف غير موجود" });
       if (assignment.providerId !== input.providerId) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Assignment belongs to a different provider" });
+        throw new TRPCError({ code: "FORBIDDEN", message: "هذا التكليف يخص مزوداً آخر" });
       }
 
       assertAssignmentTransition(assignment.status, "accepted");
@@ -200,12 +200,12 @@ export const providersRouter = router({
       if (activeCount > 1) {
         throw new TRPCError({
           code: "CONFLICT",
-          message: "Another assignment is already active for this order",
+          message: "يوجد تكليف آخر نشط لهذا الطلب بالفعل",
         });
       }
 
       const order = await getOrderById(assignment.orderId);
-      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "الطلب غير موجود" });
 
       assertOrderTransition(order.status, "accepted");
 
@@ -242,15 +242,15 @@ export const providersRouter = router({
     .mutation(async ({ input }) => {
       await assertPin(input.providerId, input.pinHash);
       const assignment = await getAssignmentById(input.assignmentId);
-      if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "Assignment not found" });
+      if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "التكليف غير موجود" });
       if (assignment.providerId !== input.providerId) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Assignment belongs to a different provider" });
+        throw new TRPCError({ code: "FORBIDDEN", message: "هذا التكليف يخص مزوداً آخر" });
       }
 
       assertAssignmentTransition(assignment.status, "rejected");
 
       const order = await getOrderById(assignment.orderId);
-      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "الطلب غير موجود" });
 
       // Mark assignment rejected
       await updateAssignment(input.assignmentId, {

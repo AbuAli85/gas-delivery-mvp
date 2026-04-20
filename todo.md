@@ -209,3 +209,18 @@
 - [x] Fix 3: 7 cancellation state machine tests (cancellable statuses, invalid transitions)
 - [x] Fix 4: 4 assignment expiry timing tests (5-min constant, expired/not-expired/boundary)
 - [x] Fix 5: 3 geocoding independence tests (coordinate fallback, all 6 presets, no Nominatim)
+
+## Full Arabic Translation (User Request: "should be system translated fully")
+
+- [x] Add RTL (dir="rtl") and Arabic font support globally (index.html + index.css)
+- [x] Translate Home.tsx — all labels, trust badges, FAQ items, provider portal link, CTA buttons
+- [x] Translate LocationPicker.tsx — option labels, preset names, map instructions, save prompts, errors
+- [x] Translate OrderSummary.tsx — delivery address, price, ETA, cylinder count, button text
+- [x] Translate Payment.tsx — payment method labels, bank details, button text, disclaimers
+- [x] Translate OrderPlaced.tsx — confirmation message, order number, WhatsApp share text, track button
+- [x] Translate OrderTracking.tsx — all status labels, step descriptions, cancel button, WhatsApp support
+- [x] Translate ProviderLogin.tsx — PIN entry labels, error messages, instructions
+- [x] Translate ProviderDashboard.tsx — availability toggle, order card labels, accept/reject, commission/score cards, warnings
+- [x] Translate backend error messages in orders.ts and providers.ts
+- [x] Run pnpm test to confirm 99/99 still pass
+- [x] Save checkpoint after full translation

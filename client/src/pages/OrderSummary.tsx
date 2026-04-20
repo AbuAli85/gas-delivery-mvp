@@ -1,16 +1,15 @@
 /**
- * OrderSummary — reads deliveryLocation from sessionStorage (set by LocationPicker),
- * calls createOrderDraft on mount, then shows price/ETA/address and a CTA to payment.
+ * OrderSummary — ملخص الطلب
+ * يقرأ موقع التوصيل من sessionStorage ويعرض السعر والوقت المتوقع.
  */
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
+  ChevronRight,
   Flame,
   MapPin,
   Clock,
-  ChevronRight,
   ShieldCheck,
   Loader2,
   Edit2,
@@ -67,13 +66,12 @@ export default function OrderSummary() {
       setCreating(false);
     },
     onError: (err) => {
-      toast.error(err.message || "Could not create order. Try again.");
+      toast.error(err.message || "تعذّر إنشاء الطلب. يرجى المحاولة مجدداً.");
       setCreating(false);
     },
   });
 
   useEffect(() => {
-    // Check if we already have a draft (e.g. back-navigation)
     const storedDraft = sessionStorage.getItem("orderDraft");
     if (storedDraft) {
       try {
@@ -84,7 +82,6 @@ export default function OrderSummary() {
       }
     }
 
-    // Read delivery location set by LocationPicker
     const storedLoc = sessionStorage.getItem("deliveryLocation");
     if (!storedLoc) {
       navigate("/order/location");
@@ -117,7 +114,6 @@ export default function OrderSummary() {
   }
 
   function changeLocation() {
-    // Clear draft so it gets re-created with new location
     sessionStorage.removeItem("orderDraft");
     sessionStorage.removeItem("deliveryLocation");
     navigate("/order/location");
@@ -132,7 +128,7 @@ export default function OrderSummary() {
       >
         <div className="text-center">
           <Loader2 className="w-10 h-10 text-orange-400 animate-spin mx-auto mb-3" />
-          <p className="text-white/60 text-sm">Finding providers near you…</p>
+          <p className="text-white/60 text-sm">جارٍ البحث عن مزودين قريبين منك…</p>
         </div>
       </div>
     );
@@ -148,11 +144,11 @@ export default function OrderSummary() {
           onClick={() => navigate("/")}
           className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center"
         >
-          <ArrowLeft className="w-5 h-5 text-white" />
+          <ChevronRight className="w-5 h-5 text-white" />
         </button>
         <div className="flex-1">
           <h1 className="text-base font-bold text-white">ملخص الطلب</h1>
-          <p className="text-white/40 text-xs">Order Summary</p>
+          <p className="text-white/40 text-xs">راجع تفاصيل طلبك قبل الدفع</p>
         </div>
       </div>
 
@@ -165,9 +161,9 @@ export default function OrderSummary() {
               <Flame className="w-6 h-6 text-primary" />
             </div>
             <div className="flex-1">
-              <p className="font-bold text-gray-900">LPG Gas Cylinder</p>
+              <p className="font-bold text-gray-900">أسطوانة غاز LPG</p>
               <p className="text-sm text-gray-500">
-                {draft.gasAmount} cylinder{draft.gasAmount > 1 ? "s" : ""}
+                {draft.gasAmount} {draft.gasAmount === 1 ? "أسطوانة" : "أسطوانات"}
               </p>
             </div>
           </div>
@@ -175,17 +171,17 @@ export default function OrderSummary() {
           {/* Price breakdown */}
           <div className="space-y-2 border-t border-gray-100 pt-4 mb-4">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Gas × {draft.gasAmount}</span>
+              <span className="text-gray-500">الغاز × {draft.gasAmount}</span>
               <span className="font-semibold">
                 OMR {(draft.gasAmount * draft.unitPrice).toFixed(3)}
               </span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Delivery</span>
+              <span className="text-gray-500">رسوم التوصيل</span>
               <span className="font-semibold">OMR {draft.deliveryFee.toFixed(3)}</span>
             </div>
             <div className="flex justify-between border-t border-gray-100 pt-2">
-              <span className="font-extrabold text-gray-900 text-base">Total</span>
+              <span className="font-extrabold text-gray-900 text-base">الإجمالي</span>
               <span className="font-extrabold text-xl text-primary">
                 OMR {draft.totalPrice.toFixed(3)}
               </span>
@@ -196,7 +192,7 @@ export default function OrderSummary() {
           <div className="flex gap-4 text-sm text-gray-500 mb-4">
             <div className="flex items-center gap-1.5 shrink-0">
               <Clock className="w-4 h-4 text-primary" />
-              <span>{draft.estimatedMinutes} min</span>
+              <span>{draft.estimatedMinutes} دقيقة</span>
             </div>
             {draft.zoneLabel && (
               <div className="flex items-center gap-1.5 truncate">
@@ -213,14 +209,14 @@ export default function OrderSummary() {
               <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">
-                  Delivery address
+                  عنوان التوصيل
                 </p>
                 <p className="text-sm text-gray-700 leading-snug">{address}</p>
               </div>
               <button
                 onClick={changeLocation}
                 className="shrink-0 text-primary hover:text-primary/80 transition-colors"
-                title="Change location"
+                title="تغيير الموقع"
               >
                 <Edit2 className="w-4 h-4" />
               </button>
@@ -229,7 +225,7 @@ export default function OrderSummary() {
 
           {!draft.hasProviders && (
             <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-700 mb-4">
-              ⚠️ Limited availability in your area — your order will be queued.
+              ⚠️ التوافر محدود في منطقتك — سيتم وضع طلبك في قائمة الانتظار.
             </div>
           )}
 
@@ -241,7 +237,7 @@ export default function OrderSummary() {
             onClick={goToPayment}
           >
             اختر طريقة الدفع — OMR {draft.totalPrice.toFixed(3)}
-            <ChevronRight className="w-5 h-5 ml-1" />
+            <ChevronRight className="w-5 h-5 mr-1" />
           </Button>
         </div>
 
@@ -249,7 +245,7 @@ export default function OrderSummary() {
         <div className="flex items-center gap-2 px-2">
           <ShieldCheck className="w-4 h-4 text-green-400 shrink-0" />
           <p className="text-xs text-white/40">
-            Guaranteed delivery or full refund. No hidden fees.
+            توصيل مضمون أو استرداد كامل. لا رسوم خفية.
           </p>
         </div>
 
@@ -263,7 +259,7 @@ export default function OrderSummary() {
           <svg viewBox="0 0 24 24" className="w-4 h-4 fill-green-400">
             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
           </svg>
-          Need help? WhatsApp us
+          تحتاج مساعدة؟ تواصل معنا عبر واتساب
         </a>
       </div>
     </div>

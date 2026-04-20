@@ -8,7 +8,6 @@ import {
   CreditCard,
   Building2,
   ChevronRight,
-  ArrowLeft,
   ShieldCheck,
   Clock,
   Loader2,
@@ -21,7 +20,6 @@ interface PaymentOption {
   id: PaymentMethod;
   icon: React.ReactNode;
   label: string;
-  labelAr: string;
   description: string;
   badge?: string;
   badgeColor?: string;
@@ -31,27 +29,24 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
   {
     id: "cash",
     icon: <Banknote className="w-6 h-6" />,
-    label: "Cash on Delivery",
-    labelAr: "الدفع عند الاستلام",
-    description: "Pay the driver when gas arrives",
-    badge: "Most Popular",
+    label: "الدفع عند الاستلام",
+    description: "ادفع للسائق عند وصول الغاز",
+    badge: "الأكثر شيوعاً",
     badgeColor: "bg-green-500",
   },
   {
     id: "online",
     icon: <CreditCard className="w-6 h-6" />,
-    label: "Pay Online",
-    labelAr: "الدفع الإلكتروني",
-    description: "Secure card payment (demo mode)",
-    badge: "Instant",
+    label: "الدفع الإلكتروني",
+    description: "دفع آمن بالبطاقة (وضع تجريبي)",
+    badge: "فوري",
     badgeColor: "bg-blue-500",
   },
   {
     id: "bank_transfer",
     icon: <Building2 className="w-6 h-6" />,
-    label: "Bank Transfer",
-    labelAr: "تحويل بنكي",
-    description: "Transfer to Bank Muscat — confirmed manually",
+    label: "تحويل بنكي",
+    description: "تحويل إلى بنك مسقط — تأكيد يدوي",
   },
 ];
 
@@ -98,7 +93,7 @@ export default function Payment() {
       setSuccess(true);
       setTimeout(() => navigate(`/order/placed/${orderId}`), 1000);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Payment failed. Please try again.";
+      const msg = err instanceof Error ? err.message : "فشل الدفع. يرجى المحاولة مجدداً.";
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -116,8 +111,8 @@ export default function Payment() {
             style={{ background: "oklch(0.25 0.15 145)" }}>
             <CheckCircle2 className="w-10 h-10" style={{ color: "oklch(0.65 0.22 145)" }} />
           </div>
-          <p className="text-xl font-bold">Order Confirmed!</p>
-          <p className="text-sm opacity-50">Finding your nearest provider…</p>
+          <p className="text-xl font-bold">تم تأكيد الطلب!</p>
+          <p className="text-sm opacity-50">جارٍ البحث عن أقرب مزود…</p>
         </div>
       </div>
     );
@@ -137,14 +132,14 @@ export default function Payment() {
           className="w-10 h-10 rounded-full flex items-center justify-center"
           style={{ background: "oklch(0.2 0.01 240)" }}
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ChevronRight className="w-5 h-5" />
         </button>
-        <div>
-          <p className="text-xs opacity-60">Step 3 of 3</p>
-          <h1 className="text-lg font-bold">Choose Payment</h1>
+        <div className="flex-1">
+          <p className="text-xs opacity-60">الخطوة ٣ من ٣</p>
+          <h1 className="text-lg font-bold">اختر طريقة الدفع</h1>
         </div>
-        <div className="ml-auto text-right">
-          <p className="text-xs opacity-60">Total</p>
+        <div className="text-left">
+          <p className="text-xs opacity-60">الإجمالي</p>
           <p className="text-xl font-black" style={{ color: "oklch(0.65 0.22 27)" }}>
             OMR {parseFloat(totalPrice).toFixed(3)}
           </p>
@@ -159,7 +154,7 @@ export default function Payment() {
             <button
               key={option.id}
               onClick={() => setSelected(option.id)}
-              className="w-full text-left rounded-2xl p-4 transition-all"
+              className="w-full text-right rounded-2xl p-4 transition-all"
               style={{
                 background: isSelected ? "oklch(0.53 0.22 27)" : "oklch(0.18 0.01 240)",
                 border: isSelected
@@ -176,8 +171,8 @@ export default function Payment() {
                 >
                   {option.icon}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex-1 min-w-0 text-right">
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
                     <span className="font-bold text-base">{option.label}</span>
                     {option.badge && (
                       <span
@@ -187,7 +182,6 @@ export default function Payment() {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm opacity-60 mt-0.5">{option.labelAr}</p>
                   <p className="text-xs opacity-40 mt-0.5">{option.description}</p>
                 </div>
                 <div
@@ -215,33 +209,33 @@ export default function Payment() {
             className="rounded-2xl p-4 space-y-2"
             style={{ background: "oklch(0.18 0.01 240)" }}
           >
-            <p className="text-sm font-bold opacity-80 mb-3">Bank Muscat Details</p>
+            <p className="text-sm font-bold opacity-80 mb-3">بيانات بنك مسقط</p>
             {[
-              ["Account Name", "Gas Delivery Muscat LLC"],
-              ["Account No.", "0123456789"],
-              ["IBAN", "OM810123456789012345678"],
-              ["Reference", `ORDER-${orderId}`],
+              ["اسم الحساب", "Gas Delivery Muscat LLC"],
+              ["رقم الحساب", "0123456789"],
+              ["رقم IBAN", "OM810123456789012345678"],
+              ["المرجع", `ORDER-${orderId}`],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between text-sm">
-                <span className="opacity-50">{label}</span>
                 <span className="font-mono font-semibold">{value}</span>
+                <span className="opacity-50">{label}</span>
               </div>
             ))}
             <p className="text-xs opacity-40 mt-2 pt-2 border-t border-white/10">
-              Order dispatched after manual confirmation (within 1 hour).
+              يُرسَل الطلب بعد التأكيد اليدوي (خلال ساعة واحدة).
             </p>
           </div>
         )}
 
         {/* Trust signals */}
-        <div className="flex gap-4 pt-2">
+        <div className="flex gap-4 pt-2 justify-end">
           <div className="flex items-center gap-1.5 text-xs opacity-40">
+            <span>دفع آمن</span>
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Secure</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs opacity-40">
+            <span>توصيل خلال ٣٠ دقيقة</span>
             <Clock className="w-3.5 h-3.5" />
-            <span>30 min delivery</span>
           </div>
         </div>
       </div>
@@ -263,16 +257,16 @@ export default function Payment() {
           {loading ? (
             <span className="flex items-center gap-2">
               <Loader2 className="w-5 h-5 animate-spin" />
-              Processing…
+              جارٍ المعالجة…
             </span>
           ) : (
             <span className="flex items-center gap-2">
               {selectedOption.icon}
               {selected === "cash"
-                ? `Confirm — OMR ${parseFloat(totalPrice).toFixed(3)}`
+                ? `تأكيد الطلب — OMR ${parseFloat(totalPrice).toFixed(3)}`
                 : selected === "bank_transfer"
-                ? "Confirm & Get Bank Details"
-                : `Pay OMR ${parseFloat(totalPrice).toFixed(3)}`}
+                ? "تأكيد والحصول على بيانات التحويل"
+                : `ادفع OMR ${parseFloat(totalPrice).toFixed(3)}`}
               <ChevronRight className="w-5 h-5" />
             </span>
           )}
@@ -287,7 +281,7 @@ export default function Payment() {
           style={{ background: "oklch(0.18 0.01 240)", color: "oklch(0.7 0.18 145)" }}
         >
           {WA_ICON}
-          Need help? Chat on WhatsApp
+          تحتاج مساعدة؟ تواصل معنا عبر واتساب
         </a>
       </div>
     </div>

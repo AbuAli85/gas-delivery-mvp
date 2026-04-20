@@ -1,19 +1,16 @@
 /**
- * LocationPicker — Flexible delivery location selection
+ * LocationPicker — اختيار موقع التوصيل
  *
  * Flow:
- *   1. Two large option cards: "Use my current location" | "Choose another location"
- *   2. If "Choose another":
- *      a. Saved locations (Home / Work chips) — instant tap
- *      b. Muscat area preset chips — instant tap
- *      c. Full-screen map with draggable pin + reverse geocode
- *   3. Confirm → navigate to /order/summary
- *
- * State is passed via sessionStorage so no URL params are needed.
- * Zone resolution happens server-side in createOrderDraft.
+ *   1. خيارات: "استخدم موقعي الحالي" | "اختر موقعاً آخر"
+ *   2. عند اختيار "موقع آخر":
+ *      a. المواقع المحفوظة (المنزل / العمل)
+ *      b. مناطق مسقط المحددة مسبقاً
+ *      c. خريطة كاملة مع دبوس قابل للسحب
+ *   3. تأكيد → الانتقال إلى /order/summary
  */
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
@@ -23,7 +20,7 @@ import {
   Navigation,
   Home as HomeIcon,
   Briefcase,
-  ChevronLeft,
+  ChevronRight,
   Check,
   Plus,
 } from "lucide-react";
@@ -42,35 +39,31 @@ function getSessionKey(): string {
 }
 
 // ── Reverse geocode via Google Maps Geocoder (Manus proxy — no API key needed) ──
-// Falls back to coordinate string if geocoder is unavailable.
 let _geocoderSingleton: google.maps.Geocoder | null = null;
 
 async function reverseGeocode(lat: number, lng: number, geocoder?: google.maps.Geocoder | null): Promise<string> {
-  // Use provided geocoder, or the singleton, or try to create one
   const gc = geocoder ?? _geocoderSingleton;
   if (gc) {
     try {
       const result = await gc.geocode({ location: { lat, lng } });
       if (result.results?.[0]?.formatted_address) {
-        // Trim to first 3 address components for brevity
         return result.results[0].formatted_address.split(",").slice(0, 3).join(",").trim();
       }
     } catch {
       // silent — fall through to coordinate fallback
     }
   }
-  // Coordinate fallback — always works, no external API
   return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 }
 
-// ── Muscat area presets ───────────────────────────────────────────────────────
+// ── Muscat area presets (Arabic names) ───────────────────────────────────────
 const MUSCAT_PRESETS = [
-  { label: "Old Muscat / Mutrah", lat: 23.6139, lng: 58.5922 },
-  { label: "Ruwi / CBD",          lat: 23.6086, lng: 58.5930 },
-  { label: "Al Khuwair",          lat: 23.5957, lng: 58.3942 },
-  { label: "Ghubrah",             lat: 23.6050, lng: 58.3770 },
-  { label: "Madinat Qaboos",      lat: 23.5880, lng: 58.4020 },
-  { label: "Bausher",             lat: 23.5820, lng: 58.3600 },
+  { label: "مسقط القديمة / مطرح", lat: 23.6139, lng: 58.5922 },
+  { label: "الروي / المركز التجاري", lat: 23.6086, lng: 58.5930 },
+  { label: "الخوير",               lat: 23.5957, lng: 58.3942 },
+  { label: "الغبرة",               lat: 23.6050, lng: 58.3770 },
+  { label: "مدينة قابوس",          lat: 23.5880, lng: 58.4020 },
+  { label: "بوشر",                 lat: 23.5820, lng: 58.3600 },
 ];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -89,7 +82,6 @@ export default function LocationPicker() {
 
   const [step, setStep] = useState<Step>("choose");
   const [locating, setLocating] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<LocationResult | null>(null);
   const [mapAddress, setMapAddress] = useState<string>("");
   const [mapCoords, setMapCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [savingLabel, setSavingLabel] = useState<"home" | "work" | null>(null);
@@ -104,7 +96,7 @@ export default function LocationPicker() {
     onSuccess: () => {
       refetchSaved();
       setSavingLabel(null);
-      toast.success("Location saved!");
+      toast.success("تم حفظ الموقع!");
     },
   });
 
@@ -120,10 +112,9 @@ export default function LocationPicker() {
       );
       const { latitude: lat, longitude: lng } = pos.coords;
       const address = await reverseGeocode(lat, lng);
-      setSelectedLocation({ lat, lng, address });
       proceedWithLocation({ lat, lng, address });
     } catch {
-      toast.error("Could not detect location. Please allow location access or choose manually.");
+      toast.error("تعذّر تحديد موقعك. يرجى السماح بالوصول إلى الموقع أو الاختيار يدوياً.");
     } finally {
       setLocating(false);
     }
@@ -131,13 +122,11 @@ export default function LocationPicker() {
 
   // ── Proceed with a confirmed location ────────────────────────────────────
   const proceedWithLocation = (loc: LocationResult) => {
-    // Persist ordering location from sessionStorage (set by Home page)
     const existing = JSON.parse(sessionStorage.getItem("orderingLocation") || "null");
     sessionStorage.setItem(
       "deliveryLocation",
       JSON.stringify({ lat: loc.lat, lng: loc.lng, address: loc.address })
     );
-    // If no ordering location yet, use this as both
     if (!existing) {
       sessionStorage.setItem(
         "orderingLocation",
@@ -153,30 +142,24 @@ export default function LocationPicker() {
 
   const handleMapReady = useCallback(
     (map: google.maps.Map) => {
-      // Store geocoder in both ref and singleton for reverseGeocode calls
       const geocoder = new google.maps.Geocoder();
       geocoderRef.current = geocoder;
       _geocoderSingleton = geocoder;
 
-      // Default center: Muscat
       const defaultCenter = { lat: 23.5880, lng: 58.3829 };
       map.setCenter(defaultCenter);
       map.setZoom(12);
 
-      // Place initial marker
       markerRef.current = new google.maps.marker.AdvancedMarkerElement({
         map,
         position: defaultCenter,
-        title: "Delivery location",
+        title: "موقع التوصيل",
         gmpDraggable: true,
       });
 
       setMapCoords(defaultCenter);
-
-      // Reverse geocode initial position using Google Maps Geocoder
       reverseGeocode(defaultCenter.lat, defaultCenter.lng, geocoder).then(setMapAddress);
 
-      // Update on marker drag
       markerRef.current.addListener("dragend", async () => {
         const pos = markerRef.current?.position;
         if (!pos) return;
@@ -187,7 +170,6 @@ export default function LocationPicker() {
         setMapAddress(addr);
       });
 
-      // Update on map click
       map.addListener("click", async (e: google.maps.MapMouseEvent) => {
         if (!e.latLng) return;
         const lat = e.latLng.lat();
@@ -228,11 +210,11 @@ export default function LocationPicker() {
             onClick={() => setStep("choose")}
             className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center"
           >
-            <ChevronLeft className="w-5 h-5 text-white" />
+            <ChevronRight className="w-5 h-5 text-white" />
           </button>
           <div>
             <p className="text-white font-bold text-base">اختر موقع التوصيل</p>
-            <p className="text-white/50 text-xs">Choose delivery location</p>
+            <p className="text-white/50 text-xs">اضغط على الخريطة لتحديد الموقع</p>
           </div>
         </div>
 
@@ -244,7 +226,6 @@ export default function LocationPicker() {
             initialZoom={12}
             onMapReady={handleMapReady}
           />
-          {/* Center crosshair hint */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="w-6 h-6 border-2 border-orange-400 rounded-full opacity-40" />
           </div>
@@ -257,10 +238,10 @@ export default function LocationPicker() {
               <MapPin className="w-4 h-4 text-orange-400 mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-white/50 text-[10px] uppercase tracking-wide mb-0.5">
-                  Selected location
+                  الموقع المحدد
                 </p>
                 <p className="text-white text-sm leading-snug truncate">
-                  {mapAddress || "Drag the pin to your delivery address"}
+                  {mapAddress || "اسحب الدبوس إلى موقع التوصيل"}
                 </p>
               </div>
             </div>
@@ -283,7 +264,9 @@ export default function LocationPicker() {
                     ) : (
                       <Briefcase className="w-3 h-3" />
                     )}
-                    {existing ? `Update ${label}` : `Save as ${label}`}
+                    {existing
+                      ? label === "home" ? "تحديث المنزل" : "تحديث العمل"
+                      : label === "home" ? "حفظ كمنزل" : "حفظ كعمل"}
                   </button>
                 );
               })}
@@ -297,8 +280,8 @@ export default function LocationPicker() {
             onClick={handleConfirmMapLocation}
             disabled={!mapCoords}
           >
-            <Check className="w-5 h-5 mr-2" />
-            تأكيد الموقع — Confirm Location
+            <Check className="w-5 h-5 ml-2" />
+            تأكيد الموقع
           </Button>
         </div>
       </div>
@@ -314,11 +297,11 @@ export default function LocationPicker() {
           onClick={() => navigate("/")}
           className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center"
         >
-          <ChevronLeft className="w-5 h-5 text-white" />
+          <ChevronRight className="w-5 h-5 text-white" />
         </button>
         <div>
           <p className="text-white font-bold text-lg">موقع التوصيل</p>
-          <p className="text-white/50 text-xs">Where should we deliver?</p>
+          <p className="text-white/50 text-xs">إلى أين نوصّل؟</p>
         </div>
       </div>
 
@@ -327,7 +310,7 @@ export default function LocationPicker() {
         <button
           onClick={handleUseCurrentLocation}
           disabled={locating}
-          className="w-full bg-white/5 border border-white/10 rounded-3xl p-5 mb-3 text-left flex items-center gap-4 active:scale-[0.98] transition-transform"
+          className="w-full bg-white/5 border border-white/10 rounded-3xl p-5 mb-3 text-right flex items-center gap-4 active:scale-[0.98] transition-transform"
           style={{ minHeight: "80px" }}
         >
           <div
@@ -340,12 +323,12 @@ export default function LocationPicker() {
               <Navigation className="w-6 h-6 text-orange-400" />
             )}
           </div>
-          <div>
+          <div className="text-right flex-1">
             <p className="text-white font-bold text-base">
-              {locating ? "Detecting…" : "استخدم موقعي الحالي"}
+              {locating ? "جارٍ التحديد…" : "استخدم موقعي الحالي"}
             </p>
             <p className="text-white/50 text-sm">
-              {locating ? "Getting your GPS location" : "Use my current location"}
+              {locating ? "جارٍ الحصول على موقع GPS" : "تحديد تلقائي بالـ GPS"}
             </p>
           </div>
         </button>
@@ -354,7 +337,7 @@ export default function LocationPicker() {
         {savedLocs && savedLocs.length > 0 && (
           <div className="mb-3">
             <p className="text-white/40 text-[10px] uppercase tracking-widest px-1 mb-2">
-              Saved locations
+              المواقع المحفوظة
             </p>
             <div className="flex flex-col gap-2">
               {savedLocs.map((loc) => (
@@ -367,7 +350,7 @@ export default function LocationPicker() {
                       address: loc.address ?? `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}`,
                     })
                   }
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-left flex items-center gap-3 active:scale-[0.98] transition-transform"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-right flex items-center gap-3 active:scale-[0.98] transition-transform"
                   style={{ minHeight: "64px" }}
                 >
                   <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
@@ -379,8 +362,10 @@ export default function LocationPicker() {
                       <MapPin className="w-5 h-5 text-white/50" />
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-semibold text-sm capitalize">{loc.label}</p>
+                  <div className="flex-1 min-w-0 text-right">
+                    <p className="text-white font-semibold text-sm">
+                      {loc.label === "home" ? "المنزل" : loc.label === "work" ? "العمل" : "موقع آخر"}
+                    </p>
                     <p className="text-white/40 text-xs truncate">
                       {loc.address ?? `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}`}
                     </p>
@@ -395,7 +380,7 @@ export default function LocationPicker() {
         {/* ── Muscat area presets ────────────────────────────────────── */}
         <div className="mb-3">
           <p className="text-white/40 text-[10px] uppercase tracking-widest px-1 mb-2">
-            Muscat areas
+            مناطق مسقط
           </p>
           <div className="grid grid-cols-2 gap-2">
             {MUSCAT_PRESETS.map((preset) => (
@@ -404,7 +389,7 @@ export default function LocationPicker() {
                 onClick={() =>
                   proceedWithLocation({ lat: preset.lat, lng: preset.lng, address: preset.label })
                 }
-                className="bg-white/5 border border-white/10 rounded-2xl p-3 text-left flex items-center gap-2 active:scale-[0.98] transition-transform"
+                className="bg-white/5 border border-white/10 rounded-2xl p-3 text-right flex items-center gap-2 active:scale-[0.98] transition-transform"
                 style={{ minHeight: "52px" }}
               >
                 <MapPin className="w-3.5 h-3.5 text-orange-400 shrink-0" />
@@ -419,17 +404,17 @@ export default function LocationPicker() {
         {/* ── Option 2: Choose on map ────────────────────────────────── */}
         <button
           onClick={() => setStep("map")}
-          className="w-full bg-white/5 border border-white/10 rounded-3xl p-5 text-left flex items-center gap-4 active:scale-[0.98] transition-transform"
+          className="w-full bg-white/5 border border-white/10 rounded-3xl p-5 text-right flex items-center gap-4 active:scale-[0.98] transition-transform"
           style={{ minHeight: "80px" }}
         >
           <div className="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center shrink-0">
             <MapPin className="w-6 h-6 text-blue-400" />
           </div>
-          <div>
+          <div className="flex-1 text-right">
             <p className="text-white font-bold text-base">اختر على الخريطة</p>
-            <p className="text-white/50 text-sm">Choose another location on map</p>
+            <p className="text-white/50 text-sm">تحديد موقع مخصص على الخريطة</p>
           </div>
-          <Plus className="w-4 h-4 text-white/30 ml-auto shrink-0" />
+          <Plus className="w-4 h-4 text-white/30 shrink-0" />
         </button>
       </div>
     </div>

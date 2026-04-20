@@ -118,9 +118,12 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Cairo', 'Inter', sans-serif;
     min-height: 100dvh;
     overscroll-behavior: none;
+    direction: rtl;
+    text-align: right;
   }
   button, [role="button"] {
     min-height: 48px;
