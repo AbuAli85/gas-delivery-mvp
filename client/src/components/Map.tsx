@@ -76,7 +76,7 @@
 
 /// <reference types="@types/google.maps" />
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePersistFn } from "@/hooks/usePersistFn";
 import { cn } from "@/lib/utils";
 
@@ -86,27 +86,39 @@ declare global {
   }
 }
 
-const API_KEY = import.meta.env.VITE_FRONTEND_FORGE_API_KEY;
+const API_KEY = import.meta.env.VITE_FRONTEND_FORGE_API_KEY as string | undefined;
 const FORGE_BASE_URL =
   import.meta.env.VITE_FRONTEND_FORGE_API_URL ||
   "https://forge.butterfly-effect.dev";
 const MAPS_PROXY_URL = `${FORGE_BASE_URL}/v1/maps/proxy`;
 
-function loadMapScript() {
-  return new Promise(resolve => {
-    const script = document.createElement("script");
-    script.src = `${MAPS_PROXY_URL}/maps/api/js?key=${API_KEY}&v=weekly&libraries=marker,places,geocoding,geometry`;
-    script.async = true;
-    script.crossOrigin = "anonymous";
-    script.onload = () => {
-      resolve(null);
-      script.remove(); // Clean up immediately
-    };
-    script.onerror = () => {
-      console.error("Failed to load Google Maps script");
-    };
-    document.head.appendChild(script);
-  });
+/** Single shared loader so concurrent MapViews do not append duplicate scripts. */
+let mapsScriptPromise: Promise<void> | null = null;
+
+function loadMapScript(): Promise<void> {
+  if (typeof window !== "undefined" && window.google?.maps) {
+    return Promise.resolve();
+  }
+  if (!API_KEY?.trim()) {
+    return Promise.reject(
+      new Error("Missing VITE_FRONTEND_FORGE_API_KEY — map cannot load.")
+    );
+  }
+  if (!mapsScriptPromise) {
+    mapsScriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = `${MAPS_PROXY_URL}/maps/api/js?key=${encodeURIComponent(API_KEY)}&v=weekly&libraries=places,geocoding,geometry`;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => {
+        mapsScriptPromise = null;
+        console.error("Failed to load Google Maps script");
+        reject(new Error("Failed to load Google Maps script"));
+      };
+      document.head.appendChild(script);
+    });
+  }
+  return mapsScriptPromise;
 }
 
 interface MapViewProps {
@@ -114,6 +126,8 @@ interface MapViewProps {
   initialCenter?: google.maps.LatLngLiteral;
   initialZoom?: number;
   onMapReady?: (map: google.maps.Map) => void;
+  /** Called when the script fails to load or the map cannot be created. */
+  onLoadError?: (message: string) => void;
 }
 
 export function MapView({
@@ -121,27 +135,38 @@ export function MapView({
   initialCenter = { lat: 37.7749, lng: -122.4194 },
   initialZoom = 12,
   onMapReady,
+  onLoadError,
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const init = usePersistFn(async () => {
-    await loadMapScript();
-    if (!mapContainer.current) {
-      console.error("Map container not found");
-      return;
-    }
-    map.current = new window.google.maps.Map(mapContainer.current, {
-      zoom: initialZoom,
-      center: initialCenter,
-      mapTypeControl: true,
-      fullscreenControl: true,
-      zoomControl: true,
-      streetViewControl: true,
-      mapId: "DEMO_MAP_ID",
-    });
-    if (onMapReady) {
-      onMapReady(map.current);
+    setLoadError(null);
+    try {
+      await loadMapScript();
+      if (!mapContainer.current) {
+        console.error("Map container not found");
+        return;
+      }
+      if (!window.google?.maps) {
+        throw new Error("Google Maps API not available after load");
+      }
+      map.current = new window.google.maps.Map(mapContainer.current, {
+        zoom: initialZoom,
+        center: initialCenter,
+        mapTypeControl: true,
+        fullscreenControl: true,
+        zoomControl: true,
+        streetViewControl: true,
+      });
+      if (onMapReady) {
+        onMapReady(map.current);
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Map failed to load";
+      setLoadError(message);
+      onLoadError?.(message);
     }
   });
 
@@ -150,6 +175,13 @@ export function MapView({
   }, [init]);
 
   return (
-    <div ref={mapContainer} className={cn("w-full h-[500px]", className)} />
+    <div className={cn("relative w-full h-full min-h-[200px]", className)}>
+      <div ref={mapContainer} className="absolute inset-0 w-full h-full bg-neutral-950" />
+      {loadError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-neutral-950 text-white/85 text-xs leading-relaxed px-4 text-center z-10">
+          {loadError}
+        </div>
+      )}
+    </div>
   );
 }

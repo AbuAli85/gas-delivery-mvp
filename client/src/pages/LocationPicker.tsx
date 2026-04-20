@@ -136,8 +136,8 @@ export default function LocationPicker() {
     navigate("/order/summary");
   };
 
-  // ── Map picker ───────────────────────────────────────────────────────────
-  const markerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+  // ── Map picker (classic Marker — works without a Google Cloud "Map ID"; AdvancedMarker needs mapId) ──
+  const markerRef = useRef<google.maps.Marker | null>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
 
   const handleMapReady = useCallback(
@@ -150,21 +150,21 @@ export default function LocationPicker() {
       map.setCenter(defaultCenter);
       map.setZoom(12);
 
-      markerRef.current = new google.maps.marker.AdvancedMarkerElement({
+      markerRef.current = new google.maps.Marker({
         map,
         position: defaultCenter,
         title: "موقع التوصيل",
-        gmpDraggable: true,
+        draggable: true,
       });
 
       setMapCoords(defaultCenter);
       reverseGeocode(defaultCenter.lat, defaultCenter.lng, geocoder).then(setMapAddress);
 
       markerRef.current.addListener("dragend", async () => {
-        const pos = markerRef.current?.position;
+        const pos = markerRef.current?.getPosition();
         if (!pos) return;
-        const lat = typeof pos.lat === "function" ? pos.lat() : (pos as google.maps.LatLngLiteral).lat;
-        const lng = typeof pos.lng === "function" ? pos.lng() : (pos as google.maps.LatLngLiteral).lng;
+        const lat = pos.lat();
+        const lng = pos.lng();
         setMapCoords({ lat, lng });
         const addr = await reverseGeocode(lat, lng, geocoder);
         setMapAddress(addr);
@@ -174,7 +174,7 @@ export default function LocationPicker() {
         if (!e.latLng) return;
         const lat = e.latLng.lat();
         const lng = e.latLng.lng();
-        if (markerRef.current) markerRef.current.position = { lat, lng };
+        markerRef.current?.setPosition(e.latLng);
         setMapCoords({ lat, lng });
         const addr = await reverseGeocode(lat, lng, geocoder);
         setMapAddress(addr);
@@ -225,10 +225,8 @@ export default function LocationPicker() {
             initialCenter={{ lat: 23.5880, lng: 58.3829 }}
             initialZoom={12}
             onMapReady={handleMapReady}
+            onLoadError={(msg) => toast.error(msg)}
           />
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-6 h-6 border-2 border-orange-400 rounded-full opacity-40" />
-          </div>
         </div>
 
         {/* Address display + confirm */}
