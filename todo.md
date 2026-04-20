@@ -72,3 +72,17 @@
 - [ ] Live map with customer location + provider zone overlay
 - [ ] Phone OTP auth for customers (no login wall per requirements; phone field is optional on order)
 - [ ] Admin panel for order management
+
+## Conversion Optimization (Phase 3 — Reality Validation)
+- [x] Home: Arabic tagline + "Guaranteed delivery or refund" trust badge
+- [x] Home: Single CTA, cylinder count shown in price strip, not a blocker
+- [x] Home: Single massive CTA button (full-width, 64px tall)
+- [x] Home: Trust strip with 3 icons (Guaranteed, 30 min, Cash OK)
+- [x] Home: Live provider count badge (green dot, "X online")
+- [x] All screens: WhatsApp fallback button on Home, Summary, Payment, OrderPlaced
+- [x] Order Summary: Single card with price breakdown + 60px CTA + WhatsApp fallback
+- [x] Payment: Amount hero + payment method + 64px pay button + WhatsApp fallback
+- [x] OrderPlaced: WhatsApp share link with order number and tracking URL
+- [x] App: /gas route alias added (same component as /)
+- [x] App: PWA meta tags, theme-color, apple-mobile-web-app, OG tags for WhatsApp preview
+- [x] Verify: full order flow completes in < 30 seconds (location + draft + payment = 3 taps)

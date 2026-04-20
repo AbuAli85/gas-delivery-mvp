@@ -20,6 +20,8 @@ function Router() {
     <Switch>
       {/* Customer flow */}
       <Route path="/" component={Home} />
+      {/* /gas — shareable WhatsApp entry point */}
+      <Route path="/gas" component={Home} />
       <Route path="/order/summary" component={OrderSummary} />
       <Route path="/order/payment" component={Payment} />
       <Route path="/order/placed/:orderId" component={OrderPlaced} />
