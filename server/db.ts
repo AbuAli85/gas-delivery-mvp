@@ -384,3 +384,27 @@ export async function deleteSavedLocation(id: number, sessionKey: string): Promi
     .delete(savedLocations)
     .where(and(eq(savedLocations.id, id), eq(savedLocations.sessionKey, sessionKey)));
 }
+
+// ─── Provider PIN Auth ────────────────────────────────────────────────────────
+
+/**
+ * Verify a provider's PIN. Returns true if the SHA-256 hex hash of the given
+ * pin matches the stored pinHash. Returns false if provider not found or no
+ * pinHash is set.
+ */
+export async function verifyProviderPin(
+  providerId: number,
+  pinHash: string
+): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const result = await db
+    .select({ pinHash: providers.pinHash })
+    .from(providers)
+    .where(eq(providers.id, providerId))
+    .limit(1);
+  if (!result[0]) return false;
+  const stored = result[0].pinHash;
+  if (!stored) return false;
+  return stored === pinHash;
+}

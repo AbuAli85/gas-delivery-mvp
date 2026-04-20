@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Flame, Loader2, ChevronRight, ShieldCheck, Zap, Phone } from "lucide-react";
+import { Flame, Loader2, ChevronRight, ShieldCheck, Zap, Phone, MapPin } from "lucide-react";
+import { FIXED_ORDER_PRICE } from "../../../shared/domain";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 
@@ -18,21 +19,11 @@ async function detectLocation(): Promise<LocationResult> {
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+      (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
-        let address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-          );
-          const data = await res.json();
-          if (data?.display_name) {
-            const parts = data.display_name.split(",").slice(0, 3);
-            address = parts.join(", ");
-          }
-        } catch {
-          // Use coordinates as fallback
-        }
+        // No external geocoding API — use coordinates as address
+        // The LocationPicker will resolve the zone name on the summary screen
+        const address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
         resolve({ lat, lng, address });
       },
       (err) => reject(new Error(err.message)),
@@ -113,21 +104,12 @@ export default function Home() {
       {/* ── Order card ───────────────────────────────────────────────── */}
       <div className="flex-1 px-4 -mt-5 pb-6">
         <div className="bg-white rounded-3xl shadow-2xl p-5">
-          {/* Price strip */}
-          <div className="flex items-center justify-between mb-5 px-1">
+          {/* Price strip — single flat price, no breakdown */}
+          <div className="flex items-center justify-center gap-3 mb-5 px-1 py-3 bg-gray-50 rounded-2xl">
             <div className="text-center">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Per cylinder</p>
-              <p className="text-xl font-extrabold text-gray-900">OMR 3.500</p>
-            </div>
-            <div className="h-8 w-px bg-gray-100" />
-            <div className="text-center">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Delivery</p>
-              <p className="text-xl font-extrabold text-gray-900">OMR 1.000</p>
-            </div>
-            <div className="h-8 w-px bg-gray-100" />
-            <div className="text-center">
-              <p className="text-[10px] text-gray-400 uppercase tracking-wide">Total</p>
-              <p className="text-xl font-extrabold text-primary">OMR 4.500</p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">السعر الكلي · Total Price</p>
+              <p className="text-3xl font-extrabold text-primary">OMR {FIXED_ORDER_PRICE.toFixed(3)}</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">شامل التوصيل · Delivery included</p>
             </div>
           </div>
 

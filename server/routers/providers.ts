@@ -19,6 +19,7 @@ import {
   getAssignmentsByOrder,
   getAllProviders,
   incrementProviderScore,
+  verifyProviderPin,
 } from "../db";
 import { selectNextProvider } from "../assignmentEngine";
 import { assertAssignmentTransition, assertOrderTransition } from "../../shared/domain";
@@ -62,7 +63,29 @@ async function doAssignNext(orderId: number): Promise<void> {
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
+// ─── PIN input schema (shared across all authenticated mutations) ─────────────
+const withPin = z.object({ providerId: z.number(), pinHash: z.string() });
+
+// ─── Helper: assert PIN is valid ──────────────────────────────────────────────
+async function assertPin(providerId: number, pinHash: string): Promise<void> {
+  const valid = await verifyProviderPin(providerId, pinHash);
+  if (!valid) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid PIN" });
+  }
+}
+
 export const providersRouter = router({
+  /**
+   * Verify a provider PIN. Returns { success: true } on match.
+   * Frontend stores the pinHash in sessionStorage after this call.
+   */
+  verifyPin: publicProcedure
+    .input(withPin)
+    .mutation(async ({ input }) => {
+      await assertPin(input.providerId, input.pinHash);
+      return { success: true };
+    }),
+
   /**
    * List all providers (for admin/seeding verification).
    */
@@ -85,8 +108,9 @@ export const providersRouter = router({
    * Toggle provider availability (online / offline).
    */
   toggleAvailability: publicProcedure
-    .input(z.object({ providerId: z.number() }))
+    .input(withPin)
     .mutation(async ({ input }) => {
+      await assertPin(input.providerId, input.pinHash);
       const provider = await getProviderById(input.providerId);
       if (!provider) throw new TRPCError({ code: "NOT_FOUND" });
       const next = !provider.isAvailable;
@@ -160,8 +184,9 @@ export const providersRouter = router({
    * Invariant: only one active assignment per order at a time.
    */
   acceptOrder: publicProcedure
-    .input(z.object({ assignmentId: z.number(), providerId: z.number() }))
+    .input(z.object({ assignmentId: z.number(), providerId: z.number(), pinHash: z.string() }))
     .mutation(async ({ input }) => {
+      await assertPin(input.providerId, input.pinHash);
       const assignment = await getAssignmentById(input.assignmentId);
       if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "Assignment not found" });
       if (assignment.providerId !== input.providerId) {
@@ -213,8 +238,9 @@ export const providersRouter = router({
    * Triggers auto-reassignment to the next eligible provider.
    */
   rejectOrder: publicProcedure
-    .input(z.object({ assignmentId: z.number(), providerId: z.number() }))
+    .input(z.object({ assignmentId: z.number(), providerId: z.number(), pinHash: z.string() }))
     .mutation(async ({ input }) => {
+      await assertPin(input.providerId, input.pinHash);
       const assignment = await getAssignmentById(input.assignmentId);
       if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "Assignment not found" });
       if (assignment.providerId !== input.providerId) {
@@ -260,8 +286,9 @@ export const providersRouter = router({
    * Provider marks order as out for delivery.
    */
   startDelivery: publicProcedure
-    .input(z.object({ orderId: z.number(), providerId: z.number() }))
+    .input(z.object({ orderId: z.number(), providerId: z.number(), pinHash: z.string() }))
     .mutation(async ({ input }) => {
+      await assertPin(input.providerId, input.pinHash);
       const order = await getOrderById(input.orderId);
       if (!order) throw new TRPCError({ code: "NOT_FOUND" });
       if (order.assignedProviderId !== input.providerId) {
@@ -277,8 +304,9 @@ export const providersRouter = router({
    * Provider marks order as delivered.
    */
   deliverOrder: publicProcedure
-    .input(z.object({ orderId: z.number(), providerId: z.number() }))
+    .input(z.object({ orderId: z.number(), providerId: z.number(), pinHash: z.string() }))
     .mutation(async ({ input }) => {
+      await assertPin(input.providerId, input.pinHash);
       const order = await getOrderById(input.orderId);
       if (!order) throw new TRPCError({ code: "NOT_FOUND" });
       if (order.assignedProviderId !== input.providerId) {

@@ -1,13 +1,26 @@
+import { useState } from "react";
 import { useParams, useLocation } from "wouter";
-import { ArrowLeft, MapPin, Clock, Phone, CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Phone, CheckCircle2, Circle, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_STEPS, type OrderStatus } from "../../../shared/domain";
 
 export default function OrderTracking() {
   const { orderId } = useParams<{ orderId: string }>();
   const [, navigate] = useLocation();
   const id = parseInt(orderId ?? "0", 10);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+
+  const utils = trpc.useUtils();
+  const cancelOrder = trpc.orders.cancelOrder.useMutation({
+    onSuccess: () => {
+      toast.success("Order cancelled");
+      utils.orders.getOrderStatus.invalidate({ orderId: id });
+      setConfirmCancel(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   const { data: order, isLoading } = trpc.orders.getOrderStatus.useQuery(
     { orderId: id },
@@ -195,6 +208,45 @@ export default function OrderTracking() {
           >
             Order Again
           </Button>
+        )}
+
+        {/* Cancel Order — only shown when order is still cancellable */}
+        {["draft", "pending", "assigned"].includes(currentStatus) && (
+          <div className="pt-1">
+            {!confirmCancel ? (
+              <button
+                onClick={() => setConfirmCancel(true)}
+                className="w-full flex items-center justify-center gap-2 text-sm text-red-400 hover:text-red-600 py-2 transition-colors"
+              >
+                <XCircle className="w-4 h-4" />
+                Cancel order
+              </button>
+            ) : (
+              <div className="bg-red-50 rounded-2xl p-4 text-center space-y-3">
+                <p className="text-sm font-semibold text-red-700">Cancel this order?</p>
+                <p className="text-xs text-red-500">This cannot be undone.</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setConfirmCancel(false)}
+                    className="flex-1 py-2 rounded-xl border border-gray-200 text-sm text-gray-600"
+                  >
+                    Keep order
+                  </button>
+                  <button
+                    onClick={() => cancelOrder.mutate({ orderId: id })}
+                    disabled={cancelOrder.isPending}
+                    className="flex-1 py-2 rounded-xl bg-red-600 text-white text-sm font-bold disabled:opacity-50"
+                  >
+                    {cancelOrder.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                    ) : (
+                      "Yes, cancel"
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* WhatsApp support */}

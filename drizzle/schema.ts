@@ -56,6 +56,7 @@ export const providers = mysqlTable("providers", {
   isAvailable: boolean("isAvailable").default(true).notNull(),
   // ID of the currently active order (null = free to accept new orders)
   activeOrderId: int("activeOrderId"),
+  pinHash: varchar("pinHash", { length: 64 }),
   // Scoring system — score = acceptedOrders / (acceptedOrders + rejectedOrders)
   acceptedOrders: int("acceptedOrders").default(0).notNull(),
   rejectedOrders: int("rejectedOrders").default(0).notNull(),

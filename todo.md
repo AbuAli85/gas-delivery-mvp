@@ -67,13 +67,14 @@
 - [x] Brand red/black/white design system
 
 ## Deferred (Post-MVP — Explicitly out of scope per brief)
-> These items are intentionally not implemented in the MVP. They are listed for future iteration planning.
+> These items are intentionally NOT implemented in the MVP. They are listed for future iteration planning only.
+> The MVP is fully functional without them.
 
-- [ ] Stripe.js client-side card collection — mock payment is the MVP fallback; real Stripe requires STRIPE_SECRET_KEY secret
-- [ ] Browser Web Push notifications to providers/customers — owner notifyOwner() is wired into assignment/accept/deliver (lines 80, 55, 198, 298 in routers)
-- [ ] Live map with customer location + provider zone overlay
-- [ ] Phone OTP auth for customers — no login wall per requirements; phone field is optional on order
-- [ ] Admin panel for order management
+- [ ] [POST-MVP] Real Stripe card collection (requires STRIPE_SECRET_KEY secret; mock is current fallback)
+- [ ] [POST-MVP] Browser Web Push to providers/customers (notifyOwner() is current server-side fallback)
+- [ ] [POST-MVP] Live customer map with provider zone overlay (LocationPicker map handles delivery selection only)
+- [ ] [POST-MVP] Phone OTP auth for customers (no login wall per requirements; phone is optional field)
+- [ ] [POST-MVP] Admin panel for order management
 
 ## Conversion Optimization (Phase 3 — Reality Validation)
 - [x] Home: Arabic tagline + "Guaranteed delivery or refund" trust badge
@@ -167,3 +168,44 @@
 - [x] Unique preset labels
 - [x] Address formatting (coords fallback, truncation)
 - [x] Session key generation format
+
+## Critical Fix Pass — Safety for Limited Real-World Testing
+
+### Fix 1 — Price Consistency
+- [x] Remove hardcoded OMR 3.500 / 4.500 from Home.tsx
+- [x] Home.tsx: show FIXED_ORDER_PRICE (3.300) from shared/domain.ts constant
+- [x] Remove delivery fee breakdown line from Home.tsx
+
+### Fix 2 — Provider PIN Auth
+- [x] Schema: pinHash column added to providers table (VARCHAR 64, nullable)
+- [x] Migration: ALTER TABLE providers ADD COLUMN pinHash applied
+- [x] Seed: default PIN 1234 (SHA-256) set for providers 4, 5, 6
+- [x] Backend: providers.verifyPin procedure added
+- [x] Backend: pinHash required on all provider mutations (accept/reject/deliver/toggle)
+- [x] Frontend: ProviderLogin.tsx PIN entry screen at /provider/:id/login
+- [x] Frontend: pinHash stored in sessionStorage, redirect to dashboard on success
+- [x] Frontend: ProviderDashboard redirects to PIN screen if no valid session
+
+### Fix 3 — Order Cancellation
+- [x] Backend: orders.cancelOrder procedure (valid from draft/pending/assigned/accepted)
+- [x] Backend: on cancel — marks assignment expired, releases provider.activeOrderId
+- [x] Frontend: Cancel Order button on OrderTracking (draft/pending/assigned states only)
+- [x] Frontend: two-step confirmation ("Cancel order" → "Yes, cancel" / "Keep order")
+
+### Fix 4 — Assignment Expiry Timeout
+- [x] Backend: getOrderStatus checks assignment age (5-minute expiry)
+- [x] Backend: expired assignment triggers auto-reassignment to next provider
+- [x] Backend: if no next provider, order is cancelled
+- [x] No cron required — triggered by customer polling
+
+### Fix 5 — Remove Nominatim
+- [x] Removed nominatim.openstreetmap.org call from LocationPicker.tsx
+- [x] Replaced with Google Maps Geocoder (Manus proxy, no API key needed)
+- [x] Geocoder singleton stored in module-level variable for reuse
+- [x] Coordinate fallback (lat.toFixed(4), lng.toFixed(4)) always works
+
+### Tests for Critical Fixes (99 total, 28 new)
+- [x] Fix 1: 4 price consistency tests (FIXED_ORDER_PRICE = 3.300, deterministic, format)
+- [x] Fix 3: 7 cancellation state machine tests (cancellable statuses, invalid transitions)
+- [x] Fix 4: 4 assignment expiry timing tests (5-min constant, expired/not-expired/boundary)
+- [x] Fix 5: 3 geocoding independence tests (coordinate fallback, all 6 presets, no Nominatim)

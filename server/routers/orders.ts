@@ -358,13 +358,94 @@ export const ordersRouter = router({
     }),
 
   /**
+   * Customer cancels an order.
+   * Allowed from: draft, pending, assigned.
+   * Frees the provider if one was assigned.
+   */
+  cancelOrder: publicProcedure
+    .input(z.object({ orderId: z.number() }))
+    .mutation(async ({ input }) => {
+      const order = await getOrderById(input.orderId);
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+
+      const cancellable = ["draft", "pending", "assigned"];
+      if (!cancellable.includes(order.status)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Cannot cancel order in status '${order.status}'`,
+        });
+      }
+
+      // Free the assigned provider
+      if (order.assignedProviderId) {
+        await setProviderActiveOrder(order.assignedProviderId, null);
+      }
+
+      // Expire any pending assignment
+      const activeAssignment = await getActiveAssignment(order.id);
+      if (activeAssignment && activeAssignment.status === "pending") {
+        await updateAssignment(activeAssignment.id, {
+          status: "expired",
+          respondedAt: new Date(),
+        });
+      }
+
+      await updateOrder(order.id, {
+        status: "cancelled",
+        assignedProviderId: null,
+      });
+
+      return { success: true, orderId: order.id };
+    }),
+
+  /**
    * Customer polling: get current order status + assignment info.
+   * Also checks for expired assignments (provider offline > 5 min) and auto-reassigns.
    */
   getOrderStatus: publicProcedure
     .input(z.object({ orderId: z.number() }))
     .query(async ({ input }) => {
       const order = await getOrderById(input.orderId);
       if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+
+      // ── Assignment expiry check (Fix 4) ──────────────────────────────────────
+      // If order is in 'assigned' state and the active assignment has been pending
+      // for > 5 minutes with no response, expire it and try the next provider.
+      if (order.status === "assigned") {
+        const activeAssignment = await getActiveAssignment(order.id);
+        if (activeAssignment && activeAssignment.status === "pending") {
+          const ageMs = Date.now() - new Date(activeAssignment.createdAt).getTime();
+          const EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+          if (ageMs > EXPIRY_MS) {
+            // Expire this assignment
+            await updateAssignment(activeAssignment.id, {
+              status: "expired",
+              respondedAt: new Date(),
+            });
+            // Free the provider
+            await setProviderActiveOrder(activeAssignment.providerId, null);
+            // Add to rejected list so they don't get re-assigned
+            const currentRejected: number[] = Array.isArray(order.rejectedProviderIds)
+              ? (order.rejectedProviderIds as number[])
+              : [];
+            const updatedRejected = Array.from(new Set([...currentRejected, activeAssignment.providerId]));
+            await updateOrder(order.id, {
+              status: "pending",
+              assignedProviderId: null,
+              rejectedProviderIds: updatedRejected as unknown as null,
+            });
+            // Try next provider (non-blocking — if no providers, order stays pending)
+            try {
+              await doAssignProvider(order.id);
+            } catch (_) {
+              // No providers available — order stays pending/cancelled
+            }
+            // Re-fetch order after reassignment
+            const refreshed = await getOrderById(order.id);
+            if (refreshed) Object.assign(order, refreshed);
+          }
+        }
+      }
 
       let providerName: string | null = null;
       let providerPhone: string | null = null;

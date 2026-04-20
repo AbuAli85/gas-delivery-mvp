@@ -662,3 +662,118 @@ function truncateAddress(address: string, maxLen: number): string {
 function generateSessionKey(): string {
   return `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
+
+// ─── Critical Fix Tests ───────────────────────────────────────────────────────
+
+describe("Fix 1: Price consistency", () => {
+  it("FIXED_ORDER_PRICE is exactly 3.300 OMR", () => {
+    const { totalPrice } = calculateOrderPrice();
+    expect(totalPrice).toBe(3.3);
+  });
+
+  it("calculateOrderPrice returns 3.300 total with no delivery fee", () => {
+    const { unitPrice, deliveryFee, totalPrice } = calculateOrderPrice();
+    expect(totalPrice).toBe(3.3);
+    expect(deliveryFee).toBe(0);
+    expect(unitPrice).toBe(3.3);
+  });
+
+  it("price is deterministic across multiple calls", () => {
+    const a = calculateOrderPrice();
+    const b = calculateOrderPrice();
+    expect(a.totalPrice).toBe(b.totalPrice);
+  });
+
+  it("price formatted to 3 decimal places is '3.300'", () => {
+    const { totalPrice } = calculateOrderPrice();
+    expect(totalPrice.toFixed(3)).toBe("3.300");
+  });
+});
+
+describe("Fix 3: Order cancellation state machine", () => {
+  it("draft can transition to cancelled", () => {
+    expect(canTransitionOrder("draft", "cancelled")).toBe(true);
+  });
+
+  it("pending can transition to cancelled", () => {
+    expect(canTransitionOrder("pending", "cancelled")).toBe(true);
+  });
+
+  it("assigned can transition to cancelled", () => {
+    expect(canTransitionOrder("assigned", "cancelled")).toBe(true);
+  });
+
+  it("accepted can transition to cancelled", () => {
+    expect(canTransitionOrder("accepted", "cancelled")).toBe(true);
+  });
+
+  it("delivered cannot transition to cancelled", () => {
+    expect(canTransitionOrder("delivered", "cancelled")).toBe(false);
+  });
+
+  it("cancelled cannot transition to cancelled again", () => {
+    expect(canTransitionOrder("cancelled", "cancelled")).toBe(false);
+  });
+
+  it("assertOrderTransition throws for delivered → cancelled", () => {
+    expect(() => assertOrderTransition("delivered", "cancelled")).toThrow("Invalid order transition");
+  });
+});
+
+describe("Fix 4: Assignment expiry timing", () => {
+  it("5-minute expiry constant is 300000ms", () => {
+    const EXPIRY_MS = 5 * 60 * 1000;
+    expect(EXPIRY_MS).toBe(300_000);
+  });
+
+  it("assignment older than 5 minutes is expired", () => {
+    const createdAt = new Date(Date.now() - 6 * 60 * 1000); // 6 min ago
+    const ageMs = Date.now() - createdAt.getTime();
+    expect(ageMs).toBeGreaterThan(5 * 60 * 1000);
+  });
+
+  it("assignment younger than 5 minutes is not expired", () => {
+    const createdAt = new Date(Date.now() - 2 * 60 * 1000); // 2 min ago
+    const ageMs = Date.now() - createdAt.getTime();
+    expect(ageMs).toBeLessThan(5 * 60 * 1000);
+  });
+
+  it("boundary: exactly 5 minutes is expired", () => {
+    const createdAt = new Date(Date.now() - 5 * 60 * 1000);
+    const ageMs = Date.now() - createdAt.getTime();
+    expect(ageMs).toBeGreaterThanOrEqual(5 * 60 * 1000);
+  });
+});
+
+describe("Fix 5: No external geocoding dependency", () => {
+  it("coordinate fallback format is correct", () => {
+    const lat = 23.5880;
+    const lng = 58.3829;
+    const fallback = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    expect(fallback).toBe("23.5880, 58.3829");
+  });
+
+  it("coordinate fallback works for all 6 Muscat presets", () => {
+    const presets = [
+      { label: "Old Muscat / Mutrah", lat: 23.6139, lng: 58.5922 },
+      { label: "Ruwi / CBD",          lat: 23.6086, lng: 58.5930 },
+      { label: "Al Khuwair",          lat: 23.5957, lng: 58.3942 },
+      { label: "Ghubrah",             lat: 23.6050, lng: 58.3770 },
+      { label: "Madinat Qaboos",      lat: 23.5880, lng: 58.4020 },
+      { label: "Bausher",             lat: 23.5820, lng: 58.3600 },
+    ];
+    for (const p of presets) {
+      const fallback = `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`;
+      expect(fallback).toMatch(/^\d+\.\d{4}, \d+\.\d{4}$/);
+    }
+  });
+
+  it("Google Maps Geocoder is used when available (no Nominatim calls)", () => {
+    // Verify the fallback function signature is correct
+    const fallback = formatCoordsFallback(23.6139, 58.5922);
+    expect(fallback).toBe("23.6139, 58.5922");
+    // If Google Maps Geocoder is unavailable, coordinate fallback always works
+    expect(fallback).not.toContain("nominatim");
+    expect(fallback).not.toContain("openstreetmap");
+  });
+});

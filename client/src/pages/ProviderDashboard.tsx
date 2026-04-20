@@ -1,18 +1,29 @@
-import { useState } from "react";
-import { useParams } from "wouter";
+import { useState, useEffect } from "react";
+import { useParams, useLocation } from "wouter";
 import { toast } from "sonner";
 import {
   Flame, MapPin, Phone, Package, Clock, CheckCircle2,
   XCircle, Truck, History, ToggleLeft, ToggleRight, Loader2,
-  ChevronDown, ChevronUp, TrendingUp, Wallet, Star, AlertCircle
+  ChevronDown, ChevronUp, TrendingUp, Wallet, Star, AlertCircle, LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
+import { getStoredPinHash, clearPinHash } from "./ProviderLogin";
 
 export default function ProviderDashboard() {
   const { providerId } = useParams<{ providerId: string }>();
+  const [, navigate] = useLocation();
   const id = parseInt(providerId ?? "0", 10);
   const [showHistory, setShowHistory] = useState(false);
+
+  // PIN guard: redirect to login if no PIN stored
+  const pinHash = getStoredPinHash(id);
+  if (!pinHash) {
+    // Use useEffect to avoid render-phase navigation
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => { navigate(`/provider/${id}/login`); }, []);
+    return null;
+  }
 
   const utils = trpc.useUtils();
 
@@ -47,7 +58,14 @@ export default function ProviderDashboard() {
       toast.success(data.isAvailable ? "You are now online" : "You are now offline");
       utils.providers.getById.invalidate({ providerId: id });
     },
-    onError: () => toast.error("Failed to update availability"),
+    onError: (err) => {
+      if (err.data?.code === "UNAUTHORIZED") {
+        clearPinHash(id);
+        navigate(`/provider/${id}/login`);
+      } else {
+        toast.error("Failed to update availability");
+      }
+    },
   });
 
   const acceptOrder = trpc.providers.acceptOrder.useMutation({
@@ -121,7 +139,7 @@ export default function ProviderDashboard() {
           </div>
           {/* Availability Toggle */}
           <button
-            onClick={() => toggleAvailability.mutate({ providerId: id })}
+            onClick={() => toggleAvailability.mutate({ providerId: id, pinHash: pinHash! })}
             disabled={toggleAvailability.isPending}
             className="flex items-center gap-2 bg-white/10 backdrop-blur rounded-full px-3 py-2"
           >
@@ -189,7 +207,7 @@ export default function ProviderDashboard() {
             <div className="grid grid-cols-2 gap-3">
               <Button
                 className="h-12 rounded-2xl bg-primary hover:bg-primary/90 font-bold"
-                onClick={() => acceptOrder.mutate({ assignmentId: incoming.assignmentId, providerId: id })}
+                onClick={() => acceptOrder.mutate({ assignmentId: incoming.assignmentId, providerId: id, pinHash: pinHash! })}
                 disabled={acceptOrder.isPending || rejectOrder.isPending}
               >
                 {acceptOrder.isPending ? (
@@ -204,7 +222,7 @@ export default function ProviderDashboard() {
               <Button
                 variant="outline"
                 className="h-12 rounded-2xl border-red-200 text-red-600 hover:bg-red-50 font-bold"
-                onClick={() => rejectOrder.mutate({ assignmentId: incoming.assignmentId, providerId: id })}
+                onClick={() => rejectOrder.mutate({ assignmentId: incoming.assignmentId, providerId: id, pinHash: pinHash! })}
                 disabled={acceptOrder.isPending || rejectOrder.isPending}
               >
                 {rejectOrder.isPending ? (
@@ -270,7 +288,7 @@ export default function ProviderDashboard() {
               {activeOrder.status === "accepted" && (
                 <Button
                   className="col-span-2 h-12 rounded-2xl bg-violet-600 hover:bg-violet-700 font-bold"
-                  onClick={() => startDelivery.mutate({ orderId: activeOrder.orderId, providerId: id })}
+                  onClick={() => startDelivery.mutate({ orderId: activeOrder.orderId, providerId: id, pinHash: pinHash! })}
                   disabled={startDelivery.isPending}
                 >
                   {startDelivery.isPending ? (
@@ -286,7 +304,7 @@ export default function ProviderDashboard() {
               {activeOrder.status === "out_for_delivery" && (
                 <Button
                   className="col-span-2 h-12 rounded-2xl bg-green-600 hover:bg-green-700 font-bold"
-                  onClick={() => deliverOrder.mutate({ orderId: activeOrder.orderId, providerId: id })}
+                  onClick={() => deliverOrder.mutate({ orderId: activeOrder.orderId, providerId: id, pinHash: pinHash! })}
                   disabled={deliverOrder.isPending}
                 >
                   {deliverOrder.isPending ? (

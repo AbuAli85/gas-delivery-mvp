@@ -41,19 +41,25 @@ function getSessionKey(): string {
   return key;
 }
 
-// ── Reverse geocode via Nominatim (no API key required) ───────────────────────
-async function reverseGeocode(lat: number, lng: number): Promise<string> {
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-    );
-    const data = await res.json();
-    if (data?.display_name) {
-      return data.display_name.split(",").slice(0, 3).join(", ");
+// ── Reverse geocode via Google Maps Geocoder (Manus proxy — no API key needed) ──
+// Falls back to coordinate string if geocoder is unavailable.
+let _geocoderSingleton: google.maps.Geocoder | null = null;
+
+async function reverseGeocode(lat: number, lng: number, geocoder?: google.maps.Geocoder | null): Promise<string> {
+  // Use provided geocoder, or the singleton, or try to create one
+  const gc = geocoder ?? _geocoderSingleton;
+  if (gc) {
+    try {
+      const result = await gc.geocode({ location: { lat, lng } });
+      if (result.results?.[0]?.formatted_address) {
+        // Trim to first 3 address components for brevity
+        return result.results[0].formatted_address.split(",").slice(0, 3).join(",").trim();
+      }
+    } catch {
+      // silent — fall through to coordinate fallback
     }
-  } catch {
-    // silent
   }
+  // Coordinate fallback — always works, no external API
   return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 }
 
@@ -147,7 +153,10 @@ export default function LocationPicker() {
 
   const handleMapReady = useCallback(
     (map: google.maps.Map) => {
-      geocoderRef.current = new google.maps.Geocoder();
+      // Store geocoder in both ref and singleton for reverseGeocode calls
+      const geocoder = new google.maps.Geocoder();
+      geocoderRef.current = geocoder;
+      _geocoderSingleton = geocoder;
 
       // Default center: Muscat
       const defaultCenter = { lat: 23.5880, lng: 58.3829 };
@@ -164,8 +173,8 @@ export default function LocationPicker() {
 
       setMapCoords(defaultCenter);
 
-      // Reverse geocode initial position
-      reverseGeocode(defaultCenter.lat, defaultCenter.lng).then(setMapAddress);
+      // Reverse geocode initial position using Google Maps Geocoder
+      reverseGeocode(defaultCenter.lat, defaultCenter.lng, geocoder).then(setMapAddress);
 
       // Update on marker drag
       markerRef.current.addListener("dragend", async () => {
@@ -174,7 +183,7 @@ export default function LocationPicker() {
         const lat = typeof pos.lat === "function" ? pos.lat() : (pos as google.maps.LatLngLiteral).lat;
         const lng = typeof pos.lng === "function" ? pos.lng() : (pos as google.maps.LatLngLiteral).lng;
         setMapCoords({ lat, lng });
-        const addr = await reverseGeocode(lat, lng);
+        const addr = await reverseGeocode(lat, lng, geocoder);
         setMapAddress(addr);
       });
 
@@ -185,7 +194,7 @@ export default function LocationPicker() {
         const lng = e.latLng.lng();
         if (markerRef.current) markerRef.current.position = { lat, lng };
         setMapCoords({ lat, lng });
-        const addr = await reverseGeocode(lat, lng);
+        const addr = await reverseGeocode(lat, lng, geocoder);
         setMapAddress(addr);
       });
     },
