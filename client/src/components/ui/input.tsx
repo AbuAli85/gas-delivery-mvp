@@ -51,6 +51,7 @@ function Input({
 
   return (
     <input
+      {...props}
       type={type}
       data-slot="input"
       className={cn(
@@ -62,7 +63,6 @@ function Input({
       onCompositionStart={handleCompositionStart}
       onCompositionEnd={handleCompositionEnd}
       onKeyDown={handleKeyDown}
-      {...props}
     />
   );
 }

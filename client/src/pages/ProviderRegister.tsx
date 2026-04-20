@@ -165,16 +165,20 @@ export default function ProviderRegister() {
   const Field = ({
     icon,
     label,
+    htmlFor,
     children,
   }: {
     icon: React.ReactNode;
     label: string;
+    htmlFor?: string;
     children: React.ReactNode;
   }) => (
     <div className="mb-4">
       <div className="flex items-center gap-2 mb-1.5">
         <span className="text-orange-400">{icon}</span>
-        <label className="text-white/60 text-xs">{label}</label>
+        <label htmlFor={htmlFor} className="text-white/60 text-xs">
+          {label}
+        </label>
       </div>
       {children}
     </div>
@@ -223,21 +227,32 @@ export default function ProviderRegister() {
         {step === 0 && (
           <>
             <Card>
-              <Field icon={<User className="w-4 h-4" />} label="الاسم الكامل *">
+              <Field icon={<User className="w-4 h-4" />} label="الاسم الكامل *" htmlFor="provider-reg-full-name">
                 <Input
+                  id="provider-reg-full-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="مثال: أحمد بن سالم"
-                  className={inputClass}
+                  dir="auto"
+                  autoComplete="name"
+                  enterKeyHint="next"
+                  spellCheck={false}
+                  className={`${inputClass} [unicode-bidi:plaintext]`}
                 />
               </Field>
-              <Field icon={<Phone className="w-4 h-4" />} label="رقم الهاتف (عُمان) *">
+              <Field icon={<Phone className="w-4 h-4" />} label="رقم الهاتف (عُمان) *" htmlFor="provider-reg-phone">
                 <Input
+                  id="provider-reg-phone"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+968 9X XXX XXXX"
                   type="tel"
-                  className={inputClass}
+                  dir="ltr"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  enterKeyHint="next"
+                  spellCheck={false}
+                  className={`${inputClass} [unicode-bidi:plaintext] text-left`}
                 />
               </Field>
               <Field icon={<Mail className="w-4 h-4" />} label="البريد الإلكتروني (اختياري)">
