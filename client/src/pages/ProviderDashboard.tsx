@@ -256,6 +256,10 @@ export default function ProviderDashboard() {
     { enabled: !!id && showHistory }
   );
 
+  const [showReviews, setShowReviews] = useState(false);
+  const { data: ratingStats } = trpc.reviews.getProviderStats.useQuery({ providerId: id }, { enabled: !!id });
+  const { data: reviews } = trpc.reviews.getProviderReviews.useQuery({ providerId: id }, { enabled: !!id && showReviews });
+
   const toggleAvailability = trpc.providers.toggleAvailability.useMutation({
     onSuccess: (data) => {
       toast.success(data.isAvailable ? "أنت الآن متاح (أونلاين)" : "أنت الآن غير متاح (أوفلاين)");
@@ -671,6 +675,73 @@ export default function ProviderDashboard() {
             </div>
             <span className="text-xs text-gray-400">عرض كل الطلبات والإحصائيات</span>
           </a>
+        )}
+
+        {/* ── Ratings Summary ── */}
+        {ratingStats && ratingStats.total > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm p-4">
+            <button
+              onClick={() => setShowReviews((v) => !v)}
+              className="w-full flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                <span className="text-sm font-semibold text-gray-700">التقييمات</span>
+                <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                  {ratingStats.avg} ★ ({ratingStats.total})
+                </span>
+              </div>
+              {showReviews ? (
+                <ChevronUp className="w-4 h-4 text-gray-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-gray-400" />
+              )}
+            </button>
+
+            {/* Rating distribution bar */}
+            <div className="mt-3 space-y-1">
+              {[5, 4, 3, 2, 1].map((star) => {
+                const count = ratingStats.distribution[star] ?? 0;
+                const pct = ratingStats.total > 0 ? Math.round((count / ratingStats.total) * 100) : 0;
+                return (
+                  <div key={star} className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 w-4 text-left">{star}</span>
+                    <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />
+                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-amber-400 rounded-full transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-400 w-5 text-left">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {showReviews && reviews && reviews.length > 0 && (
+              <div className="mt-4 space-y-3 border-t border-gray-100 pt-3">
+                {reviews.map((r) => (
+                  <div key={r.id} className="space-y-1">
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          className={`w-3.5 h-3.5 ${s <= r.rating ? "text-amber-400 fill-amber-400" : "text-gray-200 fill-gray-200"}`}
+                        />
+                      ))}
+                      {r.customerPhone && (
+                        <span className="text-xs text-gray-400 mr-2">{r.customerPhone}</span>
+                      )}
+                    </div>
+                    {r.comment && (
+                      <p className="text-xs text-gray-600 bg-gray-50 rounded-xl px-3 py-2">{r.comment}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* ── Order History ── */}

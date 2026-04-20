@@ -250,3 +250,18 @@ export const providerWorkingHours = mysqlTable("provider_working_hours", {
 });
 export type ProviderWorkingHours = typeof providerWorkingHours.$inferSelect;
 export type InsertProviderWorkingHours = typeof providerWorkingHours.$inferInsert;
+
+// ─── Order Reviews ────────────────────────────────────────────────────────────
+// Customer ratings and comments submitted after order delivery.
+// rating: 1–5 integer. customerPhone stored for display (no auth required).
+export const orderReviews = mysqlTable("order_reviews", {
+  id: int("id").autoincrement().primaryKey(),
+  orderId: int("orderId").notNull().unique(), // one review per order
+  providerId: int("providerId").notNull(),
+  rating: int("rating").notNull(),            // 1–5
+  comment: text("comment"),                   // optional free text
+  customerPhone: varchar("customerPhone", { length: 32 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type OrderReview = typeof orderReviews.$inferSelect;
+export type InsertOrderReview = typeof orderReviews.$inferInsert;

@@ -346,3 +346,20 @@
 ## Bug Fixes (Payment Page Screenshot)
 - [x] Seed demo providers in DB so "no providers available" warning disappears for real users
 - [x] Fix black background on Payment page (same theme issue as OrderSummary was)
+
+## Feature: Customer Review & Rating
+- [x] Schema: add order_reviews table (id, orderId, providerId, rating 1-5, comment, customerPhone, createdAt)
+- [x] Generate and apply Drizzle migration SQL
+- [x] DB helpers: createReview, getReviewsByProvider, getReviewByOrder, getProviderRatingStats, getAllReviews
+- [x] Backend: reviews.submitReview publicProcedure (submit rating after delivery)
+- [x] Backend: reviews.getByOrder publicProcedure (check if already reviewed)
+- [x] Backend: reviews.getProviderReviews publicProcedure (list reviews for a provider)
+- [x] Backend: reviews.getProviderStats publicProcedure (avg rating, total count, distribution)
+- [x] Backend: reviews.getAllReviews publicProcedure (admin-wide list)
+- [x] Customer UI: RatingScreen page at /order/:orderId/review/:providerId
+- [x] Customer UI: 5-star tap selector + quick comment chips + optional text comment + submit
+- [x] Customer UI: redirect to RatingScreen from OrderTracking when status = delivered
+- [x] Customer UI: show "شكراً على تقييمك" confirmation after submit + auto-redirect home
+- [x] Provider UI: avg rating badge + recent reviews list in ProviderDashboard
+- [x] Admin UI: reviews tab in AdminPanel with summary card + all reviews list
+- [x] Update todo.md when complete

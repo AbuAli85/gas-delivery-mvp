@@ -7,7 +7,7 @@ import { useState } from "react";
 import {
   ShieldCheck, Lock, Loader2, RefreshCw, XCircle, CheckCircle2,
   Package, TrendingUp, Clock, Ban, ChevronDown, ChevronUp,
-  Phone, MapPin, CreditCard
+  Phone, MapPin, CreditCard, Star, MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
@@ -45,6 +45,7 @@ export default function AdminPanel() {
   const [enteredPin, setEnteredPin] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<"orders" | "reviews">("orders");
 
   const utils = trpc.useUtils();
 
@@ -56,6 +57,11 @@ export default function AdminPanel() {
   const ordersQuery = trpc.orders.adminListOrders.useQuery(
     { adminPin: enteredPin ?? "", status: statusFilter || undefined, limit: 100 },
     { enabled: !!enteredPin, retry: false, refetchInterval: 15000 }
+  );
+
+  const reviewsQuery = trpc.reviews.getAllReviews.useQuery(
+    undefined,
+    { enabled: !!enteredPin && activeTab === "reviews", retry: false }
   );
 
   const cancelOrder = trpc.orders.adminCancelOrder.useMutation({
@@ -159,8 +165,109 @@ export default function AdminPanel() {
         <p className="text-xs text-white/40">تحديث تلقائي كل 15 ثانية</p>
       </div>
 
+      {/* Tab switcher */}
+      <div className="flex gap-0 border-b border-gray-200 bg-white px-4">
+        <button
+          onClick={() => setActiveTab("orders")}
+          className={`flex items-center gap-1.5 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === "orders"
+              ? "border-primary text-primary"
+              : "border-transparent text-gray-400"
+          }`}
+        >
+          <Package className="w-4 h-4" />
+          الطلبات
+        </button>
+        <button
+          onClick={() => setActiveTab("reviews")}
+          className={`flex items-center gap-1.5 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === "reviews"
+              ? "border-amber-500 text-amber-600"
+              : "border-transparent text-gray-400"
+          }`}
+        >
+          <Star className="w-4 h-4" />
+          التقييمات
+        </button>
+      </div>
+
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {loading ? (
+        {activeTab === "reviews" ? (
+          <>
+            {reviewsQuery.isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+              </div>
+            ) : !reviewsQuery.data || reviewsQuery.data.length === 0 ? (
+              <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
+                <Star className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                <p className="text-sm text-gray-400">لا توجد تقييمات بعد</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* Summary card */}
+                {(() => {
+                  const all = reviewsQuery.data;
+                  const avg = all.length > 0
+                    ? (all.reduce((s, r) => s + r.rating, 0) / all.length).toFixed(1)
+                    : "0.0";
+                  return (
+                    <div className="bg-white rounded-2xl shadow-sm p-4 flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center">
+                        <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-extrabold text-gray-900">{avg} <span className="text-amber-400">★</span></p>
+                        <p className="text-xs text-gray-400">{all.length} تقييم إجمالي</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Reviews list */}
+                {reviewsQuery.data.map((r) => (
+                  <div key={r.id} className="bg-white rounded-2xl shadow-sm p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`w-4 h-4 ${
+                              s <= r.rating ? "text-amber-400 fill-amber-400" : "text-gray-200 fill-gray-200"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs text-gray-400">
+                          {r.createdAt ? new Date(r.createdAt).toLocaleDateString("ar-OM") : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <Package className="w-3 h-3" />
+                        طلب #{r.orderId}
+                      </span>
+                      {r.customerPhone && (
+                        <span className="flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          {r.customerPhone}
+                        </span>
+                      )}
+                    </div>
+                    {r.comment && (
+                      <div className="bg-gray-50 rounded-xl px-3 py-2 flex items-start gap-2">
+                        <MessageSquare className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
+                        <p className="text-xs text-gray-600">{r.comment}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>

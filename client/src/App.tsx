@@ -27,6 +27,9 @@ import CustomerLogin from "./pages/CustomerLogin";
 // Admin
 import AdminPanel from "./pages/AdminPanel";
 
+// Review
+import RatingScreen from "./pages/RatingScreen";
+
 function Router() {
   return (
     <Switch>
@@ -41,6 +44,7 @@ function Router() {
       <Route path="/order/track/:orderId" component={OrderTracking} />
       <Route path="/customer/login" component={CustomerLogin} />
       <Route path="/admin" component={AdminPanel} />
+      <Route path="/order/:orderId/review/:providerId" component={RatingScreen} />
 
       {/* Provider flow */}
       <Route path="/provider/register" component={ProviderRegister} />

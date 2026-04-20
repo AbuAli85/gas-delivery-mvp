@@ -314,14 +314,30 @@ export default function OrderTracking() {
         </div>
 
         {isDelivered && (
-          <Button
-            size="lg"
-            className="w-full rounded-2xl font-extrabold text-base shadow-lg shadow-primary/30 active:scale-95 transition-transform"
-            style={{ height: "60px", background: "oklch(0.53 0.22 27)" }}
-            onClick={() => navigate("/")}
-          >
-            اطلب مجدداً
-          </Button>
+          <div className="space-y-3">
+            {/* Review CTA */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 text-center">
+              <p className="text-sm font-bold text-yellow-800 mb-1">🌟 كيف كانت تجربتك؟</p>
+              <p className="text-xs text-yellow-600 mb-3">قيّم الخدمة وساعدنا على التحسين</p>
+              <Button
+                size="sm"
+                className="w-full rounded-xl font-bold text-white active:scale-95 transition-transform"
+                style={{ background: "oklch(0.53 0.22 27)" }}
+                onClick={() => navigate(`/order/${id}/review/${order.assignedProviderId ?? 0}`)}
+              >
+                تقييم الخدمة ★
+              </Button>
+            </div>
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full rounded-2xl font-extrabold text-base border-gray-200 active:scale-95 transition-transform"
+              style={{ height: "56px" }}
+              onClick={() => navigate("/")}
+            >
+              اطلب مجدداً
+            </Button>
+          </div>
         )}
 
         {/* Cancel Order */}

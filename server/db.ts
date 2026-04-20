@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, ne, notInArray, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, notInArray, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -23,6 +23,9 @@ import {
   type ProviderLocation,
   providerWorkingHours,
   type ProviderWorkingHours,
+  orderReviews,
+  type OrderReview,
+  type InsertOrderReview,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -637,4 +640,56 @@ export async function upsertWorkingHoursRow(data: {
   } else {
     await db.insert(providerWorkingHours).values(data);
   }
+}
+
+// ─── Order Reviews ─────────────────────────────────────────────────────────────
+
+export async function createReview(data: InsertOrderReview): Promise<OrderReview> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.insert(orderReviews).values(data);
+  const [row] = await db.select().from(orderReviews).where(eq(orderReviews.orderId, data.orderId));
+  return row;
+}
+
+export async function getReviewByOrder(orderId: number): Promise<OrderReview | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db.select().from(orderReviews).where(eq(orderReviews.orderId, orderId));
+  return row ?? null;
+}
+
+export async function getReviewsByProvider(providerId: number): Promise<OrderReview[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(orderReviews)
+    .where(eq(orderReviews.providerId, providerId))
+    .orderBy(desc(orderReviews.createdAt));
+}
+
+export async function getProviderRatingStats(
+  providerId: number
+): Promise<{ avg: number; total: number; distribution: Record<number, number> }> {
+  const db = await getDb();
+  if (!db) return { avg: 0, total: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } };
+  const rows = await db
+    .select()
+    .from(orderReviews)
+    .where(eq(orderReviews.providerId, providerId));
+  if (rows.length === 0) return { avg: 0, total: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } };
+  const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  let sum = 0;
+  for (const r of rows) {
+    distribution[r.rating] = (distribution[r.rating] ?? 0) + 1;
+    sum += r.rating;
+  }
+  return { avg: Math.round((sum / rows.length) * 10) / 10, total: rows.length, distribution };
+}
+
+export async function getAllReviews(): Promise<OrderReview[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(orderReviews).orderBy(desc(orderReviews.createdAt));
 }
