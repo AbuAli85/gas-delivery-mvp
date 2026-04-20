@@ -43,16 +43,16 @@
 }
 
 :root {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-600);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --radius: 0.65rem;
+  --primary: oklch(0.53 0.22 27);
+  --primary-foreground: oklch(1 0 0);
+  --sidebar-primary: oklch(0.53 0.22 27);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --chart-1: oklch(0.53 0.22 27);
+  --chart-2: oklch(0.65 0.20 45);
+  --chart-3: oklch(0.40 0.18 27);
+  --chart-4: oklch(0.75 0.15 60);
+  --chart-5: oklch(0.30 0.15 27);
+  --radius: 1rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.235 0.015 65);
   --card: oklch(1 0 0);
@@ -118,7 +118,12 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    min-height: 100dvh;
+    overscroll-behavior: none;
+  }
+  button, [role="button"] {
+    min-height: 48px;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -172,6 +177,29 @@
       padding-left: 2rem; /* 32px - desktop padding */
       padding-right: 2rem;
       max-width: 1280px; /* Standard content width */
+    }
+  }
+
+  /**
+   * Mobile-first full-screen layout wrapper.
+   * Centers content in a max-w-md column on desktop.
+   * All pages use this as their root element.
+   */
+  .mobile-screen {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    width: 100%;
+    max-width: 28rem; /* 448px = md */
+    margin-left: auto;
+    margin-right: auto;
+    overflow-x: hidden;
+  }
+
+  /* Subtle shadow on desktop to give phone-frame feel */
+  @media (min-width: 640px) {
+    .mobile-screen {
+      box-shadow: 0 0 0 1px oklch(0.92 0.004 286.32), 0 4px 32px -4px oklch(0 0 0 / 12%);
     }
   }
 }

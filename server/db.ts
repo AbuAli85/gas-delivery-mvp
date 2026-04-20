@@ -1,11 +1,21 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, notInArray, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
-import { ENV } from './_core/env';
+import {
+  InsertUser,
+  Order,
+  OrderAssignment,
+  Provider,
+  Zone,
+  orderAssignments,
+  orders,
+  providers,
+  users,
+  zones,
+} from "../drizzle/schema";
+import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -18,75 +28,266 @@ export async function getDb() {
   return _db;
 }
 
+// ─── Users ────────────────────────────────────────────────────────────────────
+
 export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
-  }
-
+  if (!user.openId) throw new Error("User openId is required for upsert");
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
+  if (!db) { console.warn("[Database] Cannot upsert user: database not available"); return; }
+
+  const values: InsertUser = { openId: user.openId };
+  const updateSet: Record<string, unknown> = {};
+
+  const textFields = ["name", "email", "loginMethod", "phone"] as const;
+  for (const field of textFields) {
+    const value = user[field];
+    if (value === undefined) continue;
+    const normalized = value ?? null;
+    (values as Record<string, unknown>)[field] = normalized;
+    updateSet[field] = normalized;
   }
 
-  try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
-      set: updateSet,
-    });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
+  if (user.lastSignedIn !== undefined) {
+    values.lastSignedIn = user.lastSignedIn;
+    updateSet.lastSignedIn = user.lastSignedIn;
   }
+  if (user.role !== undefined) {
+    values.role = user.role;
+    updateSet.role = user.role;
+  } else if (user.openId === ENV.ownerOpenId) {
+    values.role = "admin";
+    updateSet.role = "admin";
+  }
+
+  if (!values.lastSignedIn) values.lastSignedIn = new Date();
+  if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
+
+  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
 }
 
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
-  }
-
+  if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
+  return result[0] ?? undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// ─── Zones ────────────────────────────────────────────────────────────────────
+
+export async function getAllZones(): Promise<Zone[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(zones).where(eq(zones.isActive, true));
+}
+
+export async function getZoneById(id: number): Promise<Zone | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(zones).where(eq(zones.id, id)).limit(1);
+  return result[0] ?? undefined;
+}
+
+// ─── Providers ────────────────────────────────────────────────────────────────
+
+export async function getProviderById(id: number): Promise<Provider | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(providers).where(eq(providers.id, id)).limit(1);
+  return result[0] ?? undefined;
+}
+
+export async function getAvailableProvidersByZone(
+  zoneId: number,
+  excludeProviderIds: number[] = []
+): Promise<Provider[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [
+    eq(providers.zoneId, zoneId),
+    eq(providers.isAvailable, true),
+    isNull(providers.activeOrderId),
+  ];
+
+  if (excludeProviderIds.length > 0) {
+    conditions.push(notInArray(providers.id, excludeProviderIds));
+  }
+
+  return db.select().from(providers).where(and(...conditions));
+}
+
+export async function getAllProviders(): Promise<Provider[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(providers);
+}
+
+export async function setProviderActiveOrder(
+  providerId: number,
+  orderId: number | null
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(providers)
+    .set({ activeOrderId: orderId })
+    .where(eq(providers.id, providerId));
+}
+
+export async function setProviderAvailability(
+  providerId: number,
+  isAvailable: boolean
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(providers)
+    .set({ isAvailable })
+    .where(eq(providers.id, providerId));
+}
+
+// ─── Orders ───────────────────────────────────────────────────────────────────
+
+export async function createOrder(
+  data: Omit<typeof orders.$inferInsert, "id" | "createdAt" | "updatedAt">
+): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(orders).values(data);
+  return (result as { insertId: number }).insertId;
+}
+
+export async function getOrderById(id: number): Promise<Order | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+  return result[0] ?? undefined;
+}
+
+export async function updateOrder(
+  id: number,
+  data: Partial<typeof orders.$inferInsert>
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(orders).set(data).where(eq(orders.id, id));
+}
+
+// ─── Order Assignments ────────────────────────────────────────────────────────
+
+export async function createAssignment(data: {
+  orderId: number;
+  providerId: number;
+  attemptNumber: number;
+}): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(orderAssignments).values({
+    orderId: data.orderId,
+    providerId: data.providerId,
+    attemptNumber: data.attemptNumber,
+    status: "pending",
+  });
+  return (result as { insertId: number }).insertId;
+}
+
+export async function getActiveAssignment(
+  orderId: number
+): Promise<OrderAssignment | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(orderAssignments)
+    .where(
+      and(
+        eq(orderAssignments.orderId, orderId),
+        or(
+          eq(orderAssignments.status, "pending"),
+          eq(orderAssignments.status, "accepted")
+        )
+      )
+    )
+    .limit(1);
+  return result[0] ?? undefined;
+}
+
+export async function getAssignmentById(
+  id: number
+): Promise<OrderAssignment | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(orderAssignments)
+    .where(eq(orderAssignments.id, id))
+    .limit(1);
+  return result[0] ?? undefined;
+}
+
+export async function updateAssignment(
+  id: number,
+  data: Partial<typeof orderAssignments.$inferInsert>
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(orderAssignments).set(data).where(eq(orderAssignments.id, id));
+}
+
+export async function getAssignmentsByOrder(
+  orderId: number
+): Promise<OrderAssignment[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(orderAssignments)
+    .where(eq(orderAssignments.orderId, orderId));
+}
+
+export async function getAssignmentsByProvider(
+  providerId: number
+): Promise<OrderAssignment[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(orderAssignments)
+    .where(eq(orderAssignments.providerId, providerId));
+}
+
+export async function getPendingAssignmentForProvider(
+  providerId: number
+): Promise<(OrderAssignment & { order?: Order }) | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(orderAssignments)
+    .where(
+      and(
+        eq(orderAssignments.providerId, providerId),
+        eq(orderAssignments.status, "pending")
+      )
+    )
+    .limit(1);
+  return result[0] ?? undefined;
+}
+
+export async function countActiveAssignments(orderId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db
+    .select()
+    .from(orderAssignments)
+    .where(
+      and(
+        eq(orderAssignments.orderId, orderId),
+        or(
+          eq(orderAssignments.status, "pending"),
+          eq(orderAssignments.status, "accepted")
+        )
+      )
+    );
+  return result.length;
+}

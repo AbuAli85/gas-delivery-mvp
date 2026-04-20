@@ -4,34 +4,42 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+
+// Customer pages
 import Home from "./pages/Home";
+import OrderSummary from "./pages/OrderSummary";
+import Payment from "./pages/Payment";
+import OrderPlaced from "./pages/OrderPlaced";
+import OrderTracking from "./pages/OrderTracking";
+
+// Provider pages
+import ProviderDashboard from "./pages/ProviderDashboard";
 
 function Router() {
-  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
+      {/* Customer flow */}
+      <Route path="/" component={Home} />
+      <Route path="/order/summary" component={OrderSummary} />
+      <Route path="/order/payment" component={Payment} />
+      <Route path="/order/placed/:orderId" component={OrderPlaced} />
+      <Route path="/order/track/:orderId" component={OrderTracking} />
+
+      {/* Provider flow */}
+      <Route path="/provider/:providerId" component={ProviderDashboard} />
+
+      <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
-          <Toaster />
+          <Toaster position="top-center" richColors />
           <Router />
         </TooltipProvider>
       </ThemeProvider>

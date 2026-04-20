@@ -1,0 +1,340 @@
+import { TRPCError } from "@trpc/server";
+import { z } from "zod";
+import { publicProcedure, router } from "../_core/trpc";
+import { notifyOwner } from "../_core/notification";
+import {
+  countActiveAssignments,
+  createAssignment,
+  getActiveAssignment,
+  getAssignmentById,
+  getAssignmentsByProvider,
+  getAvailableProvidersByZone,
+  getOrderById,
+  getPendingAssignmentForProvider,
+  getProviderById,
+  setProviderActiveOrder,
+  setProviderAvailability,
+  updateAssignment,
+  updateOrder,
+  getAssignmentsByOrder,
+  getAllProviders,
+} from "../db";
+import { selectNextProvider } from "../assignmentEngine";
+import { assertAssignmentTransition, assertOrderTransition } from "../../shared/domain";
+
+// ─── Internal: assign next provider after rejection ───────────────────────────
+
+async function doAssignNext(orderId: number): Promise<void> {
+  const order = await getOrderById(orderId);
+  if (!order || !order.zoneId) return;
+
+  const rejectedIds: number[] = Array.isArray(order.rejectedProviderIds)
+    ? (order.rejectedProviderIds as number[])
+    : [];
+
+  const available = await getAvailableProvidersByZone(order.zoneId, rejectedIds);
+  const next = selectNextProvider(available, rejectedIds);
+
+  if (!next) {
+    // No more providers — cancel the order
+    await updateOrder(orderId, { status: "cancelled" });
+    return;
+  }
+
+  const allAssignments = await getAssignmentsByOrder(orderId);
+  const attemptNumber = allAssignments.length + 1;
+
+  await createAssignment({ orderId, providerId: next.id, attemptNumber });
+  await setProviderActiveOrder(next.id, orderId);
+  await updateOrder(orderId, {
+    status: "assigned",
+    assignedProviderId: next.id,
+  });
+
+  try {
+    await notifyOwner({
+      title: `Order #${orderId} Reassigned`,
+      content: `Provider ${next.name} is now assigned to order #${orderId} (attempt ${attemptNumber}).`,
+    });
+  } catch (_) {}
+}
+
+// ─── Router ───────────────────────────────────────────────────────────────────
+
+export const providersRouter = router({
+  /**
+   * List all providers (for admin/seeding verification).
+   */
+  list: publicProcedure.query(async () => {
+    return getAllProviders();
+  }),
+
+  /**
+   * Get a single provider's profile + current state.
+   */
+  getById: publicProcedure
+    .input(z.object({ providerId: z.number() }))
+    .query(async ({ input }) => {
+      const provider = await getProviderById(input.providerId);
+      if (!provider) throw new TRPCError({ code: "NOT_FOUND" });
+      return provider;
+    }),
+
+  /**
+   * Toggle provider availability (online / offline).
+   */
+  toggleAvailability: publicProcedure
+    .input(z.object({ providerId: z.number() }))
+    .mutation(async ({ input }) => {
+      const provider = await getProviderById(input.providerId);
+      if (!provider) throw new TRPCError({ code: "NOT_FOUND" });
+      const next = !provider.isAvailable;
+      await setProviderAvailability(input.providerId, next);
+      return { isAvailable: next };
+    }),
+
+  /**
+   * Get the current pending assignment for a provider (incoming order).
+   */
+  getIncomingOrder: publicProcedure
+    .input(z.object({ providerId: z.number() }))
+    .query(async ({ input }) => {
+      const assignment = await getPendingAssignmentForProvider(input.providerId);
+      if (!assignment) return null;
+
+      const order = await getOrderById(assignment.orderId);
+      if (!order) return null;
+
+      return {
+        assignmentId: assignment.id,
+        orderId: order.id,
+        status: order.status,
+        assignmentStatus: assignment.status,
+        attemptNumber: assignment.attemptNumber,
+        customerLat: order.customerLat,
+        customerLng: order.customerLng,
+        customerAddress: order.customerAddress,
+        customerPhone: order.customerPhone,
+        gasAmount: order.gasAmount,
+        totalPrice: order.totalPrice,
+        currency: order.currency,
+        estimatedMinutes: order.estimatedMinutes,
+        createdAt: order.createdAt,
+      };
+    }),
+
+  /**
+   * Get the active (accepted) order for a provider.
+   */
+  getActiveOrder: publicProcedure
+    .input(z.object({ providerId: z.number() }))
+    .query(async ({ input }) => {
+      const provider = await getProviderById(input.providerId);
+      if (!provider || !provider.activeOrderId) return null;
+
+      const order = await getOrderById(provider.activeOrderId);
+      if (!order) return null;
+
+      const assignment = await getActiveAssignment(order.id);
+
+      return {
+        orderId: order.id,
+        assignmentId: assignment?.id ?? null,
+        status: order.status,
+        customerLat: order.customerLat,
+        customerLng: order.customerLng,
+        customerAddress: order.customerAddress,
+        customerPhone: order.customerPhone,
+        gasAmount: order.gasAmount,
+        totalPrice: order.totalPrice,
+        currency: order.currency,
+        estimatedMinutes: order.estimatedMinutes,
+        acceptedAt: order.acceptedAt,
+        createdAt: order.createdAt,
+      };
+    }),
+
+  /**
+   * Provider accepts an order.
+   * Invariant: only one active assignment per order at a time.
+   */
+  acceptOrder: publicProcedure
+    .input(z.object({ assignmentId: z.number(), providerId: z.number() }))
+    .mutation(async ({ input }) => {
+      const assignment = await getAssignmentById(input.assignmentId);
+      if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "Assignment not found" });
+      if (assignment.providerId !== input.providerId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Assignment belongs to a different provider" });
+      }
+
+      assertAssignmentTransition(assignment.status, "accepted");
+
+      // Guard: only one active assignment per order
+      const activeCount = await countActiveAssignments(assignment.orderId);
+      if (activeCount > 1) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Another assignment is already active for this order",
+        });
+      }
+
+      const order = await getOrderById(assignment.orderId);
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+
+      assertOrderTransition(order.status, "accepted");
+
+      await updateAssignment(input.assignmentId, {
+        status: "accepted",
+        respondedAt: new Date(),
+      });
+
+      await updateOrder(order.id, {
+        status: "accepted",
+        acceptedAt: new Date(),
+      });
+
+      // Notify customer (via owner notification for MVP)
+      try {
+        await notifyOwner({
+          title: `Order #${order.id} Accepted`,
+          content: `Your gas delivery has been accepted by ${assignment.providerId}. ETA: ${order.estimatedMinutes} minutes.`,
+        });
+      } catch (_) {}
+
+      return { success: true, orderId: order.id };
+    }),
+
+  /**
+   * Provider rejects an order.
+   * Triggers auto-reassignment to the next eligible provider.
+   */
+  rejectOrder: publicProcedure
+    .input(z.object({ assignmentId: z.number(), providerId: z.number() }))
+    .mutation(async ({ input }) => {
+      const assignment = await getAssignmentById(input.assignmentId);
+      if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "Assignment not found" });
+      if (assignment.providerId !== input.providerId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Assignment belongs to a different provider" });
+      }
+
+      assertAssignmentTransition(assignment.status, "rejected");
+
+      const order = await getOrderById(assignment.orderId);
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+
+      // Mark assignment rejected
+      await updateAssignment(input.assignmentId, {
+        status: "rejected",
+        respondedAt: new Date(),
+      });
+
+      // Free the provider
+      await setProviderActiveOrder(input.providerId, null);
+
+      // Add to rejected list
+      const currentRejected: number[] = Array.isArray(order.rejectedProviderIds)
+        ? (order.rejectedProviderIds as number[])
+        : [];
+      const updatedRejected = Array.from(new Set([...currentRejected, input.providerId]));
+
+      await updateOrder(order.id, {
+        status: "pending",
+        assignedProviderId: null,
+        rejectedProviderIds: updatedRejected as unknown as null,
+      });
+
+      // Auto-assign next provider
+      await doAssignNext(order.id);
+
+      return { success: true, orderId: order.id };
+    }),
+
+  /**
+   * Provider marks order as out for delivery.
+   */
+  startDelivery: publicProcedure
+    .input(z.object({ orderId: z.number(), providerId: z.number() }))
+    .mutation(async ({ input }) => {
+      const order = await getOrderById(input.orderId);
+      if (!order) throw new TRPCError({ code: "NOT_FOUND" });
+      if (order.assignedProviderId !== input.providerId) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      assertOrderTransition(order.status, "out_for_delivery");
+      await updateOrder(order.id, { status: "out_for_delivery" });
+      return { success: true };
+    }),
+
+  /**
+   * Provider marks order as delivered.
+   */
+  deliverOrder: publicProcedure
+    .input(z.object({ orderId: z.number(), providerId: z.number() }))
+    .mutation(async ({ input }) => {
+      const order = await getOrderById(input.orderId);
+      if (!order) throw new TRPCError({ code: "NOT_FOUND" });
+      if (order.assignedProviderId !== input.providerId) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      assertOrderTransition(order.status, "delivered");
+
+      await updateOrder(order.id, {
+        status: "delivered",
+        deliveredAt: new Date(),
+      });
+
+      // Free the provider
+      await setProviderActiveOrder(input.providerId, null);
+
+      // Mark assignment complete
+      const assignment = await getActiveAssignment(order.id);
+      if (assignment) {
+        await updateAssignment(assignment.id, { respondedAt: new Date() });
+      }
+
+      try {
+        await notifyOwner({
+          title: `Order #${order.id} Delivered`,
+          content: `Gas delivery #${order.id} has been completed successfully.`,
+        });
+      } catch (_) {}
+
+      return { success: true };
+    }),
+
+  /**
+   * Get order history for a provider.
+   */
+  getOrderHistory: publicProcedure
+    .input(z.object({ providerId: z.number() }))
+    .query(async ({ input }) => {
+      const assignments = await getAssignmentsByProvider(input.providerId);
+      const orderIds = Array.from(new Set(assignments.map((a) => a.orderId)));
+
+      const orderDetails = await Promise.all(
+        orderIds.map(async (id) => {
+          const order = await getOrderById(id);
+          const assignment = assignments.find((a) => a.orderId === id);
+          return order
+            ? {
+                orderId: order.id,
+                status: order.status,
+                assignmentStatus: assignment?.status,
+                totalPrice: order.totalPrice,
+                currency: order.currency,
+                customerAddress: order.customerAddress,
+                createdAt: order.createdAt,
+                deliveredAt: order.deliveredAt,
+              }
+            : null;
+        })
+      );
+
+      return orderDetails.filter(Boolean).sort(
+        (a, b) =>
+          new Date(b!.createdAt).getTime() - new Date(a!.createdAt).getTime()
+      );
+    }),
+});
