@@ -408,3 +408,64 @@ export async function verifyProviderPin(
   if (!stored) return false;
   return stored === pinHash;
 }
+
+// ─── Provider Registration & Onboarding ──────────────────────────────────────
+export async function createProvider(data: {
+  name: string;
+  phone: string;
+  email?: string;
+  zoneId: number;
+  pinHash: string;
+  vehicleType?: string;
+  vehiclePlate?: string;
+  nationalId?: string;
+  adminCreated?: boolean;
+}): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const result = await db.insert(providers).values({
+    name: data.name,
+    phone: data.phone,
+    email: data.email,
+    zoneId: data.zoneId,
+    pinHash: data.pinHash,
+    vehicleType: data.vehicleType,
+    vehiclePlate: data.vehiclePlate,
+    nationalId: data.nationalId,
+    adminCreated: data.adminCreated ?? false,
+    providerStatus: "pending_review",
+    isAvailable: false, // not active until approved
+  });
+  return (result[0] as { insertId: number }).insertId;
+}
+
+export async function getProviderByPhone(phone: string): Promise<Provider | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(providers).where(eq(providers.phone, phone)).limit(1);
+  return result[0] ?? undefined;
+}
+
+export async function updateProviderStatus(
+  providerId: number,
+  status: "pending_review" | "approved" | "rejected",
+  rejectionReason?: string
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(providers)
+    .set({
+      providerStatus: status,
+      rejectionReason: rejectionReason ?? null,
+      // Approved providers become available immediately
+      isAvailable: status === "approved" ? true : false,
+    })
+    .where(eq(providers.id, providerId));
+}
+
+export async function getPendingProviders(): Promise<Provider[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(providers).where(eq(providers.providerStatus, "pending_review"));
+}

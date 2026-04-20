@@ -143,7 +143,7 @@ export default function Home() {
         {/* ── Provider portal ─────────────────────────────────────── */}
         <div className="mt-3 flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
           <p className="text-xs text-white/40">بوابة المزودين</p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {[4, 5, 6].map((pid) => (
               <a
                 key={pid}
@@ -153,6 +153,12 @@ export default function Home() {
                 #{pid}
               </a>
             ))}
+            <a
+              href="/provider/register"
+              className="text-xs font-bold text-orange-400 border border-orange-400/30 rounded-lg px-2 py-1 hover:bg-orange-400/10"
+            >
+              + انضم كمزوّد
+            </a>
           </div>
         </div>
       </div>

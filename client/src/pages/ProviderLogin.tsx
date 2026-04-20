@@ -81,6 +81,22 @@ function ProviderSelector() {
             )}
           </div>
         )}
+        {/* Register / status links */}
+        <div className="mt-5 pt-4 border-t border-gray-100 flex flex-col gap-2">
+          <button
+            onClick={() => navigate("/provider/register")}
+            className="w-full py-2.5 rounded-2xl text-sm font-bold text-white"
+            style={{ background: "oklch(0.53 0.22 27)" }}
+          >
+            + انضم كمزوّد جديد
+          </button>
+          <button
+            onClick={() => navigate("/provider/onboarding/0")}
+            className="w-full py-2 rounded-2xl text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            تتبع حالة طلب الانضمام
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -107,11 +123,17 @@ export default function ProviderLogin() {
   ];
 
   const verifyPin = trpc.providers.verifyPin.useMutation({
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       const pinStr = pin.join("");
       const hash = await sha256Hex(pinStr);
       storePinHash(providerId, hash);
-      navigate(`/provider/${providerId}`);
+      // Redirect pending/rejected providers to onboarding status page
+      const status = (data as { providerStatus?: string })?.providerStatus;
+      if (status === "pending_review" || status === "rejected") {
+        navigate(`/provider/onboarding/${providerId}`);
+      } else {
+        navigate(`/provider/${providerId}`);
+      }
     },
     onError: (err) => {
       setIsVerifying(false);

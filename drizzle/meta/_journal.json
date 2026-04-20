@@ -43,6 +43,13 @@
       "when": 1776692431524,
       "tag": "0005_noisy_blockbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1776702460165,
+      "tag": "0006_groovy_lucky_pierre",
+      "breakpoints": true
     }
   ]
 }

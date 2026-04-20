@@ -15,6 +15,8 @@ import OrderTracking from "./pages/OrderTracking";
 // Provider pages
 import ProviderDashboard from "./pages/ProviderDashboard";
 import ProviderLogin from "./pages/ProviderLogin";
+import ProviderRegister from "./pages/ProviderRegister";
+import ProviderOnboarding from "./pages/ProviderOnboarding";
 
 // Location picker
 import LocationPicker from "./pages/LocationPicker";
@@ -33,6 +35,8 @@ function Router() {
       <Route path="/order/track/:orderId" component={OrderTracking} />
 
       {/* Provider flow */}
+      <Route path="/provider/register" component={ProviderRegister} />
+      <Route path="/provider/onboarding/:id" component={ProviderOnboarding} />
       <Route path="/provider/login" component={ProviderLogin} />
       <Route path="/provider/:id/login" component={ProviderLogin} />
       <Route path="/provider/:providerId" component={ProviderDashboard} />

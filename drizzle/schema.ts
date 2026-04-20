@@ -62,6 +62,20 @@ export const providers = mysqlTable("providers", {
   rejectedOrders: int("rejectedOrders").default(0).notNull(),
   totalOrders: int("totalOrders").default(0).notNull(),
   totalCommission: decimal("totalCommission", { precision: 10, scale: 3 }).default("0.000").notNull(),
+  // ── Registration & onboarding ───────────────────────────────────────────────────────────────────────────────────
+  // pending_review = submitted, waiting admin approval
+  // approved       = can log in and receive orders
+  // rejected       = application declined
+  providerStatus: mysqlEnum("providerStatus", ["pending_review", "approved", "rejected"])
+    .default("pending_review")
+    .notNull(),
+  rejectionReason: text("rejectionReason"),
+  // Vehicle / onboarding details collected during registration
+  vehicleType: varchar("vehicleType", { length: 64 }),
+  vehiclePlate: varchar("vehiclePlate", { length: 32 }),
+  nationalId: varchar("nationalId", { length: 64 }),
+  // Whether the provider was created by admin (true) or self-registered (false)
+  adminCreated: boolean("adminCreated").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 })

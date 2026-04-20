@@ -249,3 +249,16 @@
 - [x] On suggestion select: pan map, move pin, reverse-geocode and fill address field
 - [x] Keep existing manual text + search-button as fallback below the map
 - [x] Add X button to clear the search input
+
+## Provider Registration & Onboarding
+- [x] Add providerStatus enum (pending_review, approved, rejected) and onboarding fields to providers schema
+- [x] Generate and apply Drizzle migration SQL
+- [x] Add providers.register publicProcedure (name, phone, email, zone, vehicle info, PIN)
+- [x] Add providers.getStatus publicProcedure (by phone+PIN — returns status + rejection reason)
+- [x] Add providers.approve / providers.reject adminProcedure (owner-only)
+- [x] Build /provider/register page: multi-step form (info → zone → PIN → submit)
+- [x] Build /provider/onboarding/:id page: status checklist (submitted → under review → approved/rejected)
+- [x] Update ProviderLogin to redirect pending/rejected providers to onboarding status page
+- [x] Add "انضم كمزوّد" link on Home page and ProviderLogin selector
+- [x] Wire admin approval: add approve/reject buttons to ProviderDashboard admin view
+- [x] Notify owner on new registration via notifyOwner()

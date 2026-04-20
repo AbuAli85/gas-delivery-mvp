@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
 import { notifyOwner } from "../_core/notification";
+import { ENV } from "../_core/env";
 import {
   countActiveAssignments,
   createAssignment,
@@ -12,14 +13,18 @@ import {
   getOrderById,
   getPendingAssignmentForProvider,
   getProviderById,
+  getProviderByPhone,
   setProviderActiveOrder,
   setProviderAvailability,
   updateAssignment,
   updateOrder,
   getAssignmentsByOrder,
   getAllProviders,
+  getPendingProviders,
   incrementProviderScore,
   verifyProviderPin,
+  createProvider,
+  updateProviderStatus,
 } from "../db";
 import { selectNextProvider } from "../assignmentEngine";
 import { assertAssignmentTransition, assertOrderTransition } from "../../shared/domain";
@@ -83,7 +88,8 @@ export const providersRouter = router({
     .input(withPin)
     .mutation(async ({ input }) => {
       await assertPin(input.providerId, input.pinHash);
-      return { success: true };
+      const provider = await getProviderById(input.providerId);
+      return { success: true, providerStatus: provider?.providerStatus ?? "approved" };
     }),
 
   /**
@@ -380,5 +386,124 @@ export const providersRouter = router({
         (a, b) =>
           new Date(b!.createdAt).getTime() - new Date(a!.createdAt).getTime()
       );
+    }),
+
+  /**
+   * Self-registration: a new provider submits their details.
+   * Creates a provider with providerStatus = 'pending_review'.
+   */
+  register: publicProcedure
+    .input(
+      z.object({
+        name: z.string().min(2).max(128),
+        phone: z.string().min(8).max(32),
+        email: z.string().email().optional(),
+        zoneId: z.number().int().positive(),
+        pinHash: z.string().length(64), // SHA-256 hex
+        vehicleType: z.string().max(64).optional(),
+        vehiclePlate: z.string().max(32).optional(),
+        nationalId: z.string().max(64).optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      // Prevent duplicate registrations by phone
+      const existing = await getProviderByPhone(input.phone);
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "هذا الرقم مسجّل مسبقاً. يمكنك تتبع حالة طلبك باستخدام رقم هاتفك والرمز السري.",
+        });
+      }
+      const providerId = await createProvider({
+        name: input.name,
+        phone: input.phone,
+        email: input.email,
+        zoneId: input.zoneId,
+        pinHash: input.pinHash,
+        vehicleType: input.vehicleType,
+        vehiclePlate: input.vehiclePlate,
+        nationalId: input.nationalId,
+        adminCreated: false,
+      });
+      // Notify owner of new registration
+      try {
+        await notifyOwner({
+          title: `طلب انضمام جديد — ${input.name}`,
+          content: `مزود جديد يطلب الانضمام:\nالاسم: ${input.name}\nالهاتف: ${input.phone}\nالمنطقة: ${input.zoneId}\nالسيارة: ${input.vehicleType ?? 'غير محدد'}\nرقم اللوحة: ${input.vehiclePlate ?? 'غير محدد'}`,
+        });
+      } catch (_) {}
+      return { providerId, status: "pending_review" as const };
+    }),
+
+  /**
+   * Check registration status by phone + PIN.
+   * Used on the onboarding page to poll for approval.
+   */
+  getStatus: publicProcedure
+    .input(z.object({ phone: z.string(), pinHash: z.string() }))
+    .query(async ({ input }) => {
+      const provider = await getProviderByPhone(input.phone);
+      if (!provider) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "لم يُعثر على طلب التسجيل بهذا الرقم." });
+      }
+      if (provider.pinHash !== input.pinHash) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "الرمز السري غير صحيح." });
+      }
+      return {
+        providerId: provider.id,
+        name: provider.name,
+        providerStatus: provider.providerStatus,
+        rejectionReason: provider.rejectionReason ?? null,
+        zoneId: provider.zoneId,
+      };
+    }),
+
+  /**
+   * Admin: list providers pending review.
+   * Gated by OWNER_OPEN_ID env check (owner-only).
+   */
+  listPending: publicProcedure
+    .input(z.object({ ownerKey: z.string() }))
+    .query(async ({ input }) => {
+      if (input.ownerKey !== ENV.ownerOpenId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "غير مصرح لك بهذا الإجراء." });
+      }
+      return getPendingProviders();
+    }),
+
+  /**
+   * Admin: approve a pending provider.
+   */
+  approve: publicProcedure
+    .input(z.object({ ownerKey: z.string(), providerId: z.number() }))
+    .mutation(async ({ input }) => {
+      if (input.ownerKey !== ENV.ownerOpenId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "غير مصرح لك بهذا الإجراء." });
+      }
+      const provider = await getProviderById(input.providerId);
+      if (!provider) throw new TRPCError({ code: "NOT_FOUND" });
+      await updateProviderStatus(input.providerId, "approved");
+      try {
+        await notifyOwner({
+          title: `تمت موافقة المزود ${provider.name}`,
+          content: `تم قبول طلب انضمام ${provider.name} (هاتف: ${provider.phone}).`,
+        });
+      } catch (_) {}
+      return { success: true };
+    }),
+
+  /**
+   * Admin: reject a pending provider with a reason.
+   */
+  reject: publicProcedure
+    .input(z.object({ ownerKey: z.string(), providerId: z.number(), reason: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      if (input.ownerKey !== ENV.ownerOpenId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "غير مصرح لك بهذا الإجراء." });
+      }
+      const provider = await getProviderById(input.providerId);
+      if (!provider) throw new TRPCError({ code: "NOT_FOUND" });
+      await updateProviderStatus(input.providerId, "rejected", input.reason);
+      return { success: true };
     }),
 });

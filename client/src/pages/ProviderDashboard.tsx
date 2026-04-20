@@ -4,12 +4,115 @@ import { toast } from "sonner";
 import {
   Flame, MapPin, Phone, Package, Clock, CheckCircle2,
   XCircle, Truck, History, ToggleLeft, ToggleRight, Loader2,
-  ChevronDown, ChevronUp, TrendingUp, Wallet, Star, AlertCircle
+  ChevronDown, ChevronUp, TrendingUp, Wallet, Star, AlertCircle,
+  UserCheck, UserX, Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { getStoredPinHash, clearPinHash } from "./ProviderLogin";
 import { ORDER_STATUS_LABELS, type OrderStatus } from "../../../shared/domain";
+
+// ─── Admin Approval Panel (only visible to the designated admin provider) ────────
+const ADMIN_PROVIDER_ID = 4; // Provider #4 is the admin/owner
+
+function AdminApprovalPanel({ ownerKey }: { ownerKey: string }) {
+  const utils = trpc.useUtils();
+  const [rejectReason, setRejectReason] = useState<Record<number, string>>({});
+
+  const { data: pending, isLoading } = trpc.providers.listPending.useQuery(
+    { ownerKey },
+    { refetchInterval: 30_000, retry: false }
+  );
+
+  const approveMutation = trpc.providers.approve.useMutation({
+    onSuccess: () => {
+      toast.success("تمت الموافقة بنجاح");
+      utils.providers.listPending.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const rejectMutation = trpc.providers.reject.useMutation({
+    onSuccess: () => {
+      toast.success("تم الرفض");
+      utils.providers.listPending.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  if (isLoading) return null;
+
+  return (
+    <div
+      className="rounded-3xl p-4"
+      style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.08)" }}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <Users className="w-4 h-4 text-orange-400" />
+        <p className="text-white/70 text-sm font-semibold">طلبات الانضمام</p>
+        {pending && pending.length > 0 && (
+          <span className="text-xs bg-orange-500 text-white rounded-full px-1.5 py-0.5 font-bold">{pending.length}</span>
+        )}
+      </div>
+      {(!pending || pending.length === 0) ? (
+        <p className="text-white/30 text-xs text-center py-2">لا توجد طلبات معلقة</p>
+      ) : (
+        <div className="space-y-3">
+          {pending.map((p) => (
+            <div
+              key={p.id}
+              className="rounded-2xl p-3"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <p className="text-white font-bold text-sm">{p.name}</p>
+                  <p className="text-white/50 text-xs">{p.phone}</p>
+                  {p.email && <p className="text-white/35 text-xs">{p.email}</p>}
+                </div>
+                <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-0.5 rounded-full shrink-0">قيد المراجعة</span>
+              </div>
+              {(p.vehicleType || p.vehiclePlate) && (
+                <p className="text-white/35 text-xs mb-2">
+                  {p.vehicleType}{p.vehiclePlate ? ` • ${p.vehiclePlate}` : ""}
+                </p>
+              )}
+              <input
+                type="text"
+                placeholder="سبب الرفض (اختياري)"
+                value={rejectReason[p.id] ?? ""}
+                onChange={(e) => setRejectReason((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                className="w-full bg-black/30 border border-white/10 text-white text-xs rounded-xl px-3 py-2 mb-2 placeholder:text-white/20 outline-none focus:border-orange-400/40"
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="flex-1 rounded-xl text-xs font-bold h-8"
+                  style={{ background: "oklch(0.45 0.18 145)" }}
+                  disabled={approveMutation.isPending}
+                  onClick={() => approveMutation.mutate({ ownerKey, providerId: p.id })}
+                >
+                  <UserCheck className="w-3 h-3 ml-1" />
+                  موافقة
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 rounded-xl text-xs font-bold h-8 border-red-500/30 text-red-400 hover:bg-red-500/10"
+                  disabled={rejectMutation.isPending}
+                  onClick={() => rejectMutation.mutate({ ownerKey, providerId: p.id, reason: rejectReason[p.id] || undefined })}
+                >
+                  <UserX className="w-3 h-3 ml-1" />
+                  رفض
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ProviderDashboard() {
   const { providerId } = useParams<{ providerId: string }>();
@@ -173,6 +276,11 @@ export default function ProviderDashboard() {
       </div>
 
       <div className="flex-1 px-4 py-4 space-y-4 pb-8">
+        {/* ── Admin Approval Panel (only for admin provider) ── */}
+        {id === ADMIN_PROVIDER_ID && (
+          <AdminApprovalPanel ownerKey={pinHash!} />
+        )}
+
         {/* ── Incoming Order Card ── */}
         {incoming && (
           <div className="bg-white rounded-3xl shadow-xl border-2 border-primary/20 p-5">
