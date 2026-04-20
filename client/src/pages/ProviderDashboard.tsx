@@ -43,17 +43,10 @@ function AdminApprovalPanel({ ownerKey }: { ownerKey: string }) {
   if (isLoading) return null;
 
   return (
-    <div
-      className="rounded-3xl p-4"
-      style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.08)" }}
-    >
-      <div className="flex items-center gap-2 mb-3">
-        <Users className="w-4 h-4 text-orange-400" />
-        <p className="text-white/70 text-sm font-semibold">طلبات الانضمام</p>
-        {pending && pending.length > 0 && (
-          <span className="text-xs bg-orange-500 text-white rounded-full px-1.5 py-0.5 font-bold">{pending.length}</span>
-        )}
-      </div>
+    <div>
+      {pending && pending.length > 0 && (
+        <p className="text-orange-400 text-xs font-semibold mb-3">{pending.length} طلب معلق</p>
+      )}
       {(!pending || pending.length === 0) ? (
         <p className="text-white/30 text-xs text-center py-2">لا توجد طلبات معلقة</p>
       ) : (
@@ -108,6 +101,32 @@ function AdminApprovalPanel({ ownerKey }: { ownerKey: string }) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminPanelCollapsible({ ownerKey }: { ownerKey: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className="rounded-3xl overflow-hidden"
+      style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.08)" }}
+    >
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 text-white/70 text-sm font-semibold"
+      >
+        <span className="flex items-center gap-2">
+          <Users className="w-4 h-4 text-orange-400" />
+          طلبات الانضمام
+        </span>
+        {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+      </button>
+      {open && (
+        <div className="px-4 pb-4">
+          <AdminApprovalPanel ownerKey={ownerKey} />
         </div>
       )}
     </div>
@@ -276,9 +295,9 @@ export default function ProviderDashboard() {
       </div>
 
       <div className="flex-1 px-4 py-4 space-y-4 pb-8">
-        {/* ── Admin Approval Panel (only for admin provider) ── */}
+        {/* ── Admin Approval Panel (only for admin provider, collapsible) ── */}
         {id === ADMIN_PROVIDER_ID && (
-          <AdminApprovalPanel ownerKey={pinHash!} />
+          <AdminPanelCollapsible ownerKey={pinHash!} />
         )}
 
         {/* ── Incoming Order Card ── */}

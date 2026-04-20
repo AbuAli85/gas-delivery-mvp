@@ -360,19 +360,6 @@ export default function ProviderRegister() {
               )}
             </Card>
 
-            {/* Summary */}
-            <div
-              className="rounded-2xl p-4 mb-4 text-xs text-white/50 leading-relaxed"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-            >
-              <p className="text-white/70 font-semibold mb-2 text-sm">ملخص طلبك</p>
-              <p>الاسم: <span className="text-white/80">{name}</span></p>
-              <p>الهاتف: <span className="text-white/80">{phone}</span></p>
-              <p>المنطقة: <span className="text-white/80">{zones?.find((z) => z.id === zoneId)?.name ?? zoneId}</span></p>
-              {vehicleType && <p>المركبة: <span className="text-white/80">{vehicleType}</span></p>}
-              {vehiclePlate && <p>اللوحة: <span className="text-white/80">{vehiclePlate}</span></p>}
-            </div>
-
             <Button
               size="lg"
               className="w-full rounded-2xl font-bold text-base h-14"
@@ -404,30 +391,6 @@ export default function ProviderRegister() {
               <p className="text-white/50 text-sm leading-relaxed max-w-xs mx-auto">
                 سيتم مراجعة طلبك من قِبل الفريق خلال 24 ساعة. ستتلقى إشعاراً عند الموافقة.
               </p>
-            </div>
-
-            <div
-              className="w-full rounded-2xl p-4 text-sm text-right"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
-            >
-              <p className="text-white/50 text-xs mb-3 text-center">خطوات ما بعد التسجيل</p>
-              {[
-                { label: "تم استلام طلبك", done: true },
-                { label: "مراجعة البيانات من الفريق", done: false },
-                { label: "الموافقة وتفعيل حسابك", done: false },
-                { label: "ابدأ استلام الطلبات", done: false },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
-                  <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
-                      item.done ? "bg-orange-500 text-white" : "bg-white/10 text-white/30"
-                    }`}
-                  >
-                    {item.done ? "✓" : i + 1}
-                  </div>
-                  <span className={item.done ? "text-white/80" : "text-white/40"}>{item.label}</span>
-                </div>
-              ))}
             </div>
 
             <Button

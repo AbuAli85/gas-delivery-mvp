@@ -274,12 +274,12 @@
 - [x] Enhance: address field should show clean Oman address (strip non-Oman components)
 
 ## Full UI Simplification Pass
-- [ ] Home: remove FAQ section, reduce trust badges to 3 icons inline, tighten hero spacing
-- [ ] OrderSummary: single clean card — address, price, ETA, confirm button. Remove redundant labels
-- [ ] Payment: 3 clean tap-to-select cards, remove bank details until bank_transfer selected, remove disclaimer clutter
-- [ ] OrderPlaced: minimal success screen — icon, order#, status line, two action buttons only
-- [ ] OrderTracking: clean step list, remove redundant header info, single WhatsApp support button
-- [ ] ProviderLogin: clean centered card, remove decorative elements, simplify selector list
-- [ ] ProviderRegister: reduce step card padding, remove summary card on step 2, cleaner field layout
-- [ ] ProviderOnboarding: minimal status card with 3 steps, remove excessive copy
-- [ ] ProviderDashboard: cleaner toggle, compact order cards, remove score/commission cards (keep as simple numbers), admin panel as collapsible section
+- [x] Home: remove FAQ section, reduce trust badges to 3 icons inline, tighten hero spacing
+- [x] OrderSummary: single clean card — address, price, ETA, confirm button. Remove redundant labels
+- [x] Payment: 3 clean tap-to-select cards, remove bank details until bank_transfer selected, remove disclaimer clutter
+- [x] OrderPlaced: minimal success screen — icon, order#, status line, two action buttons only
+- [x] OrderTracking: clean step list, remove redundant header info, single WhatsApp support button
+- [x] ProviderLogin: clean centered card, remove decorative elements, simplify selector list
+- [x] ProviderRegister: reduce step card padding, remove summary card on step 2, cleaner field layout
+- [x] ProviderOnboarding: minimal status card with 3 steps, remove excessive copy
+- [x] ProviderDashboard: cleaner toggle, compact order cards, remove score/commission cards (keep as simple numbers), admin panel as collapsible section

@@ -57,7 +57,6 @@ const STEPS: { label: string; statusReached: ProviderStatus[] }[] = [
   { label: "تم استلام الطلب", statusReached: ["pending_review", "approved", "rejected"] },
   { label: "مراجعة البيانات", statusReached: ["approved", "rejected"] },
   { label: "الموافقة وتفعيل الحساب", statusReached: ["approved"] },
-  { label: "جاهز لاستلام الطلبات", statusReached: ["approved"] },
 ];
 
 export default function ProviderOnboarding() {
@@ -153,9 +152,9 @@ export default function ProviderOnboarding() {
               <div>
                 <p className={`font-bold text-lg ${cfg.color}`}>{cfg.label}</p>
                 <p className="text-white/60 text-xs mt-1">
-                  {status === "pending_review" && "طلبك قيد المراجعة. سيتم إشعارك عند اتخاذ القرار."}
-                  {status === "approved" && `مرحباً ${data.name}! حسابك مفعّل. يمكنك الآن تسجيل الدخول.`}
-                  {status === "rejected" && "نأسف، تعذّر قبول طلبك في الوقت الحالي."}
+                  {status === "pending_review" && "طلبك قيد المراجعة"}
+                  {status === "approved" && `مرحباً ${data.name}! حسابك مفعّل`}
+                  {status === "rejected" && "تعذّر قبول طلبك"}
                 </p>
                 {status === "rejected" && data.rejectionReason && (
                   <p className="text-red-300/70 text-xs mt-2 leading-relaxed">
