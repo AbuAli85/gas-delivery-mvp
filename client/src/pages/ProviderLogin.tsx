@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { Flame, Lock, Loader2 } from "lucide-react";
+import { Flame, Lock, Loader2, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -30,10 +30,72 @@ export function clearPinHash(providerId: number): void {
   sessionStorage.removeItem(getProviderPinKey(providerId));
 }
 
+// ─── Provider Selector (shown when no valid :id in URL) ──────────────────────
+
+function ProviderSelector() {
+  const [, navigate] = useLocation();
+  const { data: providers, isLoading } = trpc.providers.list.useQuery();
+
+  return (
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4"
+      style={{ background: "oklch(0.13 0.02 27)" }}
+    >
+      {/* Brand */}
+      <div className="flex items-center gap-2 mb-8">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center"
+          style={{ background: "oklch(0.53 0.22 27)" }}
+        >
+          <Flame className="w-5 h-5 text-white" />
+        </div>
+        <span className="text-white font-extrabold text-xl tracking-tight">توصيل غاز</span>
+      </div>
+
+      <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-sm text-center">
+        <h1 className="text-2xl font-extrabold text-gray-900 mb-1">دخول المزود</h1>
+        <p className="text-gray-500 text-sm mb-6">اختر حسابك للمتابعة</p>
+
+        {isLoading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {(providers ?? []).map((p) => (
+              <button
+                key={p.id}
+                onClick={() => navigate(`/provider/${p.id}/login`)}
+                className="flex items-center justify-between w-full px-4 py-3 rounded-2xl border-2 text-right transition-all hover:border-red-500 hover:bg-red-50"
+                style={{ borderColor: "oklch(0.90 0.01 27)" }}
+              >
+                <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <div className="flex flex-col items-end">
+                  <span className="font-bold text-gray-900">{p.name}</span>
+                  <span className="text-xs text-gray-400">{p.phone}</span>
+                </div>
+              </button>
+            ))}
+            {(providers ?? []).length === 0 && (
+              <p className="text-gray-400 text-sm py-4">لا يوجد مزودون متاحون</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── PIN Login (shown when :id is a valid number) ────────────────────────────
+
 export default function ProviderLogin() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
-  const providerId = parseInt(id ?? "0", 10);
+
+  // Parse the ID — if it's NaN or the literal string ":id", show selector
+  const rawId = id ?? "";
+  const providerId = parseInt(rawId, 10);
+  const isValidId = !isNaN(providerId) && providerId > 0 && rawId !== ":id";
 
   const [pin, setPin] = useState<string[]>(["", "", "", ""]);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -55,7 +117,11 @@ export default function ProviderLogin() {
       setIsVerifying(false);
       setPin(["", "", "", ""]);
       inputRefs[0].current?.focus();
-      toast.error(err.message === "Invalid PIN" ? "❌ رمز خاطئ — حاول مجدداً" : "خطأ في التحقق من الرمز");
+      toast.error(
+        err.message.includes("رمز") || err.message.includes("PIN")
+          ? "❌ رمز خاطئ — حاول مجدداً"
+          : "خطأ في التحقق من الرمز"
+      );
     },
   });
 
@@ -67,6 +133,7 @@ export default function ProviderLogin() {
   }, [pin]);
 
   async function handleSubmit() {
+    if (!isValidId) return;
     const pinStr = pin.join("");
     if (pinStr.length !== 4) return;
     setIsVerifying(true);
@@ -88,6 +155,11 @@ export default function ProviderLogin() {
     if (e.key === "Backspace" && !pin[index] && index > 0) {
       inputRefs[index - 1].current?.focus();
     }
+  }
+
+  // Show provider selector if no valid ID
+  if (!isValidId) {
+    return <ProviderSelector />;
   }
 
   return (
@@ -165,6 +237,13 @@ export default function ProviderLogin() {
         <p className="text-xs text-gray-400 mt-4">
           الرمز الافتراضي للتجربة: <strong>1234</strong>
         </p>
+
+        <button
+          onClick={() => navigate("/provider/login")}
+          className="text-xs text-gray-400 underline mt-3 block mx-auto"
+        >
+          اختيار مزود آخر
+        </button>
       </div>
     </div>
   );

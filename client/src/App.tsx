@@ -33,6 +33,7 @@ function Router() {
       <Route path="/order/track/:orderId" component={OrderTracking} />
 
       {/* Provider flow */}
+      <Route path="/provider/login" component={ProviderLogin} />
       <Route path="/provider/:id/login" component={ProviderLogin} />
       <Route path="/provider/:providerId" component={ProviderDashboard} />
 
