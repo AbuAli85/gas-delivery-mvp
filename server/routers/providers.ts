@@ -28,6 +28,9 @@ import {
   savePushSubscription,
   upsertProviderLocation,
   getProviderLocation,
+  getWorkingHours,
+  getAllProvidersWorkingHours,
+  upsertWorkingHoursRow,
 } from "../db";
 import { sendPushNotification } from "../_core/webPush";
 import { selectNextProvider } from "../assignmentEngine";
@@ -585,5 +588,79 @@ export const providersRouter = router({
       const loc = await getProviderLocation(order.assignedProviderId);
       if (!loc) return null;
       return { lat: loc.lat, lng: loc.lng, updatedAt: loc.updatedAt };
+    }),
+
+  /** Provider: get working hours schedule. */
+  getWorkingHours: publicProcedure
+    .input(z.object({ providerId: z.number().int().positive() }))
+    .query(async ({ input }) => {
+      return await getWorkingHours(input.providerId);
+    }),
+
+  /** Provider: set/update working hours (PIN-protected). */
+  setWorkingHours: publicProcedure
+    .input(z.object({
+      providerId: z.number().int().positive(),
+      pinHash: z.string(),
+      schedule: z.array(z.object({
+        dayOfWeek: z.number().int().min(0).max(6),
+        openTime: z.string().regex(/^\d{2}:\d{2}$/),
+        closeTime: z.string().regex(/^\d{2}:\d{2}$/),
+        isActive: z.boolean(),
+      })),
+    }))
+    .mutation(async ({ input }) => {
+      const valid = await verifyProviderPin(input.providerId, input.pinHash);
+      if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "رمز PIN غير صحيح" });
+      for (const row of input.schedule) {
+        await upsertWorkingHoursRow({
+          providerId: input.providerId,
+          dayOfWeek: row.dayOfWeek,
+          openTime: row.openTime,
+          closeTime: row.closeTime,
+          isActive: row.isActive,
+        });
+      }
+      return { success: true };
+    }),
+
+  /** Public: get service open/closed status based on all providers' working hours. */
+  getServiceStatus: publicProcedure
+    .query(async () => {
+      const allHours = await getAllProvidersWorkingHours();
+      const now = new Date();
+      // Gulf Standard Time = UTC+4
+      const gstOffset = 4 * 60;
+      const localMs = now.getTime() + (gstOffset - now.getTimezoneOffset()) * 60000;
+      const local = new Date(localMs);
+      const dayOfWeek = local.getDay();
+      const currentTime = `${String(local.getHours()).padStart(2, "0")}:${String(local.getMinutes()).padStart(2, "0")}`;
+
+      const todayRows = allHours.filter(h => h.dayOfWeek === dayOfWeek && h.isActive);
+      const isOpen = todayRows.some(h => currentTime >= h.openTime && currentTime < h.closeTime);
+
+      let nextOpenLabel: string | null = null;
+      if (!isOpen) {
+        const laterToday = todayRows.filter(h => currentTime < h.openTime);
+        if (laterToday.length > 0) {
+          const earliest = laterToday.sort((a, b) => a.openTime.localeCompare(b.openTime))[0];
+          nextOpenLabel = `اليوم الساعة ${earliest.openTime}`;
+        } else {
+          for (let d = 1; d <= 7; d++) {
+            const nextDay = (dayOfWeek + d) % 7;
+            const nextRows = allHours.filter(h => h.dayOfWeek === nextDay && h.isActive);
+            if (nextRows.length > 0) {
+              const earliest = nextRows.sort((a, b) => a.openTime.localeCompare(b.openTime))[0];
+              const DAY_NAMES = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+              nextOpenLabel = d === 1
+                ? `غداً الساعة ${earliest.openTime}`
+                : `${DAY_NAMES[nextDay]} الساعة ${earliest.openTime}`;
+              break;
+            }
+          }
+        }
+      }
+
+      return { isOpen, nextOpenLabel, currentTime, dayOfWeek };
     }),
 });

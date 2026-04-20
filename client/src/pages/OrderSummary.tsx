@@ -35,6 +35,10 @@ export default function OrderSummary() {
   const [deliveryLoc, setDeliveryLoc] = useState<DeliveryLocation | null>(null);
   const [creating, setCreating] = useState(false);
 
+  const { data: serviceStatus } = trpc.providers.getServiceStatus.useQuery(undefined, {
+    refetchInterval: 60000,
+  });
+
   const createDraft = trpc.orders.createOrderDraft.useMutation({
     onSuccess: (data) => {
       const loc = deliveryLoc;
@@ -233,6 +237,21 @@ export default function OrderSummary() {
                   <button onClick={changeLocation} className="underline font-semibold">
                     غيّر الموقع
                   </button>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Working hours warning */}
+          {serviceStatus && !serviceStatus.isOpen && (
+            <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-3 mb-4">
+              <Clock className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-orange-800">خارج ساعات العمل</p>
+                <p className="text-xs text-orange-600 mt-0.5">
+                  {serviceStatus.nextOpenLabel
+                    ? `الخدمة مغلقة حالياً — تفتح ${serviceStatus.nextOpenLabel}. يمكنك تقديم طلبك وسيُعالج عند الفتح.`
+                    : "الخدمة مغلقة حالياً. يمكنك تقديم طلبك وسيُعالج عند الفتح."}
                 </p>
               </div>
             </div>

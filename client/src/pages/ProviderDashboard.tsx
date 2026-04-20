@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { getStoredPinHash, clearPinHash } from "./ProviderLogin";
 import { ORDER_STATUS_LABELS, type OrderStatus } from "../../../shared/domain";
+import { WorkingHoursEditor } from "@/components/WorkingHoursEditor";
 
 // ─── Admin Approval Panel (only visible to the designated admin provider) ────────
 const ADMIN_PROVIDER_ID = 4; // Provider #4 is the admin/owner
@@ -743,6 +744,11 @@ export default function ProviderDashboard() {
             )}
           </div>
         )}
+
+        {/* ── Working Hours ── */}
+        <div className="bg-white rounded-2xl shadow-sm p-4">
+          <WorkingHoursEditor providerId={id} pinHash={getStoredPinHash(id) ?? ""} />
+        </div>
 
         {/* ── Order History ── */}
         <button

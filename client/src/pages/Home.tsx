@@ -15,6 +15,10 @@ export default function Home() {
   });
   const onlineCount = providers?.filter((p) => p.isAvailable).length ?? 0;
 
+  const { data: serviceStatus } = trpc.providers.getServiceStatus.useQuery(undefined, {
+    refetchInterval: 60000,
+  });
+
   return (
     <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }}>
       {/* ── Hero ── */}
@@ -35,7 +39,26 @@ export default function Home() {
             <p className="text-[10px] text-white/50 uppercase tracking-widest">توصيل غاز</p>
             <p className="text-base font-bold leading-none">مسقط</p>
           </div>
-          {onlineCount > 0 && (
+          {serviceStatus ? (
+            <div className={`mr-3 flex items-center gap-1.5 rounded-full px-3 py-1 border ${
+              serviceStatus.isOpen
+                ? "bg-green-500/20 border-green-500/30"
+                : "bg-red-500/20 border-red-500/30"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                serviceStatus.isOpen ? "bg-green-400 animate-pulse" : "bg-red-400"
+              }`} />
+              <span className={`text-[11px] font-semibold ${
+                serviceStatus.isOpen ? "text-green-300" : "text-red-300"
+              }`}>
+                {serviceStatus.isOpen
+                  ? `مفتوح • ${onlineCount} متاح`
+                  : serviceStatus.nextOpenLabel
+                    ? `مغلق • يفتح ${serviceStatus.nextOpenLabel}`
+                    : "مغلق"}
+              </span>
+            </div>
+          ) : onlineCount > 0 && (
             <div className="mr-3 flex items-center gap-1.5 bg-green-500/20 border border-green-500/30 rounded-full px-3 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
               <span className="text-[11px] text-green-300 font-semibold">{onlineCount} متاح</span>
