@@ -98,7 +98,7 @@ function loadMapScript(): Promise<void> {
       const script = document.createElement("script");
       // Route through the local server proxy (/api/maps/*) which adds the
       // required Origin header that browser <script> tags cannot send.
-      script.src = `/api/maps/maps/api/js?v=weekly&libraries=places,geocoding,geometry`;
+      script.src = `/api/maps/maps/api/js?v=weekly&libraries=places,geocoding,geometry,marker`;
       script.async = true;
       script.onload = () => resolve();
       script.onerror = () => {

@@ -23,6 +23,7 @@ import {
   Check,
   Plus,
   Search,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -166,6 +167,11 @@ export default function LocationPicker() {
   // Keep refs to drawn polygons and their label markers so we can update styles
   const zonePolygonsRef = useRef<Map<number, google.maps.Polygon>>(new Map());
   const zoneLabelMarkersRef = useRef<Map<number, google.maps.Marker>>(new Map());
+  // Places Autocomplete
+  const autocompleteInputRef = useRef<HTMLInputElement>(null);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [acReady, setAcReady] = useState(false);
 
   // ── Detect current location ──────────────────────────────────────────────
   const handleUseCurrentLocation = async () => {
@@ -326,6 +332,7 @@ export default function LocationPicker() {
         setMapCoords({ lat, lng });
         const addr = await reverseGeocode(lat, lng, geocoder);
         applyResolvedAddress(addr);
+        setSearchInput(""); // clear search box when user drags pin manually
       });
 
       map.addListener("click", async (e: google.maps.MapMouseEvent) => {
@@ -336,7 +343,11 @@ export default function LocationPicker() {
         setMapCoords({ lat, lng });
         const addr = await reverseGeocode(lat, lng, geocoder);
         applyResolvedAddress(addr);
+        setSearchInput(""); // clear search box when user taps map
       });
+
+      // Signal that the map is ready so the Autocomplete effect can run
+      setAcReady(true);
     },
     [applyResolvedAddress]
   );
@@ -347,6 +358,40 @@ export default function LocationPicker() {
       drawZones(mapRef.current, zones);
     }
   }, [zones, drawZones]);
+
+  // ── Init Places Autocomplete once the map is ready ────────────────────────
+  useEffect(() => {
+    if (!acReady || !autocompleteInputRef.current || autocompleteRef.current) return;
+    const ac = new google.maps.places.Autocomplete(autocompleteInputRef.current, {
+      componentRestrictions: { country: "om" },
+      fields: ["geometry", "formatted_address", "name"],
+      types: ["geocode", "establishment"],
+    });
+    autocompleteRef.current = ac;
+    ac.addListener("place_changed", async () => {
+      const place = ac.getPlace();
+      const loc = place.geometry?.location;
+      if (!loc) {
+        toast.error("لم يُعثر على الموقع. جرّب صياغة أخرى.");
+        return;
+      }
+      const lat = loc.lat();
+      const lng = loc.lng();
+      // Move map and pin immediately for instant feedback
+      markerRef.current?.setPosition({ lat, lng });
+      mapRef.current?.panTo({ lat, lng });
+      mapRef.current?.setZoom(16);
+      setMapCoords({ lat, lng });
+      // Reverse-geocode to get a sanitized Oman-validated address string
+      const geocoded = await reverseGeocode(lat, lng, geocoderRef.current);
+      // Fall back to the Places API formatted_address if reverse-geocode returns coords
+      const finalAddr = geocoded.includes(",") && !geocoded.match(/^\d/) 
+        ? geocoded 
+        : (place.formatted_address || place.name || geocoded);
+      applyResolvedAddress(finalAddr);
+      setSearchInput(place.name || place.formatted_address || "");
+    });
+  }, [acReady, applyResolvedAddress]);
 
   // Update active zone highlight whenever pin moves
   useEffect(() => {
@@ -479,6 +524,39 @@ export default function LocationPicker() {
             streetViewControl={false}
             fullscreenControl={false}
           />
+
+          {/* Places Autocomplete search bar — overlaid at top of map */}
+          <div
+            className="absolute top-3 left-3 right-3 z-20 flex items-center gap-2"
+            dir="rtl"
+          >
+            <div className="relative flex-1">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none" />
+              <input
+                ref={autocompleteInputRef}
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="ابحث عن عنوان أو مكان..."
+                className="w-full h-11 pr-10 pl-9 rounded-xl text-sm text-white placeholder:text-white/40 outline-none border border-white/20 focus:border-orange-400/60 transition-colors"
+                style={{
+                  background: "rgba(10,10,10,0.88)",
+                  backdropFilter: "blur(10px)",
+                }}
+              />
+              {searchInput && (
+                <button
+                  onClick={() => {
+                    setSearchInput("");
+                    if (autocompleteInputRef.current) autocompleteInputRef.current.value = "";
+                  }}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Zone legend overlay — bottom-right to avoid overlapping zoom controls */}
           {zones && zones.length > 0 && (

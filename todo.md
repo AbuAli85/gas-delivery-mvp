@@ -242,3 +242,10 @@
 - [x] Improve map: hide Street View pegman (not needed)
 - [x] Improve map: add fullscreen button removal (cleaner look)
 - [x] Improve overall polish: tighten spacing, ensure all text is Arabic
+
+## Address Search on Map
+- [x] Add Google Places Autocomplete search bar overlaid at the top of the map
+- [x] Show live dropdown suggestions as user types (filtered to Oman)
+- [x] On suggestion select: pan map, move pin, reverse-geocode and fill address field
+- [x] Keep existing manual text + search-button as fallback below the map
+- [x] Add X button to clear the search input
