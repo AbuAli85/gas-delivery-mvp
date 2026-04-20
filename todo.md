@@ -342,3 +342,7 @@
 - [ ] Customer UI: OrderSummary shows working hours warning if ordering outside hours
 - [ ] Tests: working hours logic (isOpen, nextOpen, edge cases)
 - [ ] Update todo.md when complete
+
+## Bug Fixes (Payment Page Screenshot)
+- [x] Seed demo providers in DB so "no providers available" warning disappears for real users
+- [x] Fix black background on Payment page (same theme issue as OrderSummary was)

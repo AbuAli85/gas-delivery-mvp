@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -102,17 +102,13 @@ export default function Payment() {
 
   if (success) {
     return (
-      <div
-        className="min-h-screen flex flex-col items-center justify-center"
-        style={{ background: "oklch(0.12 0.01 240)", color: "white" }}
-      >
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
         <div className="flex flex-col items-center gap-4 px-8 text-center">
-          <div className="w-20 h-20 rounded-full flex items-center justify-center"
-            style={{ background: "oklch(0.25 0.15 145)" }}>
-            <CheckCircle2 className="w-10 h-10" style={{ color: "oklch(0.65 0.22 145)" }} />
+          <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
+            <CheckCircle2 className="w-10 h-10 text-green-600" />
           </div>
-          <p className="text-xl font-bold">تم تأكيد الطلب!</p>
-          <p className="text-sm opacity-50">جارٍ البحث عن أقرب مزود…</p>
+          <p className="text-xl font-bold text-gray-900">تم تأكيد الطلب!</p>
+          <p className="text-sm text-gray-500">جارٍ البحث عن أقرب مزود…</p>
         </div>
       </div>
     );
@@ -121,59 +117,59 @@ export default function Payment() {
   const selectedOption = PAYMENT_OPTIONS.find((o) => o.id === selected)!;
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{ background: "oklch(0.12 0.01 240)", color: "white" }}
-    >
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-12 pb-4">
-        <button
-          onClick={() => navigate("/order/summary")}
-          className="w-10 h-10 rounded-full flex items-center justify-center"
-          style={{ background: "oklch(0.2 0.01 240)" }}
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
-        <div className="flex-1">
-          <p className="text-xs opacity-60">الخطوة ٣ من ٣</p>
-          <h1 className="text-lg font-bold">اختر طريقة الدفع</h1>
-        </div>
-        <div className="text-left">
-          <p className="text-xs opacity-60">الإجمالي</p>
-          <p className="text-xl font-black" style={{ color: "oklch(0.65 0.22 27)" }}>
-            OMR {parseFloat(totalPrice).toFixed(3)}
-          </p>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header with gradient */}
+      <div
+        className="px-4 pt-12 pb-6"
+        style={{
+          background: "linear-gradient(135deg, oklch(0.25 0.15 27) 0%, oklch(0.15 0.08 27) 100%)",
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/order/summary")}
+            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center"
+          >
+            <ChevronRight className="w-5 h-5 text-white" />
+          </button>
+          <div className="flex-1">
+            <p className="text-xs text-white/60">الخطوة ٣ من ٣</p>
+            <h1 className="text-lg font-bold text-white">اختر طريقة الدفع</h1>
+          </div>
+          <div className="text-left">
+            <p className="text-xs text-white/60">الإجمالي</p>
+            <p className="text-xl font-black text-orange-300">
+              OMR {parseFloat(totalPrice).toFixed(3)}
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Payment Options */}
-      <div className="flex-1 px-4 py-2 space-y-3">
+      <div className="flex-1 px-4 py-4 space-y-3">
         {PAYMENT_OPTIONS.map((option) => {
           const isSelected = selected === option.id;
           return (
             <button
               key={option.id}
               onClick={() => setSelected(option.id)}
-              className="w-full text-right rounded-2xl p-4 transition-all"
-              style={{
-                background: isSelected ? "oklch(0.53 0.22 27)" : "oklch(0.18 0.01 240)",
-                border: isSelected
-                  ? "2px solid oklch(0.65 0.22 27)"
-                  : "2px solid transparent",
-              }}
+              className={`w-full text-right rounded-2xl p-4 transition-all border-2 ${
+                isSelected
+                  ? "bg-white border-red-500 shadow-md"
+                  : "bg-white border-gray-200 shadow-sm"
+              }`}
             >
               <div className="flex items-center gap-4">
                 <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{
-                    background: isSelected ? "oklch(0.4 0.22 27)" : "oklch(0.25 0.01 240)",
-                  }}
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    isSelected ? "bg-red-50 text-red-600" : "bg-gray-100 text-gray-600"
+                  }`}
                 >
                   {option.icon}
                 </div>
                 <div className="flex-1 min-w-0 text-right">
                   <div className="flex items-center gap-2 flex-wrap justify-end">
-                    <span className="font-bold text-base">{option.label}</span>
+                    <span className="font-bold text-base text-gray-900">{option.label}</span>
                     {option.badge && (
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full text-white font-semibold ${option.badgeColor}`}
@@ -182,21 +178,14 @@ export default function Payment() {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs opacity-40 mt-0.5">{option.description}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{option.description}</p>
                 </div>
                 <div
-                  className="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0"
-                  style={{
-                    borderColor: isSelected ? "white" : "oklch(0.4 0.01 240)",
-                    background: isSelected ? "white" : "transparent",
-                  }}
+                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                    isSelected ? "border-red-500 bg-red-500" : "border-gray-300"
+                  }`}
                 >
-                  {isSelected && (
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ background: "oklch(0.53 0.22 27)" }}
-                    />
-                  )}
+                  {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
                 </div>
               </div>
             </button>
@@ -205,11 +194,8 @@ export default function Payment() {
 
         {/* Bank Transfer Details */}
         {selected === "bank_transfer" && (
-          <div
-            className="rounded-2xl p-4 space-y-2"
-            style={{ background: "oklch(0.18 0.01 240)" }}
-          >
-            <p className="text-sm font-bold opacity-80 mb-3">بيانات بنك مسقط</p>
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-2">
+            <p className="text-sm font-bold text-blue-800 mb-3">بيانات بنك مسقط</p>
             {[
               ["اسم الحساب", "Gas Delivery Muscat LLC"],
               ["رقم الحساب", "0123456789"],
@@ -217,11 +203,11 @@ export default function Payment() {
               ["المرجع", `ORDER-${orderId}`],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between text-sm">
-                <span className="font-mono font-semibold">{value}</span>
-                <span className="opacity-50">{label}</span>
+                <span className="font-mono font-semibold text-blue-900">{value}</span>
+                <span className="text-blue-600">{label}</span>
               </div>
             ))}
-            <p className="text-xs opacity-40 mt-2 pt-2 border-t border-white/10">
+            <p className="text-xs text-blue-500 mt-2 pt-2 border-t border-blue-200">
               يُرسَل الطلب بعد التأكيد اليدوي (خلال ساعة واحدة).
             </p>
           </div>
@@ -229,11 +215,11 @@ export default function Payment() {
 
         {/* Trust signals */}
         <div className="flex gap-4 pt-2 justify-end">
-          <div className="flex items-center gap-1.5 text-xs opacity-40">
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
             <span>دفع آمن</span>
             <ShieldCheck className="w-3.5 h-3.5" />
           </div>
-          <div className="flex items-center gap-1.5 text-xs opacity-40">
+          <div className="flex items-center gap-1.5 text-xs text-gray-400">
             <span>توصيل خلال ٣٠ دقيقة</span>
             <Clock className="w-3.5 h-3.5" />
           </div>
@@ -241,14 +227,15 @@ export default function Payment() {
       </div>
 
       {/* CTA */}
-      <div className="px-4 pb-10 pt-4 space-y-3">
+      <div className="px-4 pb-10 pt-4 space-y-3 bg-gray-50">
         <Button
           size="lg"
-          className="w-full font-black text-lg rounded-2xl active:scale-95 transition-transform"
+          className="w-full font-black text-lg rounded-2xl active:scale-95 transition-transform text-white"
           style={{
             height: "64px",
-            background: loading ? "oklch(0.4 0.22 27)" : "oklch(0.53 0.22 27)",
-            color: "white",
+            background: loading
+              ? "oklch(0.4 0.22 27)"
+              : "linear-gradient(135deg, oklch(0.53 0.22 27) 0%, oklch(0.45 0.22 27) 100%)",
             fontSize: "18px",
           }}
           onClick={handlePay}
@@ -277,8 +264,7 @@ export default function Payment() {
           href="https://wa.me/96891000001?text=أريد%20طلب%20غاز"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-sm font-semibold"
-          style={{ background: "oklch(0.18 0.01 240)", color: "oklch(0.7 0.18 145)" }}
+          className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-sm font-semibold bg-green-50 text-green-700 border border-green-200"
         >
           {WA_ICON}
           تحتاج مساعدة؟ تواصل معنا عبر واتساب
