@@ -573,3 +573,7 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Extend OTP expiry from 5 to 10 minutes
 - [x] Add clear note: "SMS will be sent when Firebase Phone Auth is activated"
 - [x] Return devOtp from server requestOtp response so client can display it
+
+## Fix: OTP Expiry Bug (verifyOtp picks oldest record)
+- [x] Fix verifyOtp: order by createdAt DESC to get most recent OTP (not oldest)
+- [x] Fix requestOtp: delete/invalidate old unverified OTP records for same phone before inserting new one

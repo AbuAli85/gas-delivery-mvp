@@ -22,7 +22,7 @@ import {
   getDb,
 } from "../db";
 import { otpRequests } from "../../drizzle/schema";
-import { eq, and, gte, count } from "drizzle-orm";
+import { eq, and, gte, count, desc } from "drizzle-orm";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const OTP_EXPIRY_MS = 10 * 60 * 1000;       // 10 minutes
@@ -115,9 +115,15 @@ export const customerAuthRouter = router({
       const codeHash = await bcrypt.hash(otp, BCRYPT_ROUNDS);
       const expiresAt = new Date(Date.now() + OTP_EXPIRY_MS);
 
-      // Store in otp_requests table (secure, hashed)
+      // Invalidate all previous unverified OTPs for this phone before inserting new one
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      await db
+        .update(otpRequests)
+        .set({ verified: true })
+        .where(and(eq(otpRequests.phone, phone), eq(otpRequests.verified, false)));
+
+      // Store in otp_requests table (secure, hashed)
       await db.insert(otpRequests).values({
         phone,
         codeHash,
@@ -162,7 +168,7 @@ export const customerAuthRouter = router({
         .select()
         .from(otpRequests)
         .where(and(eq(otpRequests.phone, phone), eq(otpRequests.verified, false)))
-        .orderBy(otpRequests.createdAt)
+        .orderBy(desc(otpRequests.createdAt))
         .limit(1);
 
       if (!otpRecord) {
