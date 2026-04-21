@@ -1,4 +1,7 @@
 import "dotenv/config";
+// Sentry MUST be initialized before any other imports
+import { initSentry, sentryErrorHandler, setSentryUser } from "./sentry";
+initSentry();
 import express from "express";
 import { createServer } from "http";
 import net from "net";
@@ -38,7 +41,8 @@ async function startServer() {
   registerStorageProxy(app);
   registerMapsProxy(app);
   registerOAuthRoutes(app);
-  // tRPC API
+  // tRPC API — Sentry user context is set in createContext (see context.ts)
+
   app.use(
     "/api/trpc",
     createExpressMiddleware({
@@ -46,6 +50,9 @@ async function startServer() {
       createContext,
     })
   );
+  // Sentry error handler must come AFTER all routes
+  sentryErrorHandler(app);
+
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);

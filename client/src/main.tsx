@@ -1,3 +1,7 @@
+// Sentry MUST be initialized before React renders
+import { initSentryBrowser, SentryErrorBoundary } from "@/lib/sentry";
+initSentryBrowser();
+
 import { trpc } from "@/lib/trpc";
 import { UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -53,9 +57,24 @@ const trpcClient = trpc.createClient({
 });
 
 createRoot(document.getElementById("root")!).render(
-  <trpc.Provider client={trpcClient} queryClient={queryClient}>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </trpc.Provider>
+  <SentryErrorBoundary
+    fallback={(
+      <div style={{ padding: "2rem", textAlign: "center", fontFamily: "sans-serif" }}>
+        <h2>حدث خطأ غير متوقع</h2>
+        <p>يرجى تحديث الصفحة أو المحاولة لاحقاً.</p>
+        <button
+          onClick={() => window.location.reload()}
+          style={{ marginTop: "1rem", padding: "0.5rem 1.5rem", cursor: "pointer" }}
+        >
+          تحديث
+        </button>
+      </div>
+    )}
+  >
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </trpc.Provider>
+  </SentryErrorBoundary>
 );
