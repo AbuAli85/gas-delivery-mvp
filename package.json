@@ -10,6 +10,8 @@
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
+    "validate:commission": "tsx scripts/validate-commission-tracking.ts",
+    "prelaunch": "bash scripts/pre-launch-check.sh",
     "db:push": "drizzle-kit generate && drizzle-kit migrate"
   },
   "dependencies": {

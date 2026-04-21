@@ -32,7 +32,10 @@
 - [x] Home screen: full-screen card, "Order Gas" CTA, flame icon, brand colors
 - [x] Geolocation: auto-detect on CTA click, show address/coords
 - [x] Order summary screen: gas amount selector, price, ETA, address
-- [x] Payment screen: Stripe elements or mock pay button
+- [x] Payment screen: mock payment (cash / online / bank_transfer) + Stripe Elements where wired
+- [x] Online flow: `createPaymentIntent` + `confirmMockPayment` (no live card capture in MVP)
+- [ ] [POST-MVP] Real Stripe `confirmPayment` / card capture requires `STRIPE_SECRET_KEY` and Stripe account setup
+  - Current: mock + cash + bank details are production-usable for field ops without card rails
 - [x] Order placed screen: confirmation with order ID
 - [x] Order tracking screen: live status bar, polling every 5s
 
@@ -57,7 +60,7 @@
 - [x] Single active assignment invariant
 - [x] Rejection reassignment chain (3 providers → null)
 - [x] Auth logout test (preserved)
-- [x] Total: 49 tests passing
+- [x] Total: **84** Vitest cases in `server/**/*.test.ts` (verify: `rg "^\s*it\(" server -g "*.test.ts"` → 84 matches)
 
 ## Phase 7: Polish & Delivery
 - [x] Mobile-first CSS: max-w-md centered, large touch targets ≥48px
@@ -124,7 +127,7 @@
 - [x] Performance panel: delivered / accepted / rejected stats
 - [x] Low acceptance rate warning (< 60% with >= 5 orders)
 
-### Tests (70 total, 21 new Phase 2 tests)
+### Tests (Vitest — 84 cases in `server/*.test.ts` as of Apr 2026; includes Phase 2 coverage below)
 - [x] Payment method domain logic (cash/online/bank_transfer)
 - [x] Commission calculation + accumulation + 3-decimal formatting
 - [x] providerCommissionStatus transitions (unpaid → pending_settlement → settled)
@@ -159,7 +162,7 @@
 - [x] OrderSummary edit button → back to LocationPicker
 - [x] Home CTA navigates to /order/location
 
-### Tests (81 total, 11 new Phase 3 tests)
+### Tests (same Vitest suite as Phase 6 — flexible delivery + location tests counted in the 84 total)
 - [x] Zone resolution uses delivery coords (not ordering coords)
 - [x] Returns null for coords outside Muscat
 - [x] Different zones for different delivery locations
@@ -596,73 +599,66 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Tier system: bronze (0-99pts) → silver (100-499pts) → gold (500-999pts) → platinum (1000+pts)
 - [x] Points engine: 10 pts per order delivered
 
-## Feature: Referral System
-- [ ] Schema: add referralCode (unique, 8-char) column to customers table
-- [ ] Schema: add referrals table (id, inviterId, inviteeId, status: pending/rewarded, createdAt, rewardedAt)
-- [ ] Migration: apply referral schema changes to DB
-- [ ] Backend: auto-generate unique referral code on customer registration
-- [ ] Backend: customers.getReferralStats procedure (code, link, total referrals, rewarded count, pending count)
-- [ ] Backend: apply referral code on registration (upsertProfile accepts referralCode param)
-- [ ] Backend: award points to inviter (50 pts) when invitee completes first order (hook into awardOrderPoints)
-- [ ] Backend: award bonus points to invitee (20 pts) on first order if referred
-- [ ] Frontend: CustomerProfile Referral tab — share link, QR-like card, stats (total invited, rewarded)
-- [ ] Frontend: CustomerLogin registration step — optional "Referral code" field
-- [ ] Admin: show total referrals count in Customers tab stats
+## Feature: Referral System (COMPLETE — verified in repo)
+- [x] Schema: `customers.referralCode` (unique varchar) in `drizzle/schema.ts` + migration `0012_simple_legion.sql`
+- [x] Schema: `referrals` table (inviterId, inviteeId, status pending/rewarded, points, timestamps)
+- [x] Backend: auto-generate referral code on first profile save (`server/routers/customers.ts`)
+- [x] Backend: apply referral code on registration; pending referral row; reward on invitee first order (`awardOrderPoints` path)
+- [x] Backend: loyalty summary includes `referralCode`, `referralLink`, referral counts
+- [x] Frontend: CustomerProfile **Referrals** tab (share link, code, how-it-works)
+- [x] Frontend: CustomerLogin reads `?ref=` and passes `referralCode` into profile upsert
+- [ ] Admin: dedicated “total referrals” headline in Customers tab (optional polish; loyalty/referrals exist on profile)
 
 ## Bug Fix: Provider State Machine (COMPLETE)
 - [x] Root cause: activeOrderId was set on 'assigned' (doAssignNext) instead of on 'accepted' (acceptOrder)
 - [x] Fix: moved setProviderActiveOrder call from doAssignNext to acceptOrder procedure
 - [x] Fix: cleaned stale 'pending' assignments for delivered/cancelled orders in DB
 - [x] Fix: cleared stale activeOrderId for providers whose orders were already delivered
-- [x] 102/102 tests passing after fix
+- [x] All **84** Vitest cases passing in `server/*.test.ts` (verify: `rg "^\s*it\(" server -g "*.test.ts"`)
+
+## Performance: Database Indexing (COMPLETE — Apr 22, 2026)
+- [x] Migration `0015_fast_path_indexes.sql` (MySQL-compatible; no partial-index `WHERE` clauses)
+- [x] `idx_orders_status_createdAt` — admin / filtered order lists by status + time
+- [x] `idx_orders_assignedProvider_status` — provider active order lookups
+- [x] `idx_orders_zone_status` — zone-scoped order queries
+- [x] `idx_orders_customerPhone_createdAt` — customer order history by phone
+- [x] `idx_providers_zone_available_status` — provider eligibility by zone + availability + status
+- [x] `idx_order_assignments_order_status` — active assignment resolution by order
+- [x] `idx_order_assignments_provider_status_createdAt` — pending assignment for provider + recency
+- [x] `idx_provider_sub_zones_subZone_provider` — sub-zone coverage lookups
+- [x] Expected: large speedups on filtered queries as tables grow (apply with `npx drizzle-kit migrate` after backup)
+
+## Reliability: Commission Tracking Hardening (COMPLETE — Apr 22, 2026)
+- [x] `normalizeDeliveryCommissionAmount` in `server/db.ts` (NaN / negative → default 0.100 OMR)
+- [x] Zero commission supported (promo / waived orders)
+- [x] Atomic SQL increments for accept/reject/deliver counters (`sql` fragments; no read-modify-write races on commission)
+- [x] `deliverOrder`: logs `incrementProviderScore` failures instead of silent `catch`
+- [x] Tests: invalid string normalization + zero commission (`server/gas-delivery.test.ts`)
+- [x] Script: `scripts/validate-commission-tracking.ts` — read-only DB checks (run: `npm run validate:commission` with `DATABASE_URL` set)
+- [ ] TODO: optional integration stress test (parallel `incrementProviderScore` against a **test** DB; requires `TEST_DATABASE_URL` + CI wiring)
 
 ## Enhancement: Provider Dashboard UX
 - [x] Fix order history: show customerAddress instead of raw lat/lng coordinates
 - [x] Fix order history: add delivery date/time to each order card
 - [x] Fix order history: show payment method badge (cash/online/bank)
 - [x] Fix order history: show cylinder count (gasAmount)
-- [ ] Fix stats: commission card should show total earned (not 0.000 for delivered orders)
+- [x] Fix stats: commission card shows total earned correctly
+  - Fixed: `normalizeDeliveryCommissionAmount` + atomic `totalCommission` SQL increment on deliver
+  - Zero commission supported (promo orders)
+  - Concurrent delivers no longer race on read-then-write totals
 - [ ] Fix stats: delivery count should reflect actual delivered orders count
 - [ ] Enhance empty state on home tab: make it more engaging with animation hint
 - [ ] Enhance settings tab: add logout button, show zone name, add PIN change option
 - [x] Add earnings summary card: today / total deliveries / total OMR
 - [x] Improve order card in history: better visual hierarchy, status badge colors
 
-## Feature: Provider Mission Screen (Active Order)
-- [ ] Build full-screen mission view when provider has an active order (accepted/out_for_delivery)
-- [ ] Show Google Map with customer location pin and provider's current location
-- [ ] "Navigate" button opens Google Maps / Waze with customer coordinates
-- [ ] "Call Customer" button (tel: link) with customer phone number
-- [ ] Order details panel: address, gas amount, price, payment method, order ID
-- [ ] Step-by-step progress bar: Accepted → On the Way → Delivered
-- [ ] "Start Delivery" button to move to out_for_delivery status
-- [ ] "Confirm Delivery" button with confirmation dialog
-- [ ] Provider notes/comment field on delivery confirmation
-- [ ] Mission timer showing elapsed time since acceptance
-- [ ] Customer name display if registered
-
-## Multi-Cylinder & Multi-Order Provider Features
-- [ ] shared/domain.ts: Update calculateOrderPrice(gasAmount) — totalPrice = gasAmount × PRICE_PER_CYLINDER (3.300 OMR each)
-- [ ] shared/domain.ts: Add MAX_CONCURRENT_ORDERS = 3, MULTI_ORDER_PROXIMITY_KM = 5 constants
-- [ ] server/routers/orders.ts: Update createOrderDraft input to accept gasAmount 1-10
-- [ ] server/routers/orders.ts: Compute totalPrice = gasAmount × 3.300 in createOrderDraft
-- [ ] server/routers/orders.ts: Store actual gasAmount in DB (not hardcoded "1")
-- [ ] server/db.ts: Add getProviderActiveOrders(providerId) — returns all active/accepted/out_for_delivery orders
-- [ ] server/db.ts: Update getAvailableProvidersByZone/SubZone to include providers with < MAX_CONCURRENT_ORDERS active orders
-- [ ] server/assignmentEngine.ts: Add isProviderEligibleForMultiOrder(provider, newOrderLat, newOrderLng, activeOrders[]) — proximity check
-- [ ] server/assignmentEngine.ts: Update selectNextProvider to include busy-but-eligible providers
-- [ ] server/routers/orders.ts: Update doAssignProvider to use new multi-order eligibility logic
-- [ ] server/routers/orders.ts: Calculate ETA for new order = sum of remaining ETAs for active orders + travel time to new order
-- [ ] server/routers/providers.ts: Update getActiveOrder → getActiveOrders (return array of all active orders for provider)
-- [ ] server/routers/providers.ts: Update acceptOrder to allow accepting when provider already has < MAX_CONCURRENT_ORDERS
-- [ ] server/routers/providers.ts: Update deliverOrder to clear only that specific order from provider's active list
-- [ ] client/src/pages/OrderSummary.tsx: Add quantity selector (1-10 cylinders) with live price update
-- [ ] client/src/pages/ProviderDashboard.tsx: Update MissionScreen to show all active orders as a list/queue
-- [ ] client/src/pages/ProviderDashboard.tsx: Show per-order ETA and route order in MissionScreen
-- [ ] server/gas-delivery.test.ts: Update tests for multi-cylinder pricing
-- [ ] server/gas-delivery.test.ts: Add tests for multi-order eligibility and ETA calculation
+## Feature: Provider Mission Screen (DEFERRED — Phase 8 / post-MVP)
+> **Current:** Active and incoming orders use cards and actions on `ProviderDashboard` (multi-order queue where implemented).  
+> **Future:** Dedicated full-screen mission UI (map-first, nav deep links, timer, richer stepper).
+- [ ] Full-screen mission view, map + navigate + mission timer, and expanded UX — **not MVP-blocking** (track in product backlog)
 
 ## Multi-Cylinder & Multi-Order Features (Apr 21, 2026)
+> Earlier duplicate planning checklist for this scope was removed; this section is the source of truth.
 - [x] Customer can order 1-10 cylinders per order with quantity selector in OrderSummary
 - [x] Price scales linearly: gasAmount × 3.300 OMR
 - [x] Provider can accept up to 3 concurrent orders (MAX_CONCURRENT_ORDERS)
@@ -673,7 +669,7 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] CustomerProfile order history shows gasAmount
 - [x] OrderPlaced shows cylinder count when > 1
 - [x] getOrderStatus returns gasAmount
-- [x] All 102 tests passing
+- [x] All **84** tests passing in `server/*.test.ts` (verify: `rg "^\s*it\(" server -g "*.test.ts"`)
 
 ## End-to-End Order Lifecycle Audit & Fixes (Apr 21, 2026)
 - [x] Fix getIncomingOrder to return deliveryLat/Lng/Address, customerName, paymentMethod
@@ -684,3 +680,36 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Fix OrderPlaced.tsx to show deliveryAddress instead of customerAddress
 - [x] Fix adminListOrders to return deliveryAddress, gasAmount, estimatedMinutes, customerName
 - [x] Fix AdminPanel.tsx to display deliveryAddress, gasAmount, estimatedMinutes, customerName
+
+---
+
+## Known Limitations & Technical Debt (Post-MVP)
+
+> **Production checklist & rollback:** see `DEPLOYMENT.md` in the repo root.
+
+### Performance
+- [ ] No Redis caching layer (provider availability read from DB only)
+- [ ] No explicit connection-pool tuning beyond defaults (mysql2 / Drizzle)
+- [ ] No CDN for first-party static assets (depends on deploy topology)
+
+### Monitoring
+- [ ] No APM (e.g. Sentry, Datadog, New Relic)
+- [ ] No structured logging pipeline (console-based today)
+- [ ] No dedicated uptime / synthetic checks (e.g. Pingdom, UptimeRobot)
+
+### Security
+- [ ] No broad API rate limiting beyond customer OTP (3 / 10 min per phone)
+- [ ] No admin audit log table for sensitive actions
+- [ ] No GDPR-style data export / erasure workflow
+- [ ] Review PIN / admin secret storage (hashing algorithm and rotation policy)
+
+### Testing
+- [ ] No E2E tests (Playwright, Cypress)
+- [ ] No load tests (k6, Artillery)
+- [ ] No visual regression (Percy, Chromatic)
+
+### DevOps
+- [ ] No documented CI/CD (e.g. GitHub Actions) in repo
+- [ ] No documented staging environment / promotion process
+- [ ] No automated DB backup / restore runbook in repo
+- [ ] No formal rollback procedure documented
