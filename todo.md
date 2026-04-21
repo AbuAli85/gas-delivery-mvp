@@ -361,3 +361,10 @@
 - [x] Provider UI: avg rating badge + recent reviews list in ProviderDashboard
 - [x] Admin UI: reviews tab in AdminPanel with summary card + all reviews list
 - [x] Update todo.md when complete
+
+## Bug Fix: ProviderRegister Input Focus Loss
+- [x] Root cause: Card and Field sub-components were defined INSIDE ProviderRegister, causing React to unmount/remount them on every state change (keystroke), losing input focus
+- [x] Fix: Move Card, Field, StepDot, and inputClass OUTSIDE the ProviderRegister function so they are stable across re-renders
+- [x] Also removed useKeyboardScrollFix hook that was calling scrollIntoView on every focusin event
+- [x] Added proper dir, autoComplete, inputMode, enterKeyHint, autoCorrect, autoCapitalize attributes to all inputs
+- [x] 99/99 tests pass, 0 TypeScript errors, Vite HMR updates cleanly with no parse errors

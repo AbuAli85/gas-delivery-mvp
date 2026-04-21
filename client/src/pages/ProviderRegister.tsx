@@ -6,6 +6,9 @@
  *   Step 2: Zone + vehicle info
  *   Step 3: Create PIN
  *   Step 4: Submitted → redirect to onboarding status page
+ *
+ * FIX: Card and Field are defined OUTSIDE the component so they are
+ * stable across re-renders and do NOT cause focus loss on every keystroke.
  */
 
 import { useState } from "react";
@@ -39,6 +42,10 @@ async function sha256(text: string): Promise<string> {
 // ── Step indicator ────────────────────────────────────────────────────────────
 const STEPS = ["المعلومات الشخصية", "المنطقة والمركبة", "الرمز السري", "تم الإرسال"];
 
+// ── Stable sub-components (OUTSIDE ProviderRegister) ─────────────────────────
+// These must be defined outside the parent component so React never unmounts
+// them on re-render, which would cause input focus loss after every keystroke.
+
 function StepDot({ idx, current }: { idx: number; current: number }) {
   const done = idx < current;
   const active = idx === current;
@@ -66,8 +73,45 @@ function StepDot({ idx, current }: { idx: number; current: number }) {
   );
 }
 
-// ── Component ─────────────────────────────────────────────────────
+function Card({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="rounded-2xl p-5 mb-4"
+      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+    >
+      {children}
+    </div>
+  );
+}
 
+function Field({
+  icon,
+  label,
+  htmlFor,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-4">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-orange-400">{icon}</span>
+        <label htmlFor={htmlFor} className="text-white/60 text-xs">
+          {label}
+        </label>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+const inputClass =
+  "bg-black/30 border-white/15 text-white placeholder:text-white/30 focus-visible:border-orange-400/50 focus-visible:ring-orange-400/20 h-11 rounded-xl text-sm px-4 py-2.5";
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function ProviderRegister() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState(0);
@@ -81,7 +125,6 @@ export default function ProviderRegister() {
   const [zoneId, setZoneId] = useState<number | null>(null);
   const [vehicleType, setVehicleType] = useState("");
   const [vehiclePlate, setVehiclePlate] = useState("");
-
 
   // Step 3 fields
   const [pin, setPin] = useState("");
@@ -107,8 +150,7 @@ export default function ProviderRegister() {
   // ── Validation per step ────────────────────────────────────────────────────
   const canProceedStep0 = name.trim().length >= 2 && phone.trim().length >= 8;
   const canProceedStep1 = zoneId !== null;
-  const canProceedStep2 =
-    pin.length >= 4 && pin === pinConfirm;
+  const canProceedStep2 = pin.length >= 4 && pin === pinConfirm;
 
   const handleNext = () => setStep((s) => s + 1);
   const handleBack = () => setStep((s) => s - 1);
@@ -124,51 +166,14 @@ export default function ProviderRegister() {
       pinHash,
       vehicleType: vehicleType.trim() || undefined,
       vehiclePlate: vehiclePlate.trim() || undefined,
-
     });
   };
 
   const goToStatus = () => {
-    // Store phone + pin for the status page
     sessionStorage.setItem("providerRegPhone", phone.trim());
     sessionStorage.setItem("providerRegPin", pin);
     navigate(`/provider/onboarding/${providerId}`);
   };
-
-  // ── Shared card wrapper ────────────────────────────────────────────────────
-  const Card = ({ children }: { children: React.ReactNode }) => (
-    <div
-      className="rounded-2xl p-5 mb-4"
-      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
-    >
-      {children}
-    </div>
-  );
-
-  const Field = ({
-    icon,
-    label,
-    htmlFor,
-    children,
-  }: {
-    icon: React.ReactNode;
-    label: string;
-    htmlFor?: string;
-    children: React.ReactNode;
-  }) => (
-    <div className="mb-4">
-      <div className="flex items-center gap-2 mb-1.5">
-        <span className="text-orange-400">{icon}</span>
-        <label htmlFor={htmlFor} className="text-white/60 text-xs">
-          {label}
-        </label>
-      </div>
-      {children}
-    </div>
-  );
-
-  const inputClass =
-    "bg-black/30 border-white/15 text-white placeholder:text-white/30 focus-visible:border-orange-400/50 focus-visible:ring-orange-400/20 h-11 rounded-xl text-sm px-4 py-2.5";
 
   return (
     <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)", overflowY: "auto" }} dir="rtl">
@@ -253,7 +258,8 @@ export default function ProviderRegister() {
                   autoComplete="email"
                   enterKeyHint="done"
                   spellCheck={false}
-                  className={`${inputClass} [unicode-bidi:plaintext] text-left`}
+                  autoCorrect="off"
+                  className={`${inputClass} text-left`}
                 />
               </Field>
             </Card>
@@ -309,6 +315,8 @@ export default function ProviderRegister() {
                   value={vehicleType}
                   onChange={(e) => setVehicleType(e.target.value)}
                   placeholder="مثال: تويوتا هايلوكس"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className={inputClass}
                 />
               </Field>
@@ -317,10 +325,11 @@ export default function ProviderRegister() {
                   value={vehiclePlate}
                   onChange={(e) => setVehiclePlate(e.target.value)}
                   placeholder="مثال: ع أ ب 1234"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className={inputClass}
                 />
               </Field>
-
             </Card>
             <Button
               size="lg"
@@ -349,6 +358,7 @@ export default function ProviderRegister() {
                   placeholder="أدخل 4-8 أرقام"
                   type="password"
                   inputMode="numeric"
+                  autoComplete="new-password"
                   className={inputClass}
                 />
               </Field>
@@ -359,6 +369,7 @@ export default function ProviderRegister() {
                   placeholder="أعد إدخال الرمز"
                   type="password"
                   inputMode="numeric"
+                  autoComplete="new-password"
                   className={inputClass}
                 />
               </Field>
