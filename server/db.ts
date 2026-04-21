@@ -324,6 +324,7 @@ export async function getPendingAssignmentForProvider(
         eq(orderAssignments.status, "pending")
       )
     )
+    .orderBy(desc(orderAssignments.createdAt))
     .limit(1);
   return result[0] ?? undefined;
 }

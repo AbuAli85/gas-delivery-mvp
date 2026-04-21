@@ -93,8 +93,7 @@ async function doAssignProvider(orderId: number): Promise<void> {
     providerId: provider.id,
     attemptNumber,
   });
-  // NOTE: setProviderActiveOrder is kept for backward compat but multi-order uses getProviderActiveOrders
-  await setProviderActiveOrder(provider.id, orderId);
+  // NOTE: activeOrderId is set in acceptOrder (not here) to avoid premature locking
   // Anti-cheat: record assignedAt timestamp + update ETA
   await updateOrder(orderId, {
     status: "assigned",

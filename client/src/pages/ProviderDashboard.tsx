@@ -49,17 +49,25 @@ function StatCard({ icon, value, label, accent }: {
   );
 }
 
+const ACCEPT_WINDOW_SEC = 5 * 60; // 5 minutes — matches server-side expiry
+
 function IncomingOrderCard({
   incoming, onAccept, onReject, accepting, rejecting,
 }: {
-  incoming: { orderId: number; assignmentId: number; customerPhone: string | null; customerAddress: string | null; gasAmount: string; totalPrice: string };
+  incoming: { orderId: number; assignmentId: number; customerPhone: string | null; customerAddress: string | null; deliveryAddress?: string | null; customerName?: string | null; gasAmount: string; totalPrice: string; assignmentCreatedAt?: Date | string | null };
   onAccept: () => void; onReject: () => void; accepting: boolean; rejecting: boolean;
 }) {
-  const [countdown, setCountdown] = useState(30);
+  const calcRemaining = () => {
+    if (!incoming.assignmentCreatedAt) return ACCEPT_WINDOW_SEC;
+    const elapsed = Math.floor((Date.now() - new Date(incoming.assignmentCreatedAt).getTime()) / 1000);
+    return Math.max(0, ACCEPT_WINDOW_SEC - elapsed);
+  };
+  const [countdown, setCountdown] = useState(calcRemaining);
   useEffect(() => {
-    const t = setInterval(() => setCountdown((c) => Math.max(0, c - 1)), 1000);
+    const t = setInterval(() => setCountdown(calcRemaining()), 1000);
     return () => clearInterval(t);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming.assignmentCreatedAt]);
 
   return (
     <div
@@ -77,7 +85,7 @@ function IncomingOrderCard({
         </div>
         <div className="flex items-center gap-1">
           <Clock className="w-3.5 h-3.5 text-white/80" />
-          <span className="text-white font-bold text-sm">{countdown}ث</span>
+          <span className="text-white font-bold text-sm" dir="ltr">{Math.floor(countdown/60)}:{String(countdown%60).padStart(2,'0')}</span>
         </div>
       </div>
       <div className="p-4 space-y-3">
@@ -88,8 +96,14 @@ function IncomingOrderCard({
           </div>
           <div className="flex items-start gap-2">
             <MapPin className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
-            <span className="text-white/80 text-sm leading-snug">{incoming.customerAddress}</span>
+            <span className="text-white/80 text-sm leading-snug">{incoming.deliveryAddress || incoming.customerAddress}</span>
           </div>
+          {incoming.customerName && (
+            <div className="flex items-center gap-2">
+              <span className="text-white/40 text-xs">العميل:</span>
+              <span className="text-white/70 text-sm font-medium">{incoming.customerName}</span>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <Package className="w-4 h-4 text-white/40 shrink-0" />
             <span className="text-white/80 text-sm">
@@ -102,7 +116,7 @@ function IncomingOrderCard({
         <div className="h-1 rounded-full bg-white/10 overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-1000"
-            style={{ width: `${(countdown / 30) * 100}%`, background: "oklch(0.62 0.22 27)" }}
+            style={{ width: `${(countdown / ACCEPT_WINDOW_SEC) * 100}%`, background: countdown < 60 ? "oklch(0.55 0.22 0)" : "oklch(0.62 0.22 27)" }}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -499,7 +513,7 @@ export default function ProviderDashboard() {
   );
   const { data: incoming } = trpc.providers.getIncomingOrder.useQuery(
     { providerId: id },
-    { enabled: !!id && provider?.isAvailable === true, refetchInterval: (q) => (q.state.data ? false : 5_000) }
+    { enabled: !!id && provider?.isAvailable === true, refetchInterval: 5_000 }
   );
   const { data: activeOrders } = trpc.providers.getActiveOrders.useQuery(
     { providerId: id }, { enabled: !!id, refetchInterval: 8_000 }

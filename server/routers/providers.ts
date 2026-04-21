@@ -76,11 +76,17 @@ async function doAssignNext(orderId: number): Promise<void> {
   const allAssignments = await getAssignmentsByOrder(orderId);
   const attemptNumber = allAssignments.length + 1;
 
+  // Recalculate ETA for the newly assigned provider
+  const nextActiveOrders = activeOrdersByProvider.get(next.id) ?? [];
+  const gasAmt = parseFloat(String(order.gasAmount ?? "1"));
+  const newEta = calculateMultiOrderETA(nextActiveOrders.length, gasAmt);
+
   await createAssignment({ orderId, providerId: next.id, attemptNumber });
   // NOTE: activeOrderId is set when provider ACCEPTS (not when assigned)
   await updateOrder(orderId, {
     status: "assigned",
     assignedProviderId: next.id,
+    estimatedMinutes: newEta,
   });
 
   // Send Web Push notification to the assigned provider
@@ -203,6 +209,8 @@ export const providersRouter = router({
         paymentMethod: order.paymentMethod,
         estimatedMinutes: order.estimatedMinutes,
         createdAt: order.createdAt,
+        // Used by frontend to show real countdown (assignment was created at this time)
+        assignmentCreatedAt: assignment.createdAt,
       };
     }),
 

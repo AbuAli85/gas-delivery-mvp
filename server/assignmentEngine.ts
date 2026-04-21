@@ -145,6 +145,35 @@ export function selectNextProvider(
     }
   }
 
+  /**
+   * Rank providers by composite score for fair distribution:
+   *   1. Fewer active orders (free before busy)
+   *   2. Higher acceptance rate (acceptedOrders / (accepted + rejected))
+   *   3. Fewer total delivered orders (distribute to less-busy providers first)
+   */
+  const rankProvider = (p: Provider, activeCount: number): number => {
+    const accepted = p.acceptedOrders ?? 0;
+    const rejected = p.rejectedOrders ?? 0;
+    const total = accepted + rejected;
+    const acceptRate = total === 0 ? 1.0 : accepted / total;
+    // Lower active count = better; higher acceptRate = better; fewer total orders = better (tie-break)
+    return -activeCount * 100 + acceptRate * 10 - (p.totalOrders ?? 0) * 0.001;
+  };
+
+  freeProviders.sort((a, b) => {
+    const sa = rankProvider(a, 0);
+    const sb = rankProvider(b, 0);
+    return sb - sa;
+  });
+
+  busyEligibleProviders.sort((a, b) => {
+    const aActive = (activeOrdersByProvider?.get(a.id) ?? []).length;
+    const bActive = (activeOrdersByProvider?.get(b.id) ?? []).length;
+    const sa = rankProvider(a, aActive);
+    const sb = rankProvider(b, bActive);
+    return sb - sa;
+  });
+
   // Prefer free providers first, then busy-but-eligible
   const ordered = [...freeProviders, ...busyEligibleProviders];
   return ordered[0] ?? null;
