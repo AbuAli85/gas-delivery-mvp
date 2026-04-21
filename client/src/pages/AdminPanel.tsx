@@ -98,7 +98,7 @@ export default function AdminPanel() {
       <div className="mobile-screen bg-gray-50 items-center justify-center px-6">
         <div className="flex flex-col items-center mb-8">
           <img
-            src="/manus-storage/logo-orange-on-black_735a348b.png"
+            src="/manus-storage/logo-orange-on-black_bcf6e388.png"
             alt="OWASEEL"
             className="h-20 w-auto object-contain mb-4"
           />
@@ -153,7 +153,7 @@ export default function AdminPanel() {
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-3">
             <img
-              src="/manus-storage/logo-white-nobg_67830600.png"
+              src="/manus-storage/logo-white-nobg_0df14254.png"
               alt="OWASEEL"
               className="h-8 w-auto object-contain"
             />

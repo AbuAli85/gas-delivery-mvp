@@ -208,7 +208,7 @@ export default function CustomerLogin() {
       {/* ── Logo ── */}
       <div className="flex flex-col items-center mb-8">
         <img
-          src="/manus-storage/logo-orange-on-black_735a348b.png"
+          src="/manus-storage/logo-orange-on-black_bcf6e388.png"
           alt="OWASEEL"
           className="h-20 w-auto object-contain mb-3 rounded-2xl"
         />

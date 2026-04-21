@@ -102,7 +102,7 @@ export default function Home() {
         {/* Brand mark + language switcher row */}
         <div className="flex items-center gap-2 mb-8 w-full max-w-sm">
           <img
-            src="/manus-storage/logo-white-nobg_67830600.png"
+            src="/manus-storage/logo-white-nobg_0df14254.png"
             alt="OWASEEL"
             className="h-10 w-auto object-contain"
           />

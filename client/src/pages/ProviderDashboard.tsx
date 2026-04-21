@@ -360,7 +360,7 @@ export default function ProviderDashboard() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <img
-              src="/manus-storage/logo-white-nobg_67830600.png"
+              src="/manus-storage/logo-white-nobg_0df14254.png"
               alt="OWASEEL"
               className="h-8 w-auto object-contain shrink-0"
             />
