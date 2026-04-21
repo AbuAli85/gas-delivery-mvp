@@ -149,8 +149,18 @@ export default function Home() {
           </a>
         </div>
 
+        {/* ── About link ── */}
+        <div className="mt-3 flex justify-center">
+          <a
+            href="/about"
+            className="text-xs text-white/40 hover:text-white/70 transition-colors underline underline-offset-2"
+          >
+            من نحن | OWASEEL
+          </a>
+        </div>
+
         {/* ── Provider portal ── */}
-        <div className="mt-3 flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
+        <div className="mt-2 flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
           <p className="text-xs text-white/40">بوابة المزودين</p>
           <div className="flex gap-2 flex-wrap">
             <a

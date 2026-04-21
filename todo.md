@@ -472,3 +472,9 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 
 ## Fix: Arabic Brand Name Correction
 - [x] Replace "أًوصّل" with "أًوصّل" in all source files (Home.tsx, ProviderLogin.tsx, ProviderRegister.tsx, ProviderDashboard.tsx, AdminPanel.tsx, index.html, brand-guidelines.md, todo.md)
+
+## صفحة "من نحن" — About Us Page
+- [x] Create AboutUs.tsx page with dark theme matching brand
+- [x] Sections: hero, story, vision, mission, values (4 cards), stats, team, CTA
+- [x] Register /about route in App.tsx
+- [x] Add "من نحن" link in Home.tsx footer

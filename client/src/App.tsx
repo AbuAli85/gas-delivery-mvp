@@ -31,6 +31,9 @@ import AdminProviders from "./pages/AdminProviders";
 // Review
 import RatingScreen from "./pages/RatingScreen";
 
+// About
+import AboutUs from "./pages/AboutUs";
+
 function Router() {
   return (
     <Switch>
@@ -38,6 +41,8 @@ function Router() {
       <Route path="/" component={Home} />
       {/* /gas — shareable WhatsApp entry point */}
       <Route path="/gas" component={Home} />
+      {/* About page */}
+      <Route path="/about" component={AboutUs} />
       <Route path="/order/location" component={LocationPicker} />
       <Route path="/order/summary" component={OrderSummary} />
       <Route path="/order/payment" component={Payment} />
