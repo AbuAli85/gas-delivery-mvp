@@ -4,7 +4,7 @@ import { ChevronRight, ChevronLeft, MapPin, Clock, Phone, CheckCircle2, Circle, 
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { MapView } from "@/components/Map";
+// MapView removed - using static map to avoid Google Maps API key popup
 import { ORDER_STATUS_LABELS, ORDER_STATUS_STEPS, type OrderStatus } from "../../../shared/domain";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -27,9 +27,6 @@ export default function OrderTracking() {
   });
 
   const [showMap, setShowMap] = useState(false);
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const providerMarkerRef = useRef<google.maps.Marker | null>(null);
-  const customerMarkerRef = useRef<google.maps.Marker | null>(null);
 
   const { data: order, isLoading } = trpc.orders.getOrderStatus.useQuery(
     { orderId: id },
@@ -52,29 +49,7 @@ export default function OrderTracking() {
     }
   );
 
-  // Update provider marker on map when location changes
-  useEffect(() => {
-    if (!mapRef.current || !providerLoc) return;
-    const pos = { lat: providerLoc.lat, lng: providerLoc.lng };
-    if (providerMarkerRef.current) {
-      providerMarkerRef.current.setPosition(pos);
-    } else {
-      providerMarkerRef.current = new google.maps.Marker({
-        position: pos,
-        map: mapRef.current,
-        title: "موقع المزود",
-        icon: {
-          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-          scale: 6,
-          fillColor: "#f97316",
-          fillOpacity: 1,
-          strokeColor: "#fff",
-          strokeWeight: 2,
-        },
-      });
-    }
-    mapRef.current.panTo(pos);
-  }, [providerLoc]);
+  // Static map auto-refreshes via React re-render when providerLoc changes
 
   const ChevronBack = dir === "rtl" ? ChevronRight : ChevronLeft;
 
@@ -219,47 +194,33 @@ export default function OrderTracking() {
               <span className="text-xs text-gray-400">{showMap ? (dir === "rtl" ? "إخفاء" : "Hide") : (dir === "rtl" ? "عرض" : "Show")}</span>
             </button>
             {showMap && (
-              <div className="h-56">
-                <MapView
-                  className="w-full h-full"
-                  initialCenter={providerLoc ?? { lat: 23.5859, lng: 58.4059 }}
-                  initialZoom={14}
-                  onMapReady={(map) => {
-                    mapRef.current = map;
-                    // Add customer marker if we have their location
-                    if (order.customerLat && order.customerLng) {
-                      customerMarkerRef.current = new google.maps.Marker({
-                        position: { lat: Number(order.customerLat), lng: Number(order.customerLng) },
-                        map,
-                        title: "موقع التسليم",
-                        icon: {
-                          path: google.maps.SymbolPath.CIRCLE,
-                          scale: 8,
-                          fillColor: "#3b82f6",
-                          fillOpacity: 1,
-                          strokeColor: "#fff",
-                          strokeWeight: 2,
-                        },
-                      });
-                    }
-                    // Add provider marker if location available
-                    if (providerLoc) {
-                      providerMarkerRef.current = new google.maps.Marker({
-                        position: { lat: providerLoc.lat, lng: providerLoc.lng },
-                        map,
-                        title: "موقع المزود",
-                        icon: {
-                          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                          scale: 6,
-                          fillColor: "#f97316",
-                          fillOpacity: 1,
-                          strokeColor: "#fff",
-                          strokeWeight: 2,
-                        },
-                      });
-                    }
-                  }}
-                />
+              <div className="h-56 relative overflow-hidden rounded-2xl">
+                {(() => {
+                  const cLat = order.customerLat ? Number(order.customerLat) : 23.5859;
+                  const cLng = order.customerLng ? Number(order.customerLng) : 58.4059;
+                  const pLat = providerLoc?.lat ?? cLat;
+                  const pLng = providerLoc?.lng ?? cLng;
+                  const centerLat = providerLoc ? (cLat + pLat) / 2 : cLat;
+                  const centerLng = providerLoc ? (cLng + pLng) / 2 : cLng;
+                  const markers = [
+                    `color:blue%7Clabel:D%7C${cLat},${cLng}`,
+                    ...(providerLoc ? [`color:orange%7Clabel:P%7C${pLat},${pLng}`] : []),
+                  ].join("&markers=");
+                  return (
+                    <img
+                      src={`/api/maps/maps/api/staticmap?center=${centerLat},${centerLng}&zoom=14&size=600x280&scale=2&maptype=roadmap&markers=${markers}`}
+                      alt="خريطة التوصيل"
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  );
+                })()}
+                {providerLoc && (
+                  <div className="absolute top-2 left-2 bg-white/90 rounded-full px-2 py-0.5 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                    <span className="text-xs font-medium text-gray-700">{dir === "rtl" ? "مباشر" : "Live"}</span>
+                  </div>
+                )}
               </div>
             )}
             {!providerLoc && showMap && (
