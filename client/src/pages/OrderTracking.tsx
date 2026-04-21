@@ -196,8 +196,9 @@ export default function OrderTracking() {
             {showMap && (
               <div className="h-56 relative overflow-hidden rounded-2xl">
                 {(() => {
-                  const cLat = order.customerLat ? Number(order.customerLat) : 23.5859;
-                  const cLng = order.customerLng ? Number(order.customerLng) : 58.4059;
+                  // Use delivery location (where gas is delivered), fall back to customer location
+                  const cLat = order.deliveryLat ? Number(order.deliveryLat) : (order.customerLat ? Number(order.customerLat) : 23.5859);
+                  const cLng = order.deliveryLng ? Number(order.deliveryLng) : (order.customerLng ? Number(order.customerLng) : 58.4059);
                   const pLat = providerLoc?.lat ?? cLat;
                   const pLng = providerLoc?.lng ?? cLng;
                   const centerLat = providerLoc ? (cLat + pLat) / 2 : cLat;
@@ -233,12 +234,12 @@ export default function OrderTracking() {
 
         {/* Delivery Details */}
         <div className="bg-white rounded-3xl shadow-sm p-5 space-y-3">
-          {order.customerAddress && (
+          {(order.deliveryAddress || order.customerAddress) && (
             <div className="flex items-start gap-3">
               <MapPin className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs text-gray-400">{t("summary.location")}</p>
-                <p className="text-sm font-medium text-gray-800">{order.customerAddress}</p>
+                <p className="text-sm font-medium text-gray-800">{order.deliveryAddress || order.customerAddress}</p>
               </div>
             </div>
           )}

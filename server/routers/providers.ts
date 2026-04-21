@@ -187,13 +187,20 @@ export const providersRouter = router({
         status: order.status,
         assignmentStatus: assignment.status,
         attemptNumber: assignment.attemptNumber,
+        // Ordering location (where customer placed the order)
         customerLat: order.customerLat,
         customerLng: order.customerLng,
         customerAddress: order.customerAddress,
         customerPhone: order.customerPhone,
+        customerName: order.customerName,
+        // Delivery location (where gas must be delivered — may differ from ordering location)
+        deliveryLat: order.deliveryLat ?? order.customerLat,
+        deliveryLng: order.deliveryLng ?? order.customerLng,
+        deliveryAddress: order.deliveryAddress ?? order.customerAddress,
         gasAmount: order.gasAmount,
         totalPrice: order.totalPrice,
         currency: order.currency,
+        paymentMethod: order.paymentMethod,
         estimatedMinutes: order.estimatedMinutes,
         createdAt: order.createdAt,
       };
@@ -360,8 +367,12 @@ export const providersRouter = router({
       // Increment rejection score
       try { await incrementProviderScore(input.providerId, "rejected"); } catch (_) {}
 
-      // Free the provider
-      await setProviderActiveOrder(input.providerId, null);
+      // Only clear activeOrderId if this provider had actually accepted this order
+      // (setProviderActiveOrder is only set on acceptOrder, not on assignment)
+      const provider = await getProviderById(input.providerId);
+      if (provider?.activeOrderId === order.id) {
+        await setProviderActiveOrder(input.providerId, null);
+      }
 
       // Add to rejected list
       const currentRejected: number[] = Array.isArray(order.rejectedProviderIds)
@@ -423,10 +434,10 @@ export const providersRouter = router({
       // Free the provider
       await setProviderActiveOrder(input.providerId, null);
 
-      // Mark assignment complete
+      // Mark assignment as completed
       const assignment = await getActiveAssignment(order.id);
       if (assignment) {
-        await updateAssignment(assignment.id, { respondedAt: new Date() });
+        await updateAssignment(assignment.id, { status: "completed", respondedAt: new Date() });
       }
 
       // Increment delivered score + commission

@@ -106,10 +106,10 @@ export default function OrderPlaced() {
                 <span>{t("placed.eta")}: <strong>{order.estimatedMinutes} {t("summary.minutes")}</strong></span>
               </div>
             )}
-            {order?.customerAddress && (
+            {(order?.deliveryAddress || order?.customerAddress) && (
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <MapPin className="w-4 h-4 text-gray-400" />
-                <span className="truncate">{order.customerAddress}</span>
+                <span className="truncate">{order.deliveryAddress || order.customerAddress}</span>
               </div>
             )}
             {order?.gasAmount && parseFloat(String(order.gasAmount)) > 1 && (

@@ -1,0 +1,1 @@
+ALTER TABLE `order_assignments` MODIFY COLUMN `status` enum('pending','accepted','rejected','expired','completed') NOT NULL DEFAULT 'pending';

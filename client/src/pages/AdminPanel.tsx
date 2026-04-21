@@ -538,7 +538,7 @@ export default function AdminPanel() {
                             </span>
                           </div>
                           <p className="text-xs text-gray-400 truncate">
-                            {order.customerAddress ?? "لا يوجد عنوان"}
+                            {order.deliveryAddress || order.customerAddress || "لا يوجد عنوان"}
                           </p>
                         </div>
                         <div className="text-left shrink-0">
@@ -572,10 +572,28 @@ export default function AdminPanel() {
                                 {order.customerPhone}
                               </div>
                             )}
-                            {order.customerAddress && (
+                            {(order.deliveryAddress || order.customerAddress) && (
                               <div className="flex items-center gap-1.5 col-span-2">
                                 <MapPin className="w-3 h-3" />
-                                {order.customerAddress}
+                                {order.deliveryAddress || order.customerAddress}
+                              </div>
+                            )}
+                            {order.customerName && (
+                              <div className="flex items-center gap-1.5 col-span-2">
+                                <Users className="w-3 h-3" />
+                                {order.customerName}
+                              </div>
+                            )}
+                            {order.gasAmount && (
+                              <div className="flex items-center gap-1.5">
+                                <Package className="w-3 h-3" />
+                                {order.gasAmount} أسطوانة
+                              </div>
+                            )}
+                            {order.estimatedMinutes && (
+                              <div className="flex items-center gap-1.5">
+                                <Clock className="w-3 h-3" />
+                                {order.estimatedMinutes} دقيقة
                               </div>
                             )}
                             <div className="flex items-center gap-1.5">

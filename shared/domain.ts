@@ -19,7 +19,7 @@ export type PaymentStatus = "pending" | "confirmed" | "failed" | "refunded";
 export type PaymentMethod = "cash" | "online" | "bank_transfer";
 export type ProviderCommissionStatus = "unpaid" | "pending_settlement" | "settled";
 
-export type AssignmentStatus = "pending" | "accepted" | "rejected" | "expired";
+export type AssignmentStatus = "pending" | "accepted" | "rejected" | "expired" | "completed";
 
 // ─── Transition tables ────────────────────────────────────────────────────────
 
@@ -41,10 +41,11 @@ const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
  * Valid (from → to) transitions for order_assignments.
  */
 const ASSIGNMENT_TRANSITIONS: Record<AssignmentStatus, AssignmentStatus[]> = {
-  pending:  ["accepted", "rejected", "expired"],
-  accepted: [],
-  rejected: [],
-  expired:  [],
+  pending:   ["accepted", "rejected", "expired"],
+  accepted:  ["completed"],
+  rejected:  [],
+  expired:   [],
+  completed: [],
 };
 
 // ─── Transition guards ────────────────────────────────────────────────────────

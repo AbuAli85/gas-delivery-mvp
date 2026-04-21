@@ -674,3 +674,13 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] OrderPlaced shows cylinder count when > 1
 - [x] getOrderStatus returns gasAmount
 - [x] All 102 tests passing
+
+## End-to-End Order Lifecycle Audit & Fixes (Apr 21, 2026)
+- [x] Fix getIncomingOrder to return deliveryLat/Lng/Address, customerName, paymentMethod
+- [x] Fix deliverOrder to mark assignment status as 'completed' (not just set respondedAt)
+- [x] Add 'completed' to AssignmentStatus enum in schema.ts and domain.ts, apply migration
+- [x] Fix rejectOrder: only clear activeOrderId if provider had actually accepted this order
+- [x] Fix OrderTracking.tsx to use deliveryLat/Lng and deliveryAddress for map and details
+- [x] Fix OrderPlaced.tsx to show deliveryAddress instead of customerAddress
+- [x] Fix adminListOrders to return deliveryAddress, gasAmount, estimatedMinutes, customerName
+- [x] Fix AdminPanel.tsx to display deliveryAddress, gasAmount, estimatedMinutes, customerName

@@ -162,8 +162,8 @@ export const orderAssignments = mysqlTable("order_assignments", {
   id: int("id").autoincrement().primaryKey(),
   orderId: int("orderId").notNull(),
   providerId: int("providerId").notNull(),
-  // pending → accepted | rejected | expired
-  status: mysqlEnum("status", ["pending", "accepted", "rejected", "expired"])
+  // pending → accepted | rejected | expired | completed
+  status: mysqlEnum("status", ["pending", "accepted", "rejected", "expired", "completed"])
     .default("pending")
     .notNull(),
   // Sequence number within this order (1 = first attempt, 2 = second, …)
