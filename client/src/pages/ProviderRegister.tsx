@@ -8,7 +8,7 @@
  *   Step 4: Submitted → redirect to onboarding status page
  */
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
@@ -66,28 +66,11 @@ function StepDot({ idx, current }: { idx: number; current: number }) {
   );
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
-// ── Scroll focused input into view when keyboard opens ──────────────────────
-function useKeyboardScrollFix() {
-  useEffect(() => {
-    const handleFocus = (e: FocusEvent) => {
-      const el = e.target as HTMLElement;
-      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
-        // Longer delay to let the keyboard fully open without interfering with typing
-        setTimeout(() => {
-          el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }, 500);
-      }
-    };
-    document.addEventListener("focusin", handleFocus, true);
-    return () => document.removeEventListener("focusin", handleFocus, true);
-  }, []);
-}
+// ── Component ─────────────────────────────────────────────────────
 
 export default function ProviderRegister() {
   const [, navigate] = useLocation();
   const [step, setStep] = useState(0);
-  useKeyboardScrollFix();
 
   // Step 1 fields
   const [name, setName] = useState("");
