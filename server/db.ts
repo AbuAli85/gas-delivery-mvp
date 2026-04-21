@@ -26,6 +26,11 @@ import {
   orderReviews,
   type OrderReview,
   type InsertOrderReview,
+  subZones,
+  providerSubZones,
+  type SubZone,
+  type InsertSubZone,
+  type ProviderSubZone,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -692,4 +697,148 @@ export async function getAllReviews(): Promise<OrderReview[]> {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(orderReviews).orderBy(desc(orderReviews.createdAt));
+}
+
+// ─── Sub-Zones ────────────────────────────────────────────────────────────────
+
+/** Return all active sub-zones, optionally filtered by parent zone. */
+export async function getAllSubZones(zoneId?: number): Promise<SubZone[]> {
+  const db = await getDb();
+  if (!db) return [];
+  if (zoneId !== undefined) {
+    return db
+      .select()
+      .from(subZones)
+      .where(and(eq(subZones.zoneId, zoneId), eq(subZones.isActive, true)));
+  }
+  return db.select().from(subZones).where(eq(subZones.isActive, true));
+}
+
+export async function getSubZoneById(id: number): Promise<SubZone | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(subZones).where(eq(subZones.id, id)).limit(1);
+  return result[0] ?? undefined;
+}
+
+/**
+ * Count available providers in a sub-zone.
+ * A provider is "in" a sub-zone if they have a row in provider_sub_zones.
+ * Available = isAvailable=true AND activeOrderId IS NULL AND providerStatus=approved.
+ */
+export async function countAvailableProvidersBySubZone(subZoneId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  // Get all provider IDs that cover this sub-zone
+  const coverage = await db
+    .select({ providerId: providerSubZones.providerId })
+    .from(providerSubZones)
+    .where(eq(providerSubZones.subZoneId, subZoneId));
+  if (coverage.length === 0) return 0;
+  const providerIds = coverage.map((r) => r.providerId);
+  const available = await db
+    .select({ id: providers.id })
+    .from(providers)
+    .where(
+      and(
+        inArray(providers.id, providerIds),
+        eq(providers.isAvailable, true),
+        isNull(providers.activeOrderId),
+        eq(providers.providerStatus, "approved")
+      )
+    );
+  return available.length;
+}
+
+/**
+ * Get available providers in a sub-zone (for assignment).
+ * Falls back to parent zone if no sub-zone providers are available.
+ */
+export async function getAvailableProvidersBySubZone(
+  subZoneId: number,
+  excludeProviderIds: number[] = []
+): Promise<Provider[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const coverage = await db
+    .select({ providerId: providerSubZones.providerId })
+    .from(providerSubZones)
+    .where(eq(providerSubZones.subZoneId, subZoneId));
+  if (coverage.length === 0) return [];
+  let providerIds = coverage.map((r) => r.providerId);
+  if (excludeProviderIds.length > 0) {
+    providerIds = providerIds.filter((id) => !excludeProviderIds.includes(id));
+  }
+  if (providerIds.length === 0) return [];
+  return db
+    .select()
+    .from(providers)
+    .where(
+      and(
+        inArray(providers.id, providerIds),
+        eq(providers.isAvailable, true),
+        isNull(providers.activeOrderId),
+        eq(providers.providerStatus, "approved")
+      )
+    );
+}
+
+/** Get sub-zones covered by a provider. */
+export async function getProviderSubZones(providerId: number): Promise<SubZone[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const links = await db
+    .select({ subZoneId: providerSubZones.subZoneId })
+    .from(providerSubZones)
+    .where(eq(providerSubZones.providerId, providerId));
+  if (links.length === 0) return [];
+  const ids = links.map((l) => l.subZoneId);
+  return db.select().from(subZones).where(inArray(subZones.id, ids));
+}
+
+/** Set (replace) the sub-zones for a provider. */
+export async function setProviderSubZones(
+  providerId: number,
+  subZoneIds: number[]
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  // Delete existing
+  await db.delete(providerSubZones).where(eq(providerSubZones.providerId, providerId));
+  // Insert new
+  if (subZoneIds.length > 0) {
+    await db.insert(providerSubZones).values(
+      subZoneIds.map((subZoneId) => ({ providerId, subZoneId }))
+    );
+  }
+}
+
+/**
+ * Get coverage stats for all sub-zones grouped by parent zone.
+ * Returns: { zoneId, zoneName, subZones: [{ id, name, providerCount }] }
+ */
+export async function getSubZoneCoverageStats(): Promise<
+  Array<{
+    zoneId: number;
+    zoneName: string;
+    subZones: Array<{ id: number; name: string; providerCount: number }>;
+  }>
+> {
+  const db = await getDb();
+  if (!db) return [];
+  const allZones = await getAllZones();
+  const allSubZones = await getAllSubZones();
+  const result = [];
+  for (const zone of allZones) {
+    const zoneSubZones = allSubZones.filter((sz) => sz.zoneId === zone.id);
+    const subZonesWithCount = await Promise.all(
+      zoneSubZones.map(async (sz) => ({
+        id: sz.id,
+        name: sz.name,
+        providerCount: await countAvailableProvidersBySubZone(sz.id),
+      }))
+    );
+    result.push({ zoneId: zone.id, zoneName: zone.name, subZones: subZonesWithCount });
+  }
+  return result;
 }

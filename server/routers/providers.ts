@@ -31,6 +31,8 @@ import {
   getWorkingHours,
   getAllProvidersWorkingHours,
   upsertWorkingHoursRow,
+  setProviderSubZones,
+  getProviderSubZones,
 } from "../db";
 import { sendPushNotification } from "../_core/webPush";
 import { selectNextProvider } from "../assignmentEngine";
@@ -419,6 +421,8 @@ export const providersRouter = router({
         phone: z.string().min(8).max(32),
         email: z.string().email().optional(),
         zoneId: z.number().int().positive(),
+        // Sub-zones the provider covers (optional — can be set later)
+        subZoneIds: z.array(z.number().int().positive()).optional(),
         pinHash: z.string().length(64), // SHA-256 hex
         vehicleType: z.string().max(64).optional(),
         vehiclePlate: z.string().max(32).optional(),
@@ -445,11 +449,18 @@ export const providersRouter = router({
         nationalId: input.nationalId,
         adminCreated: false,
       });
+      // Save sub-zone coverage if provided
+      if (input.subZoneIds && input.subZoneIds.length > 0) {
+        await setProviderSubZones(providerId, input.subZoneIds);
+      }
       // Notify owner of new registration
+      const subZoneNote = input.subZoneIds?.length
+        ? `\nالأحياء: ${input.subZoneIds.join(', ')}`
+        : '';
       try {
         await notifyOwner({
           title: `طلب انضمام جديد — ${input.name}`,
-          content: `مزود جديد يطلب الانضمام:\nالاسم: ${input.name}\nالهاتف: ${input.phone}\nالمنطقة: ${input.zoneId}\nالسيارة: ${input.vehicleType ?? 'غير محدد'}\nرقم اللوحة: ${input.vehiclePlate ?? 'غير محدد'}`,
+          content: `مزود جديد يطلب الانضمام:\nالاسم: ${input.name}\nالهاتف: ${input.phone}\nالمنطقة: ${input.zoneId}${subZoneNote}\nالسيارة: ${input.vehicleType ?? 'غير محدد'}\nرقم اللوحة: ${input.vehiclePlate ?? 'غير محدد'}`,
         });
       } catch (_) {}
       return { providerId, status: "pending_review" as const };

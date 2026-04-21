@@ -23,7 +23,10 @@ interface OrderDraft {
   currency: string;
   estimatedMinutes: number;
   zoneLabel: string;
+  subZoneLabel?: string | null;
+  subZoneProviderCount?: number | null;
   hasProviders: boolean;
+  hasSubZoneProviders?: boolean | null;
   address?: string;
   deliveryLat?: number;
   deliveryLng?: number;
@@ -51,7 +54,10 @@ export default function OrderSummary() {
         currency: data.currency,
         estimatedMinutes: data.estimatedMinutes,
         zoneLabel: data.zoneLabel,
+        subZoneLabel: data.subZoneLabel ?? null,
+        subZoneProviderCount: data.subZoneProviderCount ?? null,
         hasProviders: data.hasProviders,
+        hasSubZoneProviders: data.hasSubZoneProviders ?? null,
         address: loc?.address,
         deliveryLat: loc?.lat,
         deliveryLng: loc?.lng,
@@ -209,10 +215,19 @@ export default function OrderSummary() {
                 <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">عنوان التوصيل</p>
                 <p className="text-sm text-gray-800 leading-snug">{address}</p>
                 {inZone && (
-                  <span className="inline-flex items-center gap-1 mt-1.5 rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-semibold">
-                    <CheckCircle2 className="w-3 h-3" />
-                    {draft.zoneLabel} — ضمن نطاق التوصيل
-                  </span>
+                  <div className="flex flex-col gap-1 mt-1.5">
+                    {draft.subZoneLabel ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-semibold">
+                        <CheckCircle2 className="w-3 h-3" />
+                        {draft.subZoneLabel} — {draft.zoneLabel}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-semibold">
+                        <CheckCircle2 className="w-3 h-3" />
+                        {draft.zoneLabel} — ضمن نطاق التوصيل
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               <button
@@ -257,8 +272,22 @@ export default function OrderSummary() {
             </div>
           )}
 
-          {/* Limited availability warning */}
-          {inZone && !draft.hasProviders && (
+          {/* Sub-zone availability warning: specific neighborhood has no providers */}
+          {inZone && draft.subZoneLabel && draft.hasSubZoneProviders === false && (
+            <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-3 mb-4">
+              <AlertTriangle className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-orange-800">تغطية محدودة في {draft.subZoneLabel}</p>
+                <p className="text-xs text-orange-600 mt-0.5">
+                  لا يوجد مزودون متاحون حالياً في حي {draft.subZoneLabel}.
+                  سيُعالج طلبك عند توفر مزود في منطقتك.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Limited availability warning (parent zone level) */}
+          {inZone && !draft.subZoneLabel && !draft.hasProviders && (
             <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3 mb-4">
               <Clock className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
               <div>

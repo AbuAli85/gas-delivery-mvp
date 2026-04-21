@@ -26,6 +26,9 @@ import {
   CheckCircle2,
   Loader2,
   Flame,
+  Building2,
+  AlertCircle,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,6 +126,8 @@ export default function ProviderRegister() {
 
   // Step 2 fields
   const [zoneId, setZoneId] = useState<number | null>(null);
+  const [selectedSubZoneIds, setSelectedSubZoneIds] = useState<number[]>([]);
+  const [subZoneSearch, setSubZoneSearch] = useState("");
   const [vehicleType, setVehicleType] = useState("");
   const [vehiclePlate, setVehiclePlate] = useState("");
 
@@ -137,6 +142,28 @@ export default function ProviderRegister() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: allSubZones } = trpc.locations.listSubZones.useQuery(
+    { zoneId: zoneId ?? undefined },
+    { enabled: zoneId !== null, staleTime: 5 * 60 * 1000 }
+  );
+
+  // Filter sub-zones by search
+  const filteredSubZones = allSubZones?.filter((sz) =>
+    sz.name.includes(subZoneSearch) || subZoneSearch === ""
+  ) ?? [];
+
+  function toggleSubZone(id: number) {
+    setSelectedSubZoneIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  function handleZoneChange(id: number) {
+    setZoneId(id);
+    setSelectedSubZoneIds([]);
+    setSubZoneSearch("");
+  }
+
   const registerMutation = trpc.providers.register.useMutation({
     onSuccess: (data) => {
       setProviderId(data.providerId);
@@ -149,7 +176,10 @@ export default function ProviderRegister() {
 
   // ── Validation per step ────────────────────────────────────────────────────
   const canProceedStep0 = name.trim().length >= 2 && phone.trim().length >= 8;
-  const canProceedStep1 = zoneId !== null;
+  // Require at least one sub-zone if sub-zones are available for the selected zone
+  const canProceedStep1 =
+    zoneId !== null &&
+    (allSubZones === undefined || allSubZones.length === 0 || selectedSubZoneIds.length > 0);
   const canProceedStep2 = pin.length >= 4 && pin === pinConfirm;
 
   const handleNext = () => setStep((s) => s + 1);
@@ -163,6 +193,7 @@ export default function ProviderRegister() {
       phone: phone.trim(),
       email: email.trim() || undefined,
       zoneId: zoneId!,
+      subZoneIds: selectedSubZoneIds.length > 0 ? selectedSubZoneIds : undefined,
       pinHash,
       vehicleType: vehicleType.trim() || undefined,
       vehiclePlate: vehiclePlate.trim() || undefined,
@@ -276,16 +307,17 @@ export default function ProviderRegister() {
           </>
         )}
 
-        {/* ── Step 1: Zone + vehicle ── */}
+        {/* ── Step 1: Zone + sub-zone + vehicle ── */}
         {step === 1 && (
           <>
+            {/* Zone selection */}
             <Card>
-              <Field icon={<MapPin className="w-4 h-4" />} label="منطقة التوصيل *">
+              <Field icon={<MapPin className="w-4 h-4" />} label="الولاية الرئيسية *">
                 <div className="grid grid-cols-1 gap-2">
                   {zones?.map((zone) => (
                     <button
                       key={zone.id}
-                      onClick={() => setZoneId(zone.id)}
+                      onClick={() => handleZoneChange(zone.id)}
                       className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-right transition-all border ${
                         zoneId === zone.id
                           ? "border-orange-500 bg-orange-500/15 text-orange-300"
@@ -309,6 +341,85 @@ export default function ProviderRegister() {
                 </div>
               </Field>
             </Card>
+
+            {/* Sub-zone selection — shown after zone is picked */}
+            {zoneId !== null && (
+              <Card>
+                <Field icon={<Building2 className="w-4 h-4" />} label="الأحياء التي تغطيها *">
+                  <p className="text-white/40 text-xs mb-3 leading-relaxed">
+                    اختر الأحياء التي ستوصّل إليها. يمكنك اختيار أكثر من حي.
+                  </p>
+
+                  {/* Search box */}
+                  {(allSubZones?.length ?? 0) > 5 && (
+                    <div className="relative mb-3">
+                      <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
+                      <input
+                        value={subZoneSearch}
+                        onChange={(e) => setSubZoneSearch(e.target.value)}
+                        placeholder="ابحث عن حي..."
+                        className="w-full bg-black/30 border border-white/15 text-white placeholder:text-white/30 rounded-xl h-9 pr-9 pl-3 text-sm focus:outline-none focus:border-orange-400/50"
+                        dir="rtl"
+                      />
+                    </div>
+                  )}
+
+                  {/* Sub-zone grid */}
+                  {allSubZones === undefined ? (
+                    <div className="text-white/40 text-sm text-center py-4">
+                      <Loader2 className="w-4 h-4 animate-spin mx-auto mb-2" />
+                      جاري تحميل الأحياء...
+                    </div>
+                  ) : filteredSubZones.length === 0 ? (
+                    <div className="text-white/40 text-sm text-center py-3">
+                      لا توجد نتائج
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {filteredSubZones.map((sz) => {
+                        const selected = selectedSubZoneIds.includes(sz.id);
+                        return (
+                          <button
+                            key={sz.id}
+                            onClick={() => toggleSubZone(sz.id)}
+                            className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs text-right transition-all border ${
+                              selected
+                                ? "border-orange-500 bg-orange-500/15 text-orange-300"
+                                : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10"
+                            }`}
+                          >
+                            <div
+                              className={`w-2 h-2 rounded-sm shrink-0 border ${
+                                selected
+                                  ? "bg-orange-500 border-orange-500"
+                                  : "bg-transparent border-white/30"
+                              }`}
+                            />
+                            {sz.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Selected count badge */}
+                  {selectedSubZoneIds.length > 0 && (
+                    <div className="mt-3 flex items-center gap-2 text-xs text-orange-400">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      تم اختيار {selectedSubZoneIds.length} {selectedSubZoneIds.length === 1 ? "حي" : "أحياء"}
+                    </div>
+                  )}
+
+                  {/* Validation hint */}
+                  {zoneId !== null && allSubZones && allSubZones.length > 0 && selectedSubZoneIds.length === 0 && (
+                    <div className="mt-3 flex items-center gap-2 text-xs text-amber-400">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      يرجى اختيار حي واحد على الأقل
+                    </div>
+                  )}
+                </Field>
+              </Card>
+            )}
             <Card>
               <Field icon={<Car className="w-4 h-4" />} label="نوع المركبة (اختياري)">
                 <Input

@@ -368,3 +368,54 @@
 - [x] Also removed useKeyboardScrollFix hook that was calling scrollIntoView on every focusin event
 - [x] Added proper dir, autoComplete, inputMode, enterKeyHint, autoCorrect, autoCapitalize attributes to all inputs
 - [x] 99/99 tests pass, 0 TypeScript errors, Vite HMR updates cleanly with no parse errors
+
+## Feature: Sub-Zone (Wilayat) System for Granular Delivery Coverage
+
+### Problem
+Current zones are too broad (e.g. "السيب" covers Mawelah, Maabilah South, Al Khoudh, etc.).
+Each wilayat may have different provider availability, so we need sub-zone granularity.
+
+### Design Approach
+- Keep existing `zones` table as "parent zones" (governorate-level groupings)
+- Add `sub_zones` table: id, zoneId (FK), name (Arabic), centerLat, centerLng, polygon JSON
+- Provider registers for one or more sub-zones (many-to-many via `provider_sub_zones`)
+- Order draft resolves to a sub-zone first (point-in-polygon), then falls back to parent zone
+- Provider availability check: count providers in the detected sub-zone
+- If sub-zone has 0 available providers → show specific warning with sub-zone name
+
+### Schema
+- [x] Add `sub_zones` table (id, zoneId, name, centerLat, centerLng, polygon JSON)
+- [x] Add `provider_sub_zones` table (providerId, subZoneId) many-to-many
+- [x] Add `subZoneId` nullable FK to `orders` table
+- [x] Generate and apply Drizzle migration SQL
+
+### Seed Data (Muscat Wilayats)
+- [x] Seed السيب sub-zones: الموالح، المعبيلة الجنوبية، الخوض، العامرات، المصنعة
+- [x] Seed مسقط القديمة sub-zones: مطرح، العذيبة، الغبرة الجنوبية
+- [x] Seed الروي sub-zones: الروي، وادي الكبير، الحمرية
+- [x] Seed الخوير sub-zones: الخوير، غلا، الغبرة الشمالية، بوشر
+- [x] Seed القرم sub-zones: القرم، مدينة السلطان قابوس، الشاطئ
+
+### Backend
+- [x] DB helpers: getSubZones(zoneId), resolveSubZone(lat, lng), getSubZoneProviderCount(subZoneId)
+- [x] orders.createOrderDraft: resolve subZoneId from delivery coords, store in order
+- [x] providers.register: accept subZoneIds[] input, insert into provider_sub_zones
+- [x] providers.list: include sub-zone names in response (deferred — not blocking)
+- [x] Add locations.listSubZones publicProcedure (returns all sub-zones grouped by zone)
+- [x] Add locations.getSubZoneCoverage publicProcedure (returns available provider count per sub-zone)
+
+### Customer UI
+- [x] LocationPicker: sub-zone shown via OrderSummary (resolved server-side after draft creation)
+- [x] OrderSummary: show sub-zone name; if 0 providers in sub-zone → orange warning with sub-zone name
+- [ ] Home: show provider count badge per detected sub-zone (deferred — needs GPS first)
+
+### Provider UI
+- [x] ProviderRegister step 1 (zone selection): after picking parent zone, show sub-zone checkboxes
+- [x] Allow provider to select multiple sub-zones they cover
+- [ ] ProviderDashboard: show which sub-zones the provider covers (deferred)
+
+### Tests
+- [x] Sub-zone resolution: point inside Mawelah polygon → returns Mawelah sub-zone
+- [x] Sub-zone fallback: point outside all sub-zones but inside parent zone → returns parent zone only
+- [x] Provider count per sub-zone: 0 providers → warning flag
+- [x] Provider registration with sub-zones: provider_sub_zones rows created correctly

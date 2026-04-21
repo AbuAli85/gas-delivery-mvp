@@ -4,7 +4,7 @@
  * All DB writes happen in routers.ts — this module only computes decisions.
  */
 
-import { Zone, Provider } from "../drizzle/schema";
+import { Zone, Provider, SubZone } from "../drizzle/schema";
 import { haversineKm, isPointInPolygon, LatLng } from "../shared/domain";
 
 export interface ZoneWithProviders {
@@ -44,6 +44,35 @@ export function resolveZone(
       lat: b.zone.centerLat,
       lng: b.zone.centerLng,
     });
+    return da - db;
+  });
+
+  return containing[0] ?? null;
+}
+
+/**
+ * Find the best sub-zone (wilayat/neighborhood) for a delivery location.
+ * Same strategy as resolveZone but operates on sub-zones.
+ * Returns null if the point is not inside any sub-zone polygon.
+ */
+export function resolveSubZone(
+  customerLocation: LatLng,
+  subZones: SubZone[]
+): SubZone | null {
+  if (subZones.length === 0) return null;
+
+  const containing = subZones.filter((sz) => {
+    const polygon = sz.polygon as LatLng[];
+    if (!polygon || polygon.length < 3) return false;
+    return isPointInPolygon(customerLocation, polygon);
+  });
+
+  if (containing.length === 0) return null;
+
+  // If multiple sub-zones contain the point (overlap), pick nearest center
+  containing.sort((a, b) => {
+    const da = haversineKm(customerLocation, { lat: a.centerLat, lng: a.centerLng });
+    const db = haversineKm(customerLocation, { lat: b.centerLat, lng: b.centerLng });
     return da - db;
   });
 

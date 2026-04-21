@@ -6,9 +6,12 @@ import {
   createAssignment,
   createOrder,
   getAllZones,
+  getAllSubZones,
   getActiveAssignment,
   getAssignmentsByOrder,
   getAvailableProvidersByZone,
+  getAvailableProvidersBySubZone,
+  countAvailableProvidersBySubZone,
   getOrderById,
   setProviderActiveOrder,
   updateAssignment,
@@ -18,7 +21,7 @@ import {
   getAllOrders,
   countOrders,
 } from "../db";
-import { resolveZone, selectNextProvider } from "../assignmentEngine";
+import { resolveZone, resolveSubZone, selectNextProvider } from "../assignmentEngine";
 import {
   assertOrderTransition,
   FIXED_ORDER_PRICE,
@@ -141,6 +144,7 @@ export const ordersRouter = router({
       const deliveryLocation: LatLng = { lat: resolutionLat, lng: resolutionLng };
 
       const allZones = await getAllZones();
+      const allSubZones = await getAllSubZones();
       const zonesWithProviders = await Promise.all(
         allZones.map(async (zone) => ({
           zone,
@@ -149,6 +153,24 @@ export const ordersRouter = router({
       );
 
       const resolved = resolveZone(deliveryLocation, zonesWithProviders);
+
+      // Sub-zone resolution: find the most specific neighborhood
+      const resolvedSubZone = resolveSubZone(
+        deliveryLocation,
+        allSubZones.filter((sz) => sz.zoneId === (resolved?.zone.id ?? -1))
+      );
+
+      // Provider count: prefer sub-zone count, fall back to parent zone count
+      let subZoneProviderCount = 0;
+      if (resolvedSubZone) {
+        subZoneProviderCount = await countAvailableProvidersBySubZone(resolvedSubZone.id);
+      }
+      const hasSubZoneProviders = resolvedSubZone ? subZoneProviderCount > 0 : null;
+      // hasProviders = true if sub-zone has providers, OR if no sub-zone but parent zone has providers
+      const hasProviders =
+        resolvedSubZone !== null
+          ? subZoneProviderCount > 0
+          : (resolved?.providers.length ?? 0) > 0;
 
       const orderId = await createOrder({
         customerLat: input.customerLat,
@@ -165,6 +187,7 @@ export const ordersRouter = router({
         currency: "OMR",
         estimatedMinutes: DEFAULT_ETA_MINUTES,
         zoneId: resolved?.zone.id ?? null,
+        subZoneId: resolvedSubZone?.id ?? null,
         status: "draft",
         paymentStatus: "pending",
         paymentMethod: "cash",          // default: cash on delivery
@@ -182,7 +205,11 @@ export const ordersRouter = router({
         estimatedMinutes: DEFAULT_ETA_MINUTES,
         // Only set when the pin lies inside a zone polygon — matches delivery coords.
         zoneLabel: resolved?.zone.name ?? "",
-        hasProviders: (resolved?.providers.length ?? 0) > 0,
+        // Sub-zone (wilayat/neighborhood) — more precise than zone
+        subZoneLabel: resolvedSubZone?.name ?? null,
+        subZoneProviderCount: resolvedSubZone ? subZoneProviderCount : null,
+        hasProviders,
+        hasSubZoneProviders,
         // Echo back the resolved delivery location
         deliveryLat: input.deliveryLat ?? input.customerLat,
         deliveryLng: input.deliveryLng ?? input.customerLng,

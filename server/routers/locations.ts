@@ -1,7 +1,14 @@
 import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
 import { makeRequest, type GeocodingResult } from "../_core/map";
-import { getSavedLocations, upsertSavedLocation, deleteSavedLocation, getAllZones } from "../db";
+import {
+  getSavedLocations,
+  upsertSavedLocation,
+  deleteSavedLocation,
+  getAllZones,
+  getAllSubZones,
+  getSubZoneCoverageStats,
+} from "../db";
 
 /**
  * Saved locations router.
@@ -107,5 +114,36 @@ export const locationsRouter = router({
       centerLng: z.centerLng,
       polygon: z.polygon,
     }));
+  }),
+
+  /**
+   * List all active sub-zones, optionally filtered by parent zone.
+   * Returns sub-zones grouped by parent zone for the provider registration UI.
+   */
+  listSubZones: publicProcedure
+    .input(z.object({ zoneId: z.number().optional() }))
+    .query(async ({ input }) => {
+      const zones = await getAllZones();
+      const allSz = await getAllSubZones(input.zoneId);
+      return allSz.map((sz) => {
+        const parentZone = zones.find((z) => z.id === sz.zoneId);
+        return {
+          id: sz.id,
+          zoneId: sz.zoneId,
+          zoneName: parentZone?.name ?? "",
+          name: sz.name,
+          centerLat: sz.centerLat,
+          centerLng: sz.centerLng,
+          polygon: sz.polygon,
+        };
+      });
+    }),
+
+  /**
+   * Get coverage stats: how many available providers are in each sub-zone.
+   * Used by admin and customer-facing UI to show coverage warnings.
+   */
+  getSubZoneCoverage: publicProcedure.query(async () => {
+    return getSubZoneCoverageStats();
   }),
 });

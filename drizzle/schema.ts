@@ -102,6 +102,8 @@ export const orders = mysqlTable("orders", {
   estimatedMinutes: int("estimatedMinutes").default(30).notNull(),
   // Resolved zone for this order
   zoneId: int("zoneId"),
+  // Resolved sub-zone (wilayat/neighborhood) — more precise than zoneId
+  subZoneId: int("subZoneId"),
   // Status — explicit enum, no implicit transitions
   status: mysqlEnum("status", [
     "draft",
@@ -250,6 +252,35 @@ export const providerWorkingHours = mysqlTable("provider_working_hours", {
 });
 export type ProviderWorkingHours = typeof providerWorkingHours.$inferSelect;
 export type InsertProviderWorkingHours = typeof providerWorkingHours.$inferInsert;
+
+// ─── Sub-Zones (Wilayats / Neighborhoods) ────────────────────────────────────
+// Each parent zone (e.g. "السيب") is divided into sub-zones (e.g. "الموالح", "المعبيلة").
+// Sub-zones allow per-neighborhood provider coverage tracking.
+export const subZones = mysqlTable("sub_zones", {
+  id: int("id").autoincrement().primaryKey(),
+  zoneId: int("zoneId").notNull(),           // FK → zones.id
+  name: varchar("name", { length: 128 }).notNull(),  // Arabic name, e.g. "الموالح"
+  centerLat: float("centerLat").notNull(),
+  centerLng: float("centerLng").notNull(),
+  // Bounding polygon for sub-zone membership checks (same format as zones.polygon)
+  polygon: json("polygon").notNull().$type<Array<{ lat: number; lng: number }>>(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type SubZone = typeof subZones.$inferSelect;
+export type InsertSubZone = typeof subZones.$inferInsert;
+
+// ─── Provider Sub-Zones (many-to-many) ───────────────────────────────────────
+// A provider can cover multiple sub-zones (e.g. a driver in Seeb covers
+// both الموالح and المعبيلة الجنوبية).
+export const providerSubZones = mysqlTable("provider_sub_zones", {
+  id: int("id").autoincrement().primaryKey(),
+  providerId: int("providerId").notNull(),
+  subZoneId: int("subZoneId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ProviderSubZone = typeof providerSubZones.$inferSelect;
+export type InsertProviderSubZone = typeof providerSubZones.$inferInsert;
 
 // ─── Order Reviews ────────────────────────────────────────────────────────────
 // Customer ratings and comments submitted after order delivery.
