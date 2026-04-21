@@ -143,6 +143,10 @@ export const orders = mysqlTable("orders", {
   deliveryLat: float("deliveryLat"),
   deliveryLng: float("deliveryLng"),
   deliveryAddress: text("deliveryAddress"),
+  // SMS notification tracking
+  smsDeliveryStartedAt: timestamp("smsDeliveryStartedAt"),
+  smsDeliveredAt: timestamp("smsDeliveredAt"),
+  smsSid: varchar("smsSid", { length: 64 }),
   // Anti-cheat timestamps
   assignedAt: timestamp("assignedAt"),
   acceptedAt: timestamp("acceptedAt"),

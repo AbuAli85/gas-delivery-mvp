@@ -583,6 +583,9 @@ export const ordersRouter = router({
           createdAt: o.createdAt,
           acceptedAt: o.acceptedAt,
           deliveredAt: o.deliveredAt,
+          smsDeliveryStartedAt: o.smsDeliveryStartedAt,
+          smsDeliveredAt: o.smsDeliveredAt,
+          smsSid: o.smsSid,
         })),
         total,
       };

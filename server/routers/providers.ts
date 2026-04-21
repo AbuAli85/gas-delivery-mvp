@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, eq, or } from "drizzle-orm";
+import { sendSms, buildDeliveryStartedSms, buildOrderDeliveredSms } from "../sms";
 import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
 import { notifyOwner } from "../_core/notification";
@@ -417,6 +418,28 @@ export const providersRouter = router({
 
       assertOrderTransition(order.status, "out_for_delivery");
       await updateOrder(order.id, { status: "out_for_delivery" });
+
+      // ── SMS: notify customer that delivery has started ─────────────────
+      if (order.customerPhone) {
+        const provider = await getProviderById(input.providerId);
+        const smsBody = buildDeliveryStartedSms({
+          customerName: order.customerName ?? "عزيزي العميل",
+          providerName: provider?.name ?? "المزود",
+          providerPhone: provider?.phone ?? "",
+          estimatedMinutes: order.estimatedMinutes,
+          orderId: order.id,
+          gasAmount: String(order.gasAmount ?? 1),
+        });
+        sendSms(order.customerPhone, smsBody)
+          .then(async (result) => {
+            await updateOrder(order.id, {
+              smsDeliveryStartedAt: new Date(),
+              ...(result.sid ? { smsSid: result.sid } : {}),
+            });
+          })
+          .catch(err => console.error("[SMS] Failed to send delivery-started SMS:", err));
+      }
+
       return { success: true };
     }),
 
@@ -465,6 +488,24 @@ export const providersRouter = router({
           content: `Gas delivery #${order.id} completed. Commission: OMR ${commissionAmt.toFixed(3)} pending settlement.`,
         });
       } catch (_) {}
+
+      // ── SMS: notify customer that order was delivered ─────────────────
+      if (order.customerPhone) {
+        const deliveredSmsBody = buildOrderDeliveredSms({
+          customerName: order.customerName ?? "عزيزي العميل",
+          orderId: order.id,
+          totalPrice: String(order.totalPrice ?? "0"),
+          paymentMethod: order.paymentMethod ?? "cash",
+        });
+        sendSms(order.customerPhone, deliveredSmsBody)
+          .then(async (result) => {
+            await updateOrder(order.id, {
+              smsDeliveredAt: new Date(),
+              ...(result.sid ? { smsSid: result.sid } : {}),
+            });
+          })
+          .catch(err => console.error("[SMS] Failed to send order-delivered SMS:", err));
+      }
 
       return { success: true };
     }),

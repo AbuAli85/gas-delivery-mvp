@@ -606,6 +606,19 @@ export default function AdminPanel() {
                                 مزود #{order.assignedProviderId}
                               </div>
                             )}
+                            {/* SMS notification status */}
+                            {order.customerPhone && (
+                              <div className="flex items-center gap-1.5">
+                                <MessageSquare className="w-3 h-3" />
+                                {order.smsDeliveredAt ? (
+                                  <span className="text-emerald-600">SMS تم التوصيل ✓</span>
+                                ) : order.smsDeliveryStartedAt ? (
+                                  <span className="text-blue-600">SMS بدأ التوصيل ✓</span>
+                                ) : (
+                                  <span className="text-gray-400">SMS لم يُرسل</span>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           {/* Action buttons */}
