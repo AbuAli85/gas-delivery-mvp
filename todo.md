@@ -478,3 +478,26 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Sections: hero, story, vision, mission, values (4 cards), stats, team, CTA
 - [x] Register /about route in App.tsx
 - [x] Add "من نحن" link in Home.tsx footer
+
+## Feature: Multilingual About Page (i18n)
+- [x] Add language switcher (AR / EN) to AboutUs.tsx header
+- [x] Build i18n content object with AR and EN translations for all sections
+- [x] RTL for Arabic, LTR for English — dynamic dir attribute
+- [x] Structure content object to easily add more languages (Urdu, Hindi, Bangla, Farsi) later
+
+## Feature: App-Wide Multilingual System (i18n)
+- [x] Create client/src/lib/i18n.ts with AR/EN translations for all customer pages
+- [x] Create LanguageContext (client/src/contexts/LanguageContext.tsx) with useState + localStorage persistence
+- [x] Create LanguageSwitcher component (floating button AR/EN)
+- [x] Wire LanguageProvider into App.tsx and add LanguageSwitcher globally
+- [x] Apply translations to Home.tsx
+- [x] Apply translations to AboutUs.tsx
+- [x] Apply translations to OrderSummary.tsx
+- [x] Apply translations to Payment.tsx
+- [x] Apply translations to OrderTracking.tsx
+- [x] Apply translations to OrderPlaced.tsx
+- [x] Apply translations to LocationPicker.tsx
+- [x] Apply translations to RatingScreen.tsx
+- [x] Apply translations to CustomerLogin.tsx
+- [x] RTL/LTR switching based on language (dir attribute on root div)
+- [x] Structure extensible for Urdu, Hindi, Bangla, Farsi (add lang key + RTL flag to i18n.ts)

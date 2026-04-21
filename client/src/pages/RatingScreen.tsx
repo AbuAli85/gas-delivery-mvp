@@ -3,9 +3,10 @@ import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Star, CheckCircle2, ChevronRight, MessageSquare } from "lucide-react";
+import { Star, CheckCircle2, ChevronRight, ChevronLeft, MessageSquare } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-const RATING_LABELS: Record<number, string> = {
+const RATING_LABELS_AR: Record<number, string> = {
   1: "سيء جداً",
   2: "سيء",
   3: "مقبول",
@@ -13,7 +14,15 @@ const RATING_LABELS: Record<number, string> = {
   5: "ممتاز",
 };
 
-const QUICK_COMMENTS = [
+const RATING_LABELS_EN: Record<number, string> = {
+  1: "Very Bad",
+  2: "Bad",
+  3: "Acceptable",
+  4: "Good",
+  5: "Excellent",
+};
+
+const QUICK_COMMENTS_AR = [
   "توصيل سريع",
   "المزود محترف",
   "الغاز وصل سليماً",
@@ -22,13 +31,27 @@ const QUICK_COMMENTS = [
   "تأخر قليلاً",
 ];
 
+const QUICK_COMMENTS_EN = [
+  "Fast delivery",
+  "Professional provider",
+  "Gas arrived safely",
+  "Fair price",
+  "Will order again",
+  "Slightly late",
+];
+
 export default function RatingScreen() {
   const { orderId, providerId } = useParams<{ orderId: string; providerId: string }>();
   const [, navigate] = useLocation();
+  const { dir } = useLanguage();
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
+
+  const isRTL = dir === "rtl";
+  const RATING_LABELS = isRTL ? RATING_LABELS_AR : RATING_LABELS_EN;
+  const QUICK_COMMENTS = isRTL ? QUICK_COMMENTS_AR : QUICK_COMMENTS_EN;
 
   const phone = localStorage.getItem("customerPhone") ?? undefined;
 
@@ -38,8 +61,9 @@ export default function RatingScreen() {
       setTimeout(() => navigate("/"), 2500);
     },
     onError: (err) => {
-      if (err.message.includes("مسبقاً")) {
-        toast.info("لقد قيّمت هذا الطلب مسبقاً.");
+      // Duplicate review detection — check both Arabic and English substrings
+      if (err.message.includes("مسبقاً") || err.message.toLowerCase().includes("already")) {
+        toast.info(isRTL ? "لقد قيّمت هذا الطلب مسبقاً." : "You have already rated this order.");
         setTimeout(() => navigate("/"), 1500);
       } else {
         toast.error(err.message);
@@ -49,7 +73,7 @@ export default function RatingScreen() {
 
   function handleSubmit() {
     if (!rating) {
-      toast.error("يرجى اختيار تقييم من 1 إلى 5 نجوم.");
+      toast.error(isRTL ? "يرجى اختيار تقييم من 1 إلى 5 نجوم." : "Please select a rating from 1 to 5 stars.");
       return;
     }
     submitReview.mutate({
@@ -70,12 +94,16 @@ export default function RatingScreen() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6 text-center">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6 text-center" dir={dir}>
         <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mb-6">
           <CheckCircle2 className="w-12 h-12 text-green-600" />
         </div>
-        <h1 className="text-2xl font-black text-gray-900 mb-2">شكراً على تقييمك!</h1>
-        <p className="text-gray-500 text-sm">رأيك يساعدنا على تحسين الخدمة.</p>
+        <h1 className="text-2xl font-black text-gray-900 mb-2">
+          {isRTL ? "شكراً على تقييمك!" : "Thank you for your review!"}
+        </h1>
+        <p className="text-gray-500 text-sm">
+          {isRTL ? "رأيك يساعدنا على تحسين الخدمة." : "Your feedback helps us improve our service."}
+        </p>
         <div className="flex gap-1 mt-4">
           {[1, 2, 3, 4, 5].map((s) => (
             <Star
@@ -89,9 +117,10 @@ export default function RatingScreen() {
   }
 
   const activeRating = hovered || rating;
+  const ChevronBack = isRTL ? ChevronRight : ChevronLeft;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col" dir="rtl">
+    <div className="min-h-screen bg-gray-50 flex flex-col" dir={dir}>
       {/* Header */}
       <div
         className="px-4 pt-12 pb-6"
@@ -104,11 +133,15 @@ export default function RatingScreen() {
             onClick={() => navigate("/")}
             className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center"
           >
-            <ChevronRight className="w-5 h-5 text-white" />
+            <ChevronBack className="w-5 h-5 text-white" />
           </button>
           <div>
-            <h1 className="text-lg font-bold text-white">قيّم الخدمة</h1>
-            <p className="text-xs text-white/60">طلب رقم #{orderId}</p>
+            <h1 className="text-lg font-bold text-white">
+              {isRTL ? "قيّم الخدمة" : "Rate the Service"}
+            </h1>
+            <p className="text-xs text-white/60">
+              {isRTL ? `طلب رقم #${orderId}` : `Order #${orderId}`}
+            </p>
           </div>
         </div>
       </div>
@@ -116,8 +149,12 @@ export default function RatingScreen() {
       <div className="flex-1 px-4 py-6 space-y-6">
         {/* Star Rating */}
         <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
-          <p className="text-gray-700 font-semibold mb-1">كيف كانت تجربتك؟</p>
-          <p className="text-sm text-gray-400 mb-5">اضغط على النجوم لتقييم الخدمة</p>
+          <p className="text-gray-700 font-semibold mb-1">
+            {isRTL ? "كيف كانت تجربتك؟" : "How was your experience?"}
+          </p>
+          <p className="text-sm text-gray-400 mb-5">
+            {isRTL ? "اضغط على النجوم لتقييم الخدمة" : "Tap the stars to rate the service"}
+          </p>
 
           <div className="flex justify-center gap-3 mb-3">
             {[1, 2, 3, 4, 5].map((s) => (
@@ -153,7 +190,9 @@ export default function RatingScreen() {
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-3">
             <MessageSquare className="w-4 h-4 text-gray-400" />
-            <p className="text-sm font-semibold text-gray-700">اختر ما ينطبق (اختياري)</p>
+            <p className="text-sm font-semibold text-gray-700">
+              {isRTL ? "اختر ما ينطبق (اختياري)" : "Select what applies (optional)"}
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {QUICK_COMMENTS.map((q) => {
@@ -177,11 +216,13 @@ export default function RatingScreen() {
 
         {/* Free Text Comment */}
         <div className="bg-white rounded-2xl p-4 shadow-sm">
-          <p className="text-sm font-semibold text-gray-700 mb-2">تعليق إضافي (اختياري)</p>
+          <p className="text-sm font-semibold text-gray-700 mb-2">
+            {isRTL ? "تعليق إضافي (اختياري)" : "Additional comment (optional)"}
+          </p>
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="اكتب تعليقك هنا…"
+            placeholder={isRTL ? "اكتب تعليقك هنا…" : "Write your comment here…"}
             maxLength={500}
             rows={3}
             className="w-full text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-red-300"
@@ -206,14 +247,16 @@ export default function RatingScreen() {
           onClick={handleSubmit}
           disabled={submitReview.isPending || rating === 0}
         >
-          {submitReview.isPending ? "جارٍ الإرسال…" : "إرسال التقييم"}
+          {submitReview.isPending
+            ? (isRTL ? "جارٍ الإرسال…" : "Submitting…")
+            : (isRTL ? "إرسال التقييم" : "Submit Review")}
         </Button>
 
         <button
           onClick={() => navigate("/")}
           className="w-full mt-3 py-3 text-sm text-gray-400 text-center"
         >
-          تخطي
+          {isRTL ? "تخطي" : "Skip"}
         </button>
       </div>
     </div>

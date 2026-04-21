@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { useLocation, useParams } from "wouter";
-import { CheckCircle2, Flame, MapPin, Clock, ChevronRight } from "lucide-react";
+import { CheckCircle2, Flame, MapPin, Clock, ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const WA_ICON = (
   <svg viewBox="0 0 24 24" className="w-4 h-4 fill-green-400">
@@ -10,22 +11,25 @@ const WA_ICON = (
   </svg>
 );
 
-// Arabic status labels
-function getStatusLabel(status: string): string {
-  switch (status) {
-    case "pending":         return "جارٍ البحث عن مزود…";
-    case "assigned":        return "تم تعيين مزود";
-    case "accepted":        return "المزود قبل الطلب ✓";
-    case "out_for_delivery":return "في الطريق إليك!";
-    case "delivered":       return "تم التوصيل ✓";
-    case "cancelled":       return "تم إلغاء الطلب";
-    default:                return "جارٍ المعالجة…";
-  }
+// Bilingual status labels
+function useStatusLabel(status: string | undefined): string {
+  const { t } = useLanguage();
+  if (!status) return t("tracking.status.pending");
+  const map: Record<string, string> = {
+    pending: t("tracking.status.pending"),
+    assigned: t("tracking.status.accepted"),
+    accepted: t("tracking.status.accepted"),
+    out_for_delivery: t("tracking.status.on_way"),
+    delivered: t("tracking.status.delivered"),
+    cancelled: t("tracking.status.cancelled"),
+  };
+  return map[status] ?? t("tracking.status.pending");
 }
 
 export default function OrderPlaced() {
   const { orderId } = useParams<{ orderId: string }>();
   const [, navigate] = useLocation();
+  const { t, dir } = useLanguage();
   const id = parseInt(orderId ?? "0", 10);
 
   const { data: order } = trpc.orders.getOrderStatus.useQuery(
@@ -37,14 +41,16 @@ export default function OrderPlaced() {
     sessionStorage.removeItem("orderDraft");
   }, []);
 
-  const statusLabel = order ? getStatusLabel(order.status) : "جارٍ المعالجة…";
+  const statusLabel = useStatusLabel(order?.status);
 
   const waText = encodeURIComponent(
     `طلبت غاز — رقم الطلب #${id}. تتبع: ${window.location.origin}/order/track/${id}`
   );
 
+  const ChevronBtn = dir === "rtl" ? ChevronRight : ChevronLeft;
+
   return (
-    <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }}>
+    <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }} dir={dir}>
       {/* Hero */}
       <div
         className="flex flex-col items-center justify-center px-6 pt-16 pb-10 text-white"
@@ -56,13 +62,13 @@ export default function OrderPlaced() {
         <div className="w-20 h-20 rounded-full bg-white/15 backdrop-blur flex items-center justify-center mb-5">
           <CheckCircle2 className="w-10 h-10 text-white" />
         </div>
-        <h1 className="text-3xl font-extrabold text-center mb-2">تم تقديم الطلب!</h1>
+        <h1 className="text-3xl font-extrabold text-center mb-2">{t("placed.title")}</h1>
         <p className="text-white/60 text-center text-sm">
-          تم تأكيد طلبك — نبحث عن أقرب مزود
+          {t("placed.subtitle")}
         </p>
         {id > 0 && (
           <div className="mt-4 bg-white/10 backdrop-blur rounded-full px-5 py-2 text-sm font-mono">
-            طلب رقم #{id}
+            {t("placed.order.id")} #{id}
           </div>
         )}
       </div>
@@ -76,12 +82,12 @@ export default function OrderPlaced() {
               <Flame className="w-5 h-5 text-primary animate-pulse" />
             </div>
             <div className="flex-1">
-              <p className="text-xs text-gray-400">الحالة</p>
+              <p className="text-xs text-gray-400">{t("tracking.status.pending").split(" ")[0]}</p>
               <p className="font-bold text-gray-900">{statusLabel}</p>
             </div>
             {order?.providerName && (
               <div className="text-left">
-                <p className="text-xs text-gray-400">المزود</p>
+                <p className="text-xs text-gray-400">{t("tracking.provider")}</p>
                 <p className="text-sm font-semibold text-gray-800">{order.providerName}</p>
               </div>
             )}
@@ -92,7 +98,7 @@ export default function OrderPlaced() {
             {order?.estimatedMinutes && (
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Clock className="w-4 h-4 text-gray-400" />
-                <span>الوقت المتوقع: <strong>{order.estimatedMinutes} دقيقة</strong></span>
+                <span>{t("placed.eta")}: <strong>{order.estimatedMinutes} {t("summary.minutes")}</strong></span>
               </div>
             )}
             {order?.customerAddress && (
@@ -103,7 +109,7 @@ export default function OrderPlaced() {
             )}
             {order?.totalPrice && (
               <p className="text-sm text-gray-600">
-                الإجمالي: <strong>OMR {parseFloat(order.totalPrice).toFixed(3)}</strong>
+                {t("summary.total")}: <strong>OMR {parseFloat(order.totalPrice).toFixed(3)}</strong>
               </p>
             )}
           </div>
@@ -115,8 +121,8 @@ export default function OrderPlaced() {
             style={{ height: "60px", background: "oklch(0.53 0.22 27)" }}
             onClick={() => navigate(`/order/track/${id}`)}
           >
-            تتبع طلبي
-            <ChevronRight className="w-5 h-5 mr-1" />
+            {t("placed.track")}
+            <ChevronBtn className="w-5 h-5 ms-1" />
           </Button>
         </div>
 
@@ -128,14 +134,14 @@ export default function OrderPlaced() {
           className="flex items-center justify-center gap-2 w-full rounded-2xl border border-white/10 py-3 text-sm text-white/40 hover:text-white/60 transition-colors"
         >
           {WA_ICON}
-          مشاركة الطلب عبر واتساب
+          {t("placed.whatsapp")}
         </a>
 
         <button
           onClick={() => navigate("/")}
           className="w-full text-center text-sm text-white/30 py-2"
         >
-          العودة إلى الرئيسية ←
+          {t("about.back")} ←
         </button>
       </div>
     </div>

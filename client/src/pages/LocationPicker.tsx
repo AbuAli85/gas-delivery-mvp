@@ -13,6 +13,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   Loader2,
   MapPin,
@@ -145,9 +146,10 @@ interface ZoneData {
 
 type Step = "choose" | "map";
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────
 export default function LocationPicker() {
   const [, navigate] = useLocation();
+  const { t, dir } = useLanguage();
   const sessionKey = getSessionKey();
 
   const [step, setStep] = useState<Step>("choose");
@@ -174,7 +176,7 @@ export default function LocationPicker() {
     onSuccess: () => {
       refetchSaved();
       setSavingLabel(null);
-      toast.success("تم حفظ الموقع!");
+      toast.success(dir === "rtl" ? "تم حفظ الموقع!" : "Location saved!");
     },
   });
 
@@ -207,7 +209,7 @@ export default function LocationPicker() {
       const address = await reverseGeocode(lat, lng);
       proceedWithLocation({ lat, lng, address });
     } catch {
-      toast.error("تعذّر تحديد موقعك. يرجى السماح بالوصول إلى الموقع أو الاختيار يدوياً.");
+      toast.error(dir === "rtl" ? "تعذّر تحديد موقعك. يرجى السماح بالوصول إلى الموقع أو الاختيار يدوياً." : "Could not detect your location. Please allow location access or choose manually.");
     } finally {
       setLocating(false);
     }
@@ -428,14 +430,14 @@ export default function LocationPicker() {
   const handleAddressSearch = useCallback(async () => {
     const q = addressQuery.trim();
     if (!q) {
-      toast.error("اكتب عنواناً للبحث");
+      toast.error(dir === "rtl" ? "اكتب عنواناً للبحث" : "Enter an address to search");
       return;
     }
     const geocoder = geocoderRef.current;
     const map = mapRef.current;
     const marker = markerRef.current;
     if (!map || !marker) {
-      toast.error("انتظر حتى تظهر الخريطة ثم أعد المحاولة.");
+      toast.error(dir === "rtl" ? "انتظر حتى تظهر الخريطة ثم أعد المحاولة." : "Wait for the map to load then try again.");
       return;
     }
     setSearchBusy(true);
@@ -474,7 +476,7 @@ export default function LocationPicker() {
       }
 
       if (lat == null || lng == null) {
-        toast.error("لم يُعثر على عنوان مطابق. جرّب صياغة أخرى أو اختر من الخريطة.");
+        toast.error(dir === "rtl" ? "لم يُعثر على عنوان مطابق. جرّب صياغة أخرى أو اختر من الخريطة." : "No matching address found. Try a different search or pick on the map.");
         return;
       }
 
@@ -484,7 +486,7 @@ export default function LocationPicker() {
       setMapCoords({ lat, lng });
       applyResolvedAddress(formatted);
     } catch {
-      toast.error("تعذّر البحث عن العنوان.");
+      toast.error(dir === "rtl" ? "تعذّر البحث عن العنوان." : "Address search failed.");
     } finally {
       setSearchBusy(false);
     }
@@ -516,12 +518,12 @@ export default function LocationPicker() {
     });
   };
 
-  // ── Render: Map step ─────────────────────────────────────────────────────
+  // ── Render: Map step ──────────────────────────────────────────────
   if (step === "map") {
     return (
-      <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }}>
+      <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }} dir={dir}>
         {/* Header */}
-        <div className="flex items-center gap-3 px-4 pt-12 pb-3" dir="rtl">
+        <div className="flex items-center gap-3 px-4 pt-12 pb-3">
           <button
             onClick={() => setStep("choose")}
             className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0"
@@ -529,9 +531,9 @@ export default function LocationPicker() {
             <ChevronLeft className="w-5 h-5 text-white" />
           </button>
           <div>
-            <p className="text-white font-bold text-base">اختر موقع التوصيل</p>
+            <p className="text-white font-bold text-base">{dir === "rtl" ? "اختر موقع التوصيل" : "Choose Delivery Location"}</p>
             <p className="text-white/50 text-xs">
-              اضغط على الخريطة أو اكتب العنوان ثم اضغط بحث
+              {dir === "rtl" ? "اضغط على الخريطة أو اكتب العنوان ثم اضغط بحث" : "Tap the map or type an address then search"}
             </p>
           </div>
         </div>
@@ -556,10 +558,10 @@ export default function LocationPicker() {
               <input
                 ref={autocompleteInputRef}
                 type="text"
-                dir="rtl"
+                dir={dir}
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="ابحث عن عنوان أو مكان..."
+                placeholder={dir === "rtl" ? "ابحث عن عنوان أو مكان..." : "Search for address or place..."}
                 className="w-full h-11 pr-10 pl-9 rounded-xl text-sm text-white placeholder:text-white/40 outline-none border border-white/20 focus:border-orange-400/60 transition-colors text-right"
                 style={{
                   background: "rgba(10,10,10,0.88)",
@@ -593,7 +595,7 @@ export default function LocationPicker() {
               dir="rtl"
             >
               <p className="text-white/50 text-[9px] uppercase tracking-widest mb-0.5">
-                مناطق التوصيل
+                {dir === "rtl" ? "مناطق التوصيل" : "Delivery Zones"}
               </p>
               {zones.map((zone, idx) => {
                 const color = ZONE_COLORS[idx % ZONE_COLORS.length];
@@ -624,7 +626,7 @@ export default function LocationPicker() {
                 <div className="flex items-center gap-1 mt-0.5">
                   <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" />
                   <p className="text-orange-300 text-[10px] font-semibold leading-tight">
-                    خارج نطاق التوصيل
+                    {dir === "rtl" ? "خارج نطاق التوصيل" : "Outside delivery zone"}
                   </p>
                 </div>
               )}
@@ -633,13 +635,13 @@ export default function LocationPicker() {
         </div>
 
         {/* Address: type / select full text + search */}
-        <div className="px-4 pt-3 pb-6" dir="rtl">
+        <div className="px-4 pt-3 pb-6">
           <div className="bg-white/10 rounded-2xl p-4 mb-3">
             <div className="flex items-start gap-3 mb-3">
               <MapPin className="w-4 h-4 text-orange-400 mt-1 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-white/50 text-[10px] uppercase tracking-wide mb-1">
-                  عنوان التوصيل (يمكنك التعديل والبحث)
+                  {dir === "rtl" ? "عنوان التوصيل (يمكنك التعديل والبحث)" : "Delivery address (you can edit and search)"}
                 </p>
                 <Textarea
                   value={addressQuery}
@@ -650,7 +652,7 @@ export default function LocationPicker() {
                       void handleAddressSearch();
                     }
                   }}
-                  placeholder="اكتب العنوان أو الحيّ، ثم Enter أو «بحث»"
+                  placeholder={dir === "rtl" ? "اكتب العنوان أو الحيّ، ثم Enter أو «بحث»" : "Type address or neighborhood, then Enter or Search"}
                   rows={3}
                   disabled={searchBusy}
                   className="min-h-[88px] resize-y bg-black/25 border-white/15 text-white text-sm leading-relaxed placeholder:text-white/35 focus-visible:border-orange-400/50 focus-visible:ring-orange-400/20"
@@ -666,11 +668,11 @@ export default function LocationPicker() {
               onClick={() => void handleAddressSearch()}
             >
               {searchBusy ? (
-                <Loader2 className="w-4 h-4 animate-spin ml-2" />
+                <Loader2 className="w-4 h-4 animate-spin ms-2" />
               ) : (
-                <Search className="w-4 h-4 ml-2" />
+                <Search className="w-4 h-4 ms-2" />
               )}
-              بحث عن العنوان
+              {dir === "rtl" ? "بحث عن العنوان" : "Search Address"}
             </Button>
           </div>
 
@@ -692,8 +694,8 @@ export default function LocationPicker() {
                       <Briefcase className="w-3 h-3" />
                     )}
                     {existing
-                      ? label === "home" ? "تحديث المنزل" : "تحديث العمل"
-                      : label === "home" ? "حفظ كمنزل" : "حفظ كعمل"}
+                      ? label === "home" ? (dir === "rtl" ? "تحديث المنزل" : "Update Home") : (dir === "rtl" ? "تحديث العمل" : "Update Work")
+                      : label === "home" ? (dir === "rtl" ? "حفظ كمنزل" : "Save as Home") : (dir === "rtl" ? "حفظ كعمل" : "Save as Work")}
                   </button>
                 );
               })}
@@ -707,19 +709,19 @@ export default function LocationPicker() {
             onClick={handleConfirmMapLocation}
             disabled={!mapCoords}
           >
-            <Check className="w-5 h-5 ml-2" />
-            تأكيد الموقع
+            <Check className="w-5 h-5 me-2" />
+            {t("location.confirm")}
           </Button>
         </div>
       </div>
     );
   }
 
-  // ── Render: Choose step ──────────────────────────────────────────────────
+  // ── Render: Choose step ──────────────────────────────────────────────
   return (
-    <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }}>
+    <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }} dir={dir}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-12 pb-4" dir="rtl">
+      <div className="flex items-center gap-3 px-4 pt-12 pb-4">
         <button
           onClick={() => navigate("/")}
           className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0"
@@ -727,8 +729,8 @@ export default function LocationPicker() {
           <ChevronLeft className="w-5 h-5 text-white" />
         </button>
         <div>
-          <p className="text-white font-bold text-lg">موقع التوصيل</p>
-          <p className="text-white/50 text-xs">إلى أين نوصّل؟</p>
+          <p className="text-white font-bold text-lg">{t("location.title")}</p>
+          <p className="text-white/50 text-xs">{dir === "rtl" ? "إلى أين نوصّل؟" : "Where should we deliver?"}</p>
         </div>
       </div>
 
@@ -752,10 +754,10 @@ export default function LocationPicker() {
           </div>
           <div className="text-right flex-1">
             <p className="text-white font-bold text-base">
-              {locating ? "جارٍ التحديد…" : "استخدم موقعي الحالي"}
+              {locating ? t("location.detecting") : t("location.use.gps")}
             </p>
             <p className="text-white/50 text-sm">
-              {locating ? "جارٍ الحصول على موقع GPS" : "تحديد تلقائي بالـ GPS"}
+              {locating ? (dir === "rtl" ? "جارٍ الحصول على موقع GPS" : "Getting GPS location") : (dir === "rtl" ? "تحديد تلقائي بالـ GPS" : "Automatic GPS detection")}
             </p>
           </div>
         </button>
@@ -764,7 +766,7 @@ export default function LocationPicker() {
         {savedLocs && savedLocs.length > 0 && (
           <div className="mb-3">
             <p className="text-white/40 text-[10px] uppercase tracking-widest px-1 mb-2">
-              المواقع المحفوظة
+              {dir === "rtl" ? "المواقع المحفوظة" : "Saved Locations"}
             </p>
             <div className="flex flex-col gap-2">
               {savedLocs.map((loc) => (
@@ -791,7 +793,7 @@ export default function LocationPicker() {
                   </div>
                   <div className="flex-1 min-w-0 text-right">
                     <p className="text-white font-semibold text-sm">
-                      {loc.label === "home" ? "المنزل" : loc.label === "work" ? "العمل" : "موقع آخر"}
+                      {loc.label === "home" ? (dir === "rtl" ? "المنزل" : "Home") : loc.label === "work" ? (dir === "rtl" ? "العمل" : "Work") : (dir === "rtl" ? "موقع آخر" : "Other")}
                     </p>
                     <p className="text-white/40 text-xs truncate">
                       {loc.address ?? `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}`}
@@ -807,7 +809,7 @@ export default function LocationPicker() {
         {/* ── Muscat area presets ────────────────────────────────────── */}
         <div className="mb-3">
           <p className="text-white/40 text-[10px] uppercase tracking-widest px-1 mb-2">
-            مناطق مسقط
+            {dir === "rtl" ? "مناطق مسقط" : "Muscat Areas"}
           </p>
           <div className="grid grid-cols-2 gap-2">
             {MUSCAT_PRESETS.map((preset) => (
@@ -838,8 +840,8 @@ export default function LocationPicker() {
             <MapPin className="w-6 h-6 text-blue-400" />
           </div>
           <div className="flex-1 text-right">
-            <p className="text-white font-bold text-base">اختر على الخريطة</p>
-            <p className="text-white/50 text-sm">تحديد موقع مخصص على الخريطة</p>
+          <p className="text-white font-bold text-base">{dir === "rtl" ? "اختر على الخريطة" : "Choose on Map"}</p>
+          <p className="text-white/50 text-sm">{dir === "rtl" ? "تحديد موقع مخصص على الخريطة" : "Pin a custom location on the map"}</p>
           </div>
           <Plus className="w-4 h-4 text-white/30 shrink-0" />
         </button>

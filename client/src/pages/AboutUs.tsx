@@ -1,24 +1,21 @@
 /**
- * AboutUs — صفحة "من نحن"
- * Introduces OWASEEL: story, vision, mission, values, stats, team, CTA.
- * Dark theme matching brand: black bg, orange accents, white text.
+ * AboutUs — صفحة "من نحن" / About Us
+ * Fully bilingual AR/EN via useLanguage hook.
  */
 import { useLocation } from "wouter";
 import {
   Flame, Target, Eye, Heart, Zap, ShieldCheck,
-  Users, MapPin, Star, ChevronRight, ArrowRight,
-  Clock, Truck, Award, TrendingUp,
+  Users, MapPin, Star, ChevronRight, ChevronLeft,
+  ArrowRight, ArrowLeft, Clock, Truck, Award, TrendingUp,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 /* ── Stat card ─────────────────────────────────────────────────── */
 function StatCard({ value, label, icon }: { value: string; label: string; icon: React.ReactNode }) {
   return (
     <div
       className="flex flex-col items-center gap-2 p-5 rounded-3xl"
-      style={{
-        background: "oklch(0.13 0 0)",
-        border: "1px solid rgba(255,255,255,0.07)",
-      }}
+      style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.07)" }}
     >
       <div
         className="w-12 h-12 rounded-2xl flex items-center justify-center"
@@ -59,10 +56,7 @@ function TeamCard({ initials, name, role, color }: { initials: string; name: str
   return (
     <div
       className="rounded-3xl p-5 flex flex-col items-center gap-3 text-center"
-      style={{
-        background: "oklch(0.13 0 0)",
-        border: "1px solid rgba(255,255,255,0.07)",
-      }}
+      style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.07)" }}
     >
       <div
         className="w-16 h-16 rounded-full flex items-center justify-center text-white font-black text-xl"
@@ -78,15 +72,35 @@ function TeamCard({ initials, name, role, color }: { initials: string; name: str
   );
 }
 
+/* ── Section heading ────────────────────────────────────────────── */
+function SectionHeading({ title }: { title: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-1 h-6 rounded-full" style={{ background: "oklch(0.71 0.18 54)" }} />
+      <h2 className="text-white font-black text-xl">{title}</h2>
+    </div>
+  );
+}
+
 /* ── Main component ─────────────────────────────────────────────── */
 export default function AboutUs() {
   const [, navigate] = useLocation();
+  const { t, dir } = useLanguage();
+
+  const BackIcon = dir === "rtl" ? ChevronRight : ChevronLeft;
+  const ArrowIcon = dir === "rtl" ? ArrowRight : ArrowLeft;
+
+  const areas = {
+    ar: ["الموالح", "المعبيلة", "الخوض", "مطرح", "العذيبة", "الروي", "الخوير", "القرم", "بوشر", "غلا"],
+    en: ["Al Mowaleh", "Al Maabilah", "Al Khoud", "Mutrah", "Al Azaiba", "Al Ruwi", "Al Khuwair", "Al Qurm", "Bawshar", "Ghala"],
+  };
+  const moreLabel = dir === "rtl" ? "+١٧ حياً" : "+17 more";
 
   return (
     <div
       className="mobile-screen overflow-y-auto"
       style={{ background: "oklch(0.09 0 0)" }}
-      dir="rtl"
+      dir={dir}
     >
       {/* ── Header ── */}
       <div
@@ -95,16 +109,14 @@ export default function AboutUs() {
           background: "linear-gradient(160deg, oklch(0.09 0 0) 0%, oklch(0.18 0.08 54) 60%, oklch(0.12 0.04 54) 100%)",
         }}
       >
-        {/* Back button */}
         <button
           onClick={() => navigate("/")}
           className="flex items-center gap-1.5 text-white/60 text-sm mb-6 hover:text-white transition-colors"
         >
-          <ChevronRight className="w-4 h-4" />
-          <span>الرئيسية</span>
+          <BackIcon className="w-4 h-4" />
+          <span>{t("about.back")}</span>
         </button>
 
-        {/* Brand mark */}
         <div className="flex items-center gap-3 mb-6">
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center"
@@ -122,14 +134,9 @@ export default function AboutUs() {
           </div>
         </div>
 
-        <h1 className="text-white font-black text-3xl leading-tight mb-3">
-          من نحن
-        </h1>
-        <p className="text-white/60 text-base leading-relaxed">
-          منصة توصيل أسطوانات الغاز الأولى في مسقط — سريعة، موثوقة، وبضغطة واحدة.
-        </p>
+        <h1 className="text-white font-black text-3xl leading-tight mb-3">{t("about.title")}</h1>
+        <p className="text-white/60 text-base leading-relaxed">{t("about.subtitle")}</p>
 
-        {/* Decorative glow */}
         <div
           className="absolute top-0 left-0 w-64 h-64 rounded-full pointer-events-none"
           style={{
@@ -143,48 +150,34 @@ export default function AboutUs() {
 
         {/* ── Our Story ── */}
         <section className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-6 rounded-full" style={{ background: "oklch(0.71 0.18 54)" }} />
-            <h2 className="text-white font-black text-xl">قصتنا</h2>
-          </div>
+          <SectionHeading title={t("about.story.title")} />
           <div
             className="rounded-3xl p-5"
-            style={{
-              background: "oklch(0.13 0 0)",
-              border: "1px solid rgba(255,255,255,0.07)",
-            }}
+            style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.07)" }}
           >
             <p className="text-white/70 text-sm leading-loose">
-              وُلدت فكرة <span className="text-orange-400 font-bold">أًوصّل</span> من تجربة حقيقية — عائلة في مسقط نفد منها الغاز في منتصف الليل، ولم تجد طريقة سهلة للحصول عليه. من تلك اللحظة، قررنا بناء منصة تجعل توصيل الغاز بسيطاً كأي طلب يومي.
+              <span className="text-orange-400 font-bold">OWASEEL</span>{" "}
+              {t("about.story.p1").replace("أًوصّل", "").replace("OWASEEL", "").trim()}
             </p>
-            <p className="text-white/70 text-sm leading-loose mt-3">
-              اليوم، نربط بين المزودين المعتمدين وآلاف الأسر في مسقط، مع ضمان التوصيل خلال ٣٠ دقيقة أو استرداد كامل للمبلغ.
-            </p>
+            <p className="text-white/70 text-sm leading-loose mt-3">{t("about.story.p2")}</p>
           </div>
         </section>
 
         {/* ── Stats ── */}
         <section className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-6 rounded-full" style={{ background: "oklch(0.71 0.18 54)" }} />
-            <h2 className="text-white font-black text-xl">بالأرقام</h2>
-          </div>
+          <SectionHeading title={t("about.stats.title")} />
           <div className="grid grid-cols-2 gap-3">
-            <StatCard value="+٥٠٠" label="طلب مكتمل" icon={<Truck className="w-5 h-5 text-orange-400" />} />
-            <StatCard value="٣٠ د" label="متوسط وقت التوصيل" icon={<Clock className="w-5 h-5 text-orange-400" />} />
-            <StatCard value="٢٧" label="حيّاً في مسقط" icon={<MapPin className="w-5 h-5 text-orange-400" />} />
-            <StatCard value="٤.٩★" label="متوسط التقييم" icon={<Star className="w-5 h-5 text-orange-400" />} />
+            <StatCard value="+500" label={t("about.stats.orders")} icon={<Truck className="w-5 h-5 text-orange-400" />} />
+            <StatCard value="30m" label={t("about.stats.speed")} icon={<Clock className="w-5 h-5 text-orange-400" />} />
+            <StatCard value="27" label={t("about.stats.areas")} icon={<MapPin className="w-5 h-5 text-orange-400" />} />
+            <StatCard value="4.9★" label={t("about.stats.rating")} icon={<Star className="w-5 h-5 text-orange-400" />} />
           </div>
         </section>
 
         {/* ── Vision & Mission ── */}
         <section className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-6 rounded-full" style={{ background: "oklch(0.71 0.18 54)" }} />
-            <h2 className="text-white font-black text-xl">رؤيتنا ورسالتنا</h2>
-          </div>
+          <SectionHeading title={t("about.vision.title")} />
 
-          {/* Vision */}
           <div
             className="rounded-3xl p-5 flex gap-4"
             style={{
@@ -199,23 +192,15 @@ export default function AboutUs() {
               <Eye className="w-5 h-5 text-orange-400" />
             </div>
             <div>
-              <p className="text-orange-400 font-bold text-xs tracking-wider mb-1">الرؤية</p>
-              <p className="text-white font-bold text-base leading-snug mb-2">
-                أن نكون المنصة الأولى لتوصيل الطاقة المنزلية في سلطنة عُمان
-              </p>
-              <p className="text-white/55 text-sm leading-relaxed">
-                نسعى لتوسيع خدماتنا لتشمل جميع محافظات السلطنة، مع الحفاظ على معايير السرعة والجودة التي نفخر بها.
-              </p>
+              <p className="text-orange-400 font-bold text-xs tracking-wider mb-1">{t("about.vision.label")}</p>
+              <p className="text-white font-bold text-base leading-snug mb-2">{t("about.vision.heading")}</p>
+              <p className="text-white/55 text-sm leading-relaxed">{t("about.vision.desc")}</p>
             </div>
           </div>
 
-          {/* Mission */}
           <div
             className="rounded-3xl p-5 flex gap-4"
-            style={{
-              background: "oklch(0.13 0 0)",
-              border: "1px solid rgba(255,255,255,0.07)",
-            }}
+            style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.07)" }}
           >
             <div
               className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 mt-0.5"
@@ -224,73 +209,45 @@ export default function AboutUs() {
               <Target className="w-5 h-5 text-orange-400" />
             </div>
             <div>
-              <p className="text-orange-400 font-bold text-xs tracking-wider mb-1">الرسالة</p>
-              <p className="text-white font-bold text-base leading-snug mb-2">
-                توصيل الغاز لكل بيت في مسقط خلال ٣٠ دقيقة — بدون تطبيق، بدون تعقيد
-              </p>
-              <p className="text-white/55 text-sm leading-relaxed">
-                نؤمن أن الحصول على احتياجات المنزل الأساسية يجب أن يكون سهلاً وموثوقاً وبسعر ثابت لا مفاجآت فيه.
-              </p>
+              <p className="text-orange-400 font-bold text-xs tracking-wider mb-1">{t("about.mission.label")}</p>
+              <p className="text-white font-bold text-base leading-snug mb-2">{t("about.mission.heading")}</p>
+              <p className="text-white/55 text-sm leading-relaxed">{t("about.mission.desc")}</p>
             </div>
           </div>
         </section>
 
         {/* ── Values ── */}
         <section className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-6 rounded-full" style={{ background: "oklch(0.71 0.18 54)" }} />
-            <h2 className="text-white font-black text-xl">قيمنا</h2>
-          </div>
+          <SectionHeading title={t("about.values.title")} />
           <div className="flex flex-col gap-3">
-            <ValueCard
-              icon={<Zap className="w-5 h-5 text-orange-400" />}
-              title="السرعة أولاً"
-              desc="كل دقيقة تهم. نضمن التوصيل خلال ٣٠ دقيقة أو نسترد المبلغ كاملاً دون أسئلة."
-            />
-            <ValueCard
-              icon={<ShieldCheck className="w-5 h-5 text-orange-400" />}
-              title="الأمان والموثوقية"
-              desc="جميع مزودينا معتمدون ومدرّبون. أسطوانات الغاز تُفحص قبل كل توصيل."
-            />
-            <ValueCard
-              icon={<Heart className="w-5 h-5 text-orange-400" />}
-              title="خدمة من القلب"
-              desc="نتعامل مع كل طلب كأنه لعائلتنا. رضا العميل ليس هدفاً — هو معيار نجاحنا."
-            />
-            <ValueCard
-              icon={<TrendingUp className="w-5 h-5 text-orange-400" />}
-              title="الشفافية والسعر الثابت"
-              desc="سعر واحد ثابت: ٣.٣٠٠ ريال عُماني. لا رسوم خفية، لا مفاجآت عند الباب."
-            />
+            <ValueCard icon={<Zap className="w-5 h-5 text-orange-400" />} title={t("about.values.speed.title")} desc={t("about.values.speed.desc")} />
+            <ValueCard icon={<ShieldCheck className="w-5 h-5 text-orange-400" />} title={t("about.values.safety.title")} desc={t("about.values.safety.desc")} />
+            <ValueCard icon={<Heart className="w-5 h-5 text-orange-400" />} title={t("about.values.service.title")} desc={t("about.values.service.desc")} />
+            <ValueCard icon={<TrendingUp className="w-5 h-5 text-orange-400" />} title={t("about.values.transparency.title")} desc={t("about.values.transparency.desc")} />
           </div>
         </section>
 
         {/* ── Team ── */}
         <section className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-6 rounded-full" style={{ background: "oklch(0.71 0.18 54)" }} />
-            <h2 className="text-white font-black text-xl">فريقنا</h2>
-          </div>
-          <p className="text-white/55 text-sm leading-relaxed">
-            قيادة متمرسة تجمع بين الخبرة الإدارية والرؤية الاستراتيجية لبناء منصة توصيل الطاقة الأولى في عُمان.
-          </p>
+          <SectionHeading title={t("about.team.title")} />
+          <p className="text-white/55 text-sm leading-relaxed">{t("about.team.desc")}</p>
           <div className="grid grid-cols-3 gap-3">
             <TeamCard
               initials="ف.ع"
-              name="فهد العامري"
-              role="المؤسس ورئيس مجلس الإدارة"
+              name={t("about.team.member1.name")}
+              role={t("about.team.member1.role")}
               color="linear-gradient(135deg, oklch(0.71 0.18 54), oklch(0.55 0.22 40))"
             />
             <TeamCard
               initials="م.ح"
-              name="مبارك الحبسي"
-              role="المدير العام"
+              name={t("about.team.member2.name")}
+              role={t("about.team.member2.role")}
               color="linear-gradient(135deg, oklch(0.55 0.18 145), oklch(0.40 0.15 160))"
             />
             <TeamCard
               initials="أ.س"
-              name="أحمد سبحاني"
-              role="الرئيس التنفيذي"
+              name={t("about.team.member3.name")}
+              role={t("about.team.member3.role")}
               color="linear-gradient(135deg, oklch(0.55 0.18 260), oklch(0.40 0.15 280))"
             />
           </div>
@@ -298,28 +255,20 @@ export default function AboutUs() {
 
         {/* ── Coverage ── */}
         <section className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-6 rounded-full" style={{ background: "oklch(0.71 0.18 54)" }} />
-            <h2 className="text-white font-black text-xl">نطاق التغطية</h2>
-          </div>
+          <SectionHeading title={t("about.coverage.title")} />
           <div
             className="rounded-3xl p-5"
-            style={{
-              background: "oklch(0.13 0 0)",
-              border: "1px solid rgba(255,255,255,0.07)",
-            }}
+            style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.07)" }}
           >
             <div className="flex items-start gap-3 mb-4">
               <MapPin className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
               <div>
-                <p className="text-white font-bold text-sm mb-1">مسقط — ٢٧ حيّاً</p>
-                <p className="text-white/55 text-xs leading-relaxed">
-                  نغطي جميع أحياء مسقط الكبرى: السيب، مسقط القديمة، الروي، الخوير، القرم، وأكثر من ٢٢ حياً آخر.
-                </p>
+                <p className="text-white font-bold text-sm mb-1">{t("about.coverage.heading")}</p>
+                <p className="text-white/55 text-xs leading-relaxed">{t("about.coverage.desc")}</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              {["الموالح", "المعبيلة", "الخوض", "مطرح", "العذيبة", "الروي", "الخوير", "القرم", "بوشر", "غلا"].map((area) => (
+              {(dir === "rtl" ? areas.ar : areas.en).map((area) => (
                 <span
                   key={area}
                   className="text-xs px-2.5 py-1 rounded-full text-orange-300"
@@ -332,13 +281,13 @@ export default function AboutUs() {
                 className="text-xs px-2.5 py-1 rounded-full text-white/40"
                 style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
               >
-                +١٧ حياً
+                {moreLabel}
               </span>
             </div>
           </div>
         </section>
 
-        {/* ── Awards / Trust ── */}
+        {/* ── Quality badge ── */}
         <section>
           <div
             className="rounded-3xl p-5 flex gap-4 items-center"
@@ -348,14 +297,7 @@ export default function AboutUs() {
             }}
           >
             <Award className="w-10 h-10 text-orange-400 shrink-0" />
-            <div>
-              <p className="text-white font-bold text-sm leading-snug">
-                ضمان الجودة والسلامة
-              </p>
-              <p className="text-white/55 text-xs leading-relaxed mt-1">
-                جميع أسطوانات الغاز مطابقة لمعايير الهيئة العُمانية للمواصفات والمقاييس. مزودونا مرخّصون ومؤمَّن عليهم.
-              </p>
-            </div>
+            <p className="text-white/55 text-xs leading-relaxed">{t("about.quality.desc")}</p>
           </div>
         </section>
 
@@ -370,22 +312,19 @@ export default function AboutUs() {
             }}
           >
             <Flame className="w-5 h-5" />
-            <span>اطلب الغاز الآن</span>
-            <ArrowRight className="w-4 h-4" />
+            <span>{t("about.cta.order")}</span>
+            <ArrowIcon className="w-4 h-4" />
           </button>
 
           <a
-            href="https://wa.me/96891000000?text=مرحباً، أريد الاستفسار عن خدمة أًوصّل"
+            href="https://wa.me/96891000000?text=Hello%20OWASEEL"
             target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center justify-center gap-2 rounded-full py-3.5 font-semibold text-white/70 text-sm transition-all active:scale-95"
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.12)",
-            }}
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}
           >
             <Users className="w-4 h-4" />
-            <span>تواصل معنا عبر واتساب</span>
+            <span>{t("about.cta.whatsapp")}</span>
           </a>
         </section>
 

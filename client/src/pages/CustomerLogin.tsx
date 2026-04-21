@@ -9,6 +9,7 @@ import { Flame, Phone, ArrowRight, Loader2, CheckCircle2, Shield } from "lucide-
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const STORAGE_KEY = "gas_customer_token";
 const STORAGE_PHONE = "gas_customer_phone";
@@ -33,6 +34,9 @@ export function saveCustomerSession(token: string, phone: string): void {
 
 export default function CustomerLogin() {
   const [, navigate] = useLocation();
+  const { dir } = useLanguage();
+  const isRTL = dir === "rtl";
+
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -43,22 +47,27 @@ export default function CustomerLogin() {
     onSuccess: (data) => {
       if (data.demoOtp) {
         setDemoOtp(data.demoOtp);
-        toast.info(`وضع تجريبي — رمزك: ${data.demoOtp}`, { duration: 30000 });
+        toast.info(
+          isRTL
+            ? `وضع تجريبي — رمزك: ${data.demoOtp}`
+            : `Demo mode — your code: ${data.demoOtp}`,
+          { duration: 30000 }
+        );
       } else {
-        toast.success("تم إرسال رمز التحقق إلى هاتفك");
+        toast.success(isRTL ? "تم إرسال رمز التحقق إلى هاتفك" : "Verification code sent to your phone");
       }
       setStep("otp");
     },
-    onError: (err) => toast.error(err.message || "فشل إرسال الرمز"),
+    onError: (err) => toast.error(err.message || (isRTL ? "فشل إرسال الرمز" : "Failed to send code")),
   });
 
   const verifyOtp = trpc.customerAuth.verifyOtp.useMutation({
     onSuccess: (data) => {
       saveCustomerSession(data.token, data.phone);
-      toast.success("تم تسجيل الدخول بنجاح!");
+      toast.success(isRTL ? "تم تسجيل الدخول بنجاح!" : "Logged in successfully!");
       navigate("/");
     },
-    onError: (err) => toast.error(err.message || "رمز غير صحيح"),
+    onError: (err) => toast.error(err.message || (isRTL ? "رمز غير صحيح" : "Incorrect code")),
   });
 
   function handlePhoneSubmit(e: React.FormEvent) {
@@ -99,7 +108,7 @@ export default function CustomerLogin() {
   }, [otp]);
 
   return (
-    <div className="mobile-screen bg-gray-50 items-center justify-center px-6">
+    <div className="mobile-screen bg-gray-50 items-center justify-center px-6" dir={dir}>
       {/* Logo */}
       <div className="flex flex-col items-center mb-10">
         <div
@@ -108,8 +117,12 @@ export default function CustomerLogin() {
         >
           <Flame className="w-8 h-8 text-orange-400" />
         </div>
-        <h1 className="text-2xl font-extrabold text-gray-900">توصيل الغاز</h1>
-        <p className="text-sm text-gray-400 mt-1">سجّل دخولك برقم هاتفك</p>
+        <h1 className="text-2xl font-extrabold text-gray-900">
+          {isRTL ? "أًوصّل" : "OWASEEL"}
+        </h1>
+        <p className="text-sm text-gray-400 mt-1">
+          {isRTL ? "سجّل دخولك برقم هاتفك" : "Sign in with your phone number"}
+        </p>
       </div>
 
       {step === "phone" ? (
@@ -117,7 +130,9 @@ export default function CustomerLogin() {
           <div className="bg-white rounded-3xl shadow-sm p-6 space-y-4">
             <div className="flex items-center gap-3 mb-2">
               <Phone className="w-5 h-5 text-primary" />
-              <p className="text-sm font-semibold text-gray-700">أدخل رقم هاتفك</p>
+              <p className="text-sm font-semibold text-gray-700">
+                {isRTL ? "أدخل رقم هاتفك" : "Enter your phone number"}
+              </p>
             </div>
             <input
               type="tel"
@@ -130,7 +145,7 @@ export default function CustomerLogin() {
               autoFocus
             />
             <p className="text-xs text-gray-400 text-center">
-              سنرسل رمز تحقق مكون من 6 أرقام
+              {isRTL ? "سنرسل رمز تحقق مكون من 6 أرقام" : "We'll send a 6-digit verification code"}
             </p>
           </div>
 
@@ -145,8 +160,8 @@ export default function CustomerLogin() {
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <>
-                إرسال الرمز
-                <ArrowRight className="w-4 h-4 mr-2" />
+                {isRTL ? "إرسال الرمز" : "Send Code"}
+                <ArrowRight className="w-4 h-4 ms-2" />
               </>
             )}
           </Button>
@@ -156,7 +171,7 @@ export default function CustomerLogin() {
             onClick={() => navigate("/")}
             className="w-full text-sm text-gray-400 py-2"
           >
-            تخطّي — المتابعة كضيف
+            {isRTL ? "تخطّي — المتابعة كضيف" : "Skip — Continue as guest"}
           </button>
         </form>
       ) : (
@@ -165,8 +180,12 @@ export default function CustomerLogin() {
             <div className="flex items-center gap-3">
               <Shield className="w-5 h-5 text-primary" />
               <div>
-                <p className="text-sm font-semibold text-gray-700">رمز التحقق</p>
-                <p className="text-xs text-gray-400">أُرسل إلى {phone}</p>
+                <p className="text-sm font-semibold text-gray-700">
+                  {isRTL ? "رمز التحقق" : "Verification Code"}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {isRTL ? `أُرسل إلى ${phone}` : `Sent to ${phone}`}
+                </p>
               </div>
             </div>
 
@@ -194,14 +213,14 @@ export default function CustomerLogin() {
             {verifyOtp.isPending && (
               <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                جارٍ التحقق…
+                {isRTL ? "جارٍ التحقق…" : "Verifying…"}
               </div>
             )}
 
             {verifyOtp.isSuccess && (
               <div className="flex items-center justify-center gap-2 text-sm text-emerald-600">
                 <CheckCircle2 className="w-4 h-4" />
-                تم التحقق بنجاح
+                {isRTL ? "تم التحقق بنجاح" : "Verified successfully"}
               </div>
             )}
           </div>
@@ -209,7 +228,9 @@ export default function CustomerLogin() {
           {/* Demo mode: show OTP prominently */}
           {demoOtp && (
             <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 text-center">
-              <p className="text-xs text-amber-600 font-medium mb-1">⚠️ وضع تجريبي — لا يوجد SMS</p>
+              <p className="text-xs text-amber-600 font-medium mb-1">
+                {isRTL ? "⚠️ وضع تجريبي — لا يوجد SMS" : "⚠️ Demo mode — no SMS sent"}
+              </p>
               <p className="text-2xl font-black tracking-[0.3em] text-amber-800 font-mono">{demoOtp}</p>
               <button
                 onClick={() => {
@@ -219,7 +240,7 @@ export default function CustomerLogin() {
                 }}
                 className="mt-2 text-xs text-amber-700 underline"
               >
-                ملء تلقائياً
+                {isRTL ? "ملء تلقائياً" : "Auto-fill"}
               </button>
             </div>
           )}
@@ -232,7 +253,7 @@ export default function CustomerLogin() {
             }}
             className="w-full text-sm text-gray-400 py-2"
           >
-            تغيير رقم الهاتف
+            {isRTL ? "تغيير رقم الهاتف" : "Change phone number"}
           </button>
 
           <button
@@ -240,7 +261,9 @@ export default function CustomerLogin() {
             disabled={requestOtp.isPending}
             className="w-full text-sm text-primary py-2 font-medium"
           >
-            {requestOtp.isPending ? "جارٍ الإرسال…" : "إعادة إرسال الرمز"}
+            {requestOtp.isPending
+              ? (isRTL ? "جارٍ الإرسال…" : "Sending…")
+              : (isRTL ? "إعادة إرسال الرمز" : "Resend Code")}
           </button>
         </div>
       )}

@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
-  ChevronRight, Flame, MapPin, Clock, ShieldCheck,
+  ChevronRight, ChevronLeft, Flame, MapPin, Clock, ShieldCheck,
   Loader2, Edit2, Package, AlertTriangle, CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface DeliveryLocation {
   lat: number;
@@ -34,6 +35,7 @@ interface OrderDraft {
 
 export default function OrderSummary() {
   const [, navigate] = useLocation();
+  const { t, dir } = useLanguage();
   const [draft, setDraft] = useState<OrderDraft | null>(null);
   const [deliveryLoc, setDeliveryLoc] = useState<DeliveryLocation | null>(null);
   const [creating, setCreating] = useState(false);
@@ -67,7 +69,7 @@ export default function OrderSummary() {
       setCreating(false);
     },
     onError: (err) => {
-      toast.error(err.message || "تعذّر إنشاء الطلب. يرجى المحاولة مجدداً.");
+      toast.error(err.message || (dir === "rtl" ? "تعذّر إنشاء الطلب. يرجى المحاولة مجدداً." : "Failed to create order. Please try again."));
       setCreating(false);
     },
   });
@@ -109,16 +111,19 @@ export default function OrderSummary() {
     navigate("/order/location");
   }
 
+  const ChevronBack = dir === "rtl" ? ChevronRight : ChevronLeft;
+  const ChevronFwd  = dir === "rtl" ? ChevronLeft  : ChevronRight;
+
   // ── Loading state ──────────────────────────────────────────────────────────
   if (creating || !draft) {
     return (
-      <div className="mobile-screen bg-gray-50 flex items-center justify-center">
+      <div className="mobile-screen bg-gray-50 flex items-center justify-center" dir={dir}>
         <div className="text-center">
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
           </div>
-          <p className="text-gray-700 font-semibold">جارٍ تجهيز طلبك…</p>
-          <p className="text-sm text-gray-400 mt-1">نبحث عن أقرب مزود متاح</p>
+          <p className="text-gray-700 font-semibold">{dir === "rtl" ? "جارٍ تجهيز طلبك…" : "Preparing your order…"}</p>
+          <p className="text-sm text-gray-400 mt-1">{dir === "rtl" ? "نبحث عن أقرب مزود متاح" : "Finding the nearest available provider"}</p>
         </div>
       </div>
     );
@@ -129,7 +134,7 @@ export default function OrderSummary() {
   const canProceed = inZone;
 
   return (
-    <div className="mobile-screen bg-gray-50">
+    <div className="mobile-screen bg-gray-50" dir={dir}>
       {/* ── Header ── */}
       <div
         className="px-4 pt-12 pb-5 text-white"
@@ -140,11 +145,11 @@ export default function OrderSummary() {
             onClick={() => navigate("/")}
             className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0"
           >
-            <ChevronRight className="w-5 h-5 text-white" />
+            <ChevronBack className="w-5 h-5 text-white" />
           </button>
           <div>
-            <h1 className="text-base font-bold text-white">ملخص الطلب</h1>
-            <p className="text-white/50 text-xs">راجع تفاصيل طلبك قبل الدفع</p>
+            <h1 className="text-base font-bold text-white">{t("summary.title")}</h1>
+            <p className="text-white/50 text-xs">{dir === "rtl" ? "راجع تفاصيل طلبك قبل الدفع" : "Review your order before payment"}</p>
           </div>
         </div>
       </div>
@@ -161,10 +166,10 @@ export default function OrderSummary() {
               <Flame className="w-7 h-7 text-orange-300" />
             </div>
             <div>
-              <p className="font-extrabold text-gray-900 text-base">أسطوانة غاز LPG</p>
+              <p className="font-extrabold text-gray-900 text-base">{t("summary.product")}</p>
               <p className="text-sm text-gray-400 flex items-center gap-1 mt-0.5">
                 <Package className="w-3.5 h-3.5" />
-                {draft.gasAmount} {draft.gasAmount === 1 ? "أسطوانة" : "أسطوانات"}
+                {draft.gasAmount} {dir === "rtl" ? (draft.gasAmount === 1 ? "أسطوانة" : "أسطوانات") : (draft.gasAmount === 1 ? "cylinder" : "cylinders")}
               </p>
             </div>
           </div>
@@ -172,19 +177,19 @@ export default function OrderSummary() {
           {/* Price breakdown */}
           <div className="space-y-2.5 border-t border-gray-100 pt-4 mb-4">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">الغاز × {draft.gasAmount}</span>
+              <span className="text-gray-500">{dir === "rtl" ? "الغاز" : "Gas"} × {draft.gasAmount}</span>
               <span className="font-semibold text-gray-800">
                 OMR {(draft.gasAmount * draft.unitPrice).toFixed(3)}
               </span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">رسوم التوصيل</span>
+              <span className="text-gray-500">{t("summary.delivery")}</span>
               <span className={`font-semibold ${draft.deliveryFee === 0 ? "text-green-600" : "text-gray-800"}`}>
-                {draft.deliveryFee === 0 ? "مجاناً" : `OMR ${draft.deliveryFee.toFixed(3)}`}
+                {draft.deliveryFee === 0 ? t("summary.free") : `OMR ${draft.deliveryFee.toFixed(3)}`}
               </span>
             </div>
             <div className="flex justify-between border-t border-gray-100 pt-3 mt-1">
-              <span className="font-extrabold text-gray-900 text-base">الإجمالي</span>
+              <span className="font-extrabold text-gray-900 text-base">{t("summary.total")}</span>
               <span className="font-extrabold text-2xl" style={{ color: "oklch(0.53 0.22 27)" }}>
                 OMR {draft.totalPrice.toFixed(3)}
               </span>
@@ -195,8 +200,8 @@ export default function OrderSummary() {
           <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5 mb-4">
             <Clock className="w-4 h-4 text-primary shrink-0" />
             <span className="text-sm text-gray-600">
-              الوقت المتوقع:{" "}
-              <strong className="text-gray-900">{draft.estimatedMinutes} دقيقة</strong>
+              {t("summary.eta")}:{" "}
+              <strong className="text-gray-900">{draft.estimatedMinutes} {t("summary.minutes")}</strong>
             </span>
           </div>
 
@@ -212,7 +217,7 @@ export default function OrderSummary() {
             >
               <MapPin className={`w-4 h-4 mt-0.5 shrink-0 ${inZone ? "text-emerald-600" : "text-amber-600"}`} />
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">عنوان التوصيل</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-0.5">{t("summary.location")}</p>
                 <p className="text-sm text-gray-800 leading-snug">{address}</p>
                 {inZone && (
                   <div className="flex flex-col gap-1 mt-1.5">
@@ -224,7 +229,7 @@ export default function OrderSummary() {
                     ) : (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-semibold">
                         <CheckCircle2 className="w-3 h-3" />
-                        {draft.zoneLabel} — ضمن نطاق التوصيل
+                        {draft.zoneLabel} — {dir === "rtl" ? "ضمن نطاق التوصيل" : "Within delivery zone"}
                       </span>
                     )}
                   </div>
@@ -246,11 +251,11 @@ export default function OrderSummary() {
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 mb-4">
               <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-amber-800">خارج نطاق التوصيل</p>
+                <p className="text-sm font-semibold text-amber-800">{dir === "rtl" ? "خارج نطاق التوصيل" : "Outside delivery zone"}</p>
                 <p className="text-xs text-amber-600 mt-0.5">
-                  موقعك الحالي خارج مناطق التوصيل المتاحة.{" "}
+                  {dir === "rtl" ? "موقعك الحالي خارج مناطق التوصيل المتاحة." : "Your current location is outside available delivery zones."}{" "}
                   <button onClick={changeLocation} className="underline font-semibold">
-                    غيّر الموقع
+                    {dir === "rtl" ? "غيّر الموقع" : "Change location"}
                   </button>
                 </p>
               </div>
@@ -262,7 +267,7 @@ export default function OrderSummary() {
             <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-3 mb-4">
               <Clock className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-orange-800">خارج ساعات العمل</p>
+                <p className="text-sm font-semibold text-orange-800">{dir === "rtl" ? "خارج ساعات العمل" : "Outside working hours"}</p>
                 <p className="text-xs text-orange-600 mt-0.5">
                   {serviceStatus.nextOpenLabel
                     ? `الخدمة مغلقة حالياً — تفتح ${serviceStatus.nextOpenLabel}. يمكنك تقديم طلبك وسيُعالج عند الفتح.`
@@ -291,9 +296,9 @@ export default function OrderSummary() {
             <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3 mb-4">
               <Clock className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-blue-800">توافر محدود</p>
+                <p className="text-sm font-semibold text-blue-800">{dir === "rtl" ? "توافر محدود" : "Limited Availability"}</p>
                 <p className="text-xs text-blue-600 mt-0.5">
-                  لا يوجد مزودون متاحون الآن — سيُعالج طلبك عند توفر مزود.
+                  {dir === "rtl" ? "لا يوجد مزودون متاحون الآن — سيُعالج طلبك عند توفر مزود." : "No providers available now — your order will be processed when one becomes available."}
                 </p>
               </div>
             </div>
@@ -315,13 +320,13 @@ export default function OrderSummary() {
           >
             {canProceed ? (
               <>
-                اختر طريقة الدفع
+                {dir === "rtl" ? "اختر طريقة الدفع" : "Choose Payment Method"}
                 <span className="mx-2 opacity-60">·</span>
                 OMR {draft.totalPrice.toFixed(3)}
-                <ChevronRight className="w-5 h-5 mr-2 shrink-0" />
+                <ChevronFwd className="w-5 h-5 ms-2 shrink-0" />
               </>
             ) : (
-              "الموقع خارج نطاق التوصيل"
+              dir === "rtl" ? "الموقع خارج نطاق التوصيل" : "Location outside delivery zone"
             )}
           </Button>
         </div>
@@ -329,7 +334,7 @@ export default function OrderSummary() {
         {/* Trust note */}
         <div className="flex items-center justify-center gap-2 py-1">
           <ShieldCheck className="w-4 h-4 text-green-500 shrink-0" />
-          <p className="text-xs text-gray-400">توصيل مضمون أو استرداد كامل · لا رسوم خفية</p>
+          <p className="text-xs text-gray-400">{dir === "rtl" ? "توصيل مضمون أو استرداد كامل · لا رسوم خفية" : "Guaranteed delivery or full refund · No hidden fees"}</p>
         </div>
       </div>
     </div>

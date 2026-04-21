@@ -8,47 +8,15 @@ import {
   CreditCard,
   Building2,
   ChevronRight,
+  ChevronLeft,
   ShieldCheck,
   Clock,
   Loader2,
   CheckCircle2,
 } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type PaymentMethod = "cash" | "online" | "bank_transfer";
-
-interface PaymentOption {
-  id: PaymentMethod;
-  icon: React.ReactNode;
-  label: string;
-  description: string;
-  badge?: string;
-  badgeColor?: string;
-}
-
-const PAYMENT_OPTIONS: PaymentOption[] = [
-  {
-    id: "cash",
-    icon: <Banknote className="w-6 h-6" />,
-    label: "الدفع عند الاستلام",
-    description: "ادفع للسائق عند وصول الغاز",
-    badge: "الأكثر شيوعاً",
-    badgeColor: "bg-green-500",
-  },
-  {
-    id: "online",
-    icon: <CreditCard className="w-6 h-6" />,
-    label: "الدفع الإلكتروني",
-    description: "دفع آمن بالبطاقة (وضع تجريبي)",
-    badge: "فوري",
-    badgeColor: "bg-blue-500",
-  },
-  {
-    id: "bank_transfer",
-    icon: <Building2 className="w-6 h-6" />,
-    label: "تحويل بنكي",
-    description: "تحويل إلى بنك مسقط — تأكيد يدوي",
-  },
-];
 
 const WA_ICON = (
   <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
@@ -58,11 +26,15 @@ const WA_ICON = (
 
 export default function Payment() {
   const [, navigate] = useLocation();
+  const { t, dir } = useLanguage();
   const [selected, setSelected] = useState<PaymentMethod>("cash");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState(0);
   const [totalPrice, setTotalPrice] = useState("3.300");
+
+  const ChevronBack = dir === "rtl" ? ChevronRight : ChevronLeft;
+  const ChevronFwd  = dir === "rtl" ? ChevronLeft  : ChevronRight;
 
   useEffect(() => {
     const id = parseInt(sessionStorage.getItem("orderId") ?? "0");
@@ -72,10 +44,35 @@ export default function Payment() {
     setTotalPrice(price);
   }, [navigate]);
 
-  const confirmCash = trpc.orders.confirmCashOrder.useMutation();
+  const confirmCash   = trpc.orders.confirmCashOrder.useMutation();
   const confirmOnline = trpc.orders.confirmMockPayment.useMutation();
-  const createIntent = trpc.orders.createPaymentIntent.useMutation();
-  const confirmBank = trpc.orders.confirmBankTransfer.useMutation();
+  const createIntent  = trpc.orders.createPaymentIntent.useMutation();
+  const confirmBank   = trpc.orders.confirmBankTransfer.useMutation();
+
+  const PAYMENT_OPTIONS = [
+    {
+      id: "cash" as PaymentMethod,
+      icon: <Banknote className="w-6 h-6" />,
+      label: t("payment.cash"),
+      description: dir === "rtl" ? "ادفع للسائق عند وصول الغاز" : "Pay the driver when gas arrives",
+      badge: dir === "rtl" ? "الأكثر شيوعاً" : "Most Popular",
+      badgeColor: "bg-green-500",
+    },
+    {
+      id: "online" as PaymentMethod,
+      icon: <CreditCard className="w-6 h-6" />,
+      label: t("payment.card"),
+      description: dir === "rtl" ? "دفع آمن بالبطاقة (وضع تجريبي)" : "Secure card payment (demo mode)",
+      badge: dir === "rtl" ? "فوري" : "Instant",
+      badgeColor: "bg-blue-500",
+    },
+    {
+      id: "bank_transfer" as PaymentMethod,
+      icon: <Building2 className="w-6 h-6" />,
+      label: t("payment.transfer"),
+      description: dir === "rtl" ? "تحويل إلى بنك مسقط — تأكيد يدوي" : "Transfer to Bank Muscat — manual confirmation",
+    },
+  ];
 
   async function handlePay() {
     if (!orderId) { navigate("/"); return; }
@@ -93,7 +90,7 @@ export default function Payment() {
       setSuccess(true);
       setTimeout(() => navigate(`/order/placed/${orderId}`), 1000);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "فشل الدفع. يرجى المحاولة مجدداً.";
+      const msg = err instanceof Error ? err.message : (dir === "rtl" ? "فشل الدفع. يرجى المحاولة مجدداً." : "Payment failed. Please try again.");
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -102,13 +99,13 @@ export default function Payment() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center" dir={dir}>
         <div className="flex flex-col items-center gap-4 px-8 text-center">
           <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
             <CheckCircle2 className="w-10 h-10 text-green-600" />
           </div>
-          <p className="text-xl font-bold text-gray-900">تم تأكيد الطلب!</p>
-          <p className="text-sm text-gray-500">جارٍ البحث عن أقرب مزود…</p>
+          <p className="text-xl font-bold text-gray-900">{t("placed.title")}</p>
+          <p className="text-sm text-gray-500">{t("placed.subtitle")}</p>
         </div>
       </div>
     );
@@ -116,28 +113,30 @@ export default function Payment() {
 
   const selectedOption = PAYMENT_OPTIONS.find((o) => o.id === selected)!;
 
+  const bankRows = dir === "rtl"
+    ? [["اسم الحساب", "Gas Delivery Muscat LLC"], ["رقم الحساب", "0123456789"], ["رقم IBAN", "OM810123456789012345678"], ["المرجع", `ORDER-${orderId}`]]
+    : [["Account Name", "Gas Delivery Muscat LLC"], ["Account No.", "0123456789"], ["IBAN", "OM810123456789012345678"], ["Reference", `ORDER-${orderId}`]];
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header with gradient */}
+    <div className="min-h-screen bg-gray-50 flex flex-col" dir={dir}>
+      {/* Header */}
       <div
         className="px-4 pt-12 pb-6"
-        style={{
-          background: "linear-gradient(135deg, oklch(0.25 0.15 27) 0%, oklch(0.15 0.08 27) 100%)",
-        }}
+        style={{ background: "linear-gradient(135deg, oklch(0.25 0.15 27) 0%, oklch(0.15 0.08 27) 100%)" }}
       >
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/order/summary")}
             className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center"
           >
-            <ChevronRight className="w-5 h-5 text-white" />
+            <ChevronBack className="w-5 h-5 text-white" />
           </button>
           <div className="flex-1">
-            <p className="text-xs text-white/60">الخطوة ٣ من ٣</p>
-            <h1 className="text-lg font-bold text-white">اختر طريقة الدفع</h1>
+            <p className="text-xs text-white/60">{dir === "rtl" ? "الخطوة ٣ من ٣" : "Step 3 of 3"}</p>
+            <h1 className="text-lg font-bold text-white">{t("payment.title")}</h1>
           </div>
-          <div className="text-left">
-            <p className="text-xs text-white/60">الإجمالي</p>
+          <div className={dir === "rtl" ? "text-left" : "text-right"}>
+            <p className="text-xs text-white/60">{t("payment.total")}</p>
             <p className="text-xl font-black text-orange-300">
               OMR {parseFloat(totalPrice).toFixed(3)}
             </p>
@@ -153,38 +152,27 @@ export default function Payment() {
             <button
               key={option.id}
               onClick={() => setSelected(option.id)}
-              className={`w-full text-right rounded-2xl p-4 transition-all border-2 ${
-                isSelected
-                  ? "bg-white border-red-500 shadow-md"
-                  : "bg-white border-gray-200 shadow-sm"
+              className={`w-full rounded-2xl p-4 transition-all border-2 ${
+                isSelected ? "bg-white border-red-500 shadow-md" : "bg-white border-gray-200 shadow-sm"
               }`}
+              style={{ textAlign: dir === "rtl" ? "right" : "left" }}
             >
               <div className="flex items-center gap-4">
-                <div
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                    isSelected ? "bg-red-50 text-red-600" : "bg-gray-100 text-gray-600"
-                  }`}
-                >
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${isSelected ? "bg-red-50 text-red-600" : "bg-gray-100 text-gray-600"}`}>
                   {option.icon}
                 </div>
-                <div className="flex-1 min-w-0 text-right">
-                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-base text-gray-900">{option.label}</span>
                     {option.badge && (
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full text-white font-semibold ${option.badgeColor}`}
-                      >
+                      <span className={`text-xs px-2 py-0.5 rounded-full text-white font-semibold ${option.badgeColor}`}>
                         {option.badge}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-gray-500 mt-0.5">{option.description}</p>
                 </div>
-                <div
-                  className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                    isSelected ? "border-red-500 bg-red-500" : "border-gray-300"
-                  }`}
-                >
+                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? "border-red-500 bg-red-500" : "border-gray-300"}`}>
                   {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
                 </div>
               </div>
@@ -195,20 +183,15 @@ export default function Payment() {
         {/* Bank Transfer Details */}
         {selected === "bank_transfer" && (
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-2">
-            <p className="text-sm font-bold text-blue-800 mb-3">بيانات بنك مسقط</p>
-            {[
-              ["اسم الحساب", "Gas Delivery Muscat LLC"],
-              ["رقم الحساب", "0123456789"],
-              ["رقم IBAN", "OM810123456789012345678"],
-              ["المرجع", `ORDER-${orderId}`],
-            ].map(([label, value]) => (
+            <p className="text-sm font-bold text-blue-800 mb-3">{dir === "rtl" ? "بيانات بنك مسقط" : "Bank Muscat Details"}</p>
+            {bankRows.map(([label, value]) => (
               <div key={label} className="flex justify-between text-sm">
                 <span className="font-mono font-semibold text-blue-900">{value}</span>
                 <span className="text-blue-600">{label}</span>
               </div>
             ))}
             <p className="text-xs text-blue-500 mt-2 pt-2 border-t border-blue-200">
-              يُرسَل الطلب بعد التأكيد اليدوي (خلال ساعة واحدة).
+              {dir === "rtl" ? "يُرسَل الطلب بعد التأكيد اليدوي (خلال ساعة واحدة)." : "Order is sent after manual confirmation (within 1 hour)."}
             </p>
           </div>
         )}
@@ -216,11 +199,11 @@ export default function Payment() {
         {/* Trust signals */}
         <div className="flex gap-4 pt-2 justify-end">
           <div className="flex items-center gap-1.5 text-xs text-gray-400">
-            <span>دفع آمن</span>
+            <span>{t("payment.secure")}</span>
             <ShieldCheck className="w-3.5 h-3.5" />
           </div>
           <div className="flex items-center gap-1.5 text-xs text-gray-400">
-            <span>توصيل خلال ٣٠ دقيقة</span>
+            <span>{t("home.features.speed")} {t("home.features.speed.sub")}</span>
             <Clock className="w-3.5 h-3.5" />
           </div>
         </div>
@@ -233,10 +216,7 @@ export default function Payment() {
           className="w-full font-black text-lg rounded-2xl active:scale-95 transition-transform text-white"
           style={{
             height: "64px",
-            background: loading
-              ? "oklch(0.4 0.22 27)"
-              : "linear-gradient(135deg, oklch(0.53 0.22 27) 0%, oklch(0.45 0.22 27) 100%)",
-            fontSize: "18px",
+            background: loading ? "oklch(0.4 0.22 27)" : "linear-gradient(135deg, oklch(0.53 0.22 27) 0%, oklch(0.45 0.22 27) 100%)",
           }}
           onClick={handlePay}
           disabled={loading}
@@ -244,22 +224,21 @@ export default function Payment() {
           {loading ? (
             <span className="flex items-center gap-2">
               <Loader2 className="w-5 h-5 animate-spin" />
-              جارٍ المعالجة…
+              {dir === "rtl" ? "جارٍ المعالجة…" : "Processing…"}
             </span>
           ) : (
             <span className="flex items-center gap-2">
               {selectedOption.icon}
               {selected === "cash"
-                ? `تأكيد الطلب — OMR ${parseFloat(totalPrice).toFixed(3)}`
+                ? `${t("payment.confirm")} — OMR ${parseFloat(totalPrice).toFixed(3)}`
                 : selected === "bank_transfer"
-                ? "تأكيد والحصول على بيانات التحويل"
-                : `ادفع OMR ${parseFloat(totalPrice).toFixed(3)}`}
-              <ChevronRight className="w-5 h-5" />
+                ? (dir === "rtl" ? "تأكيد والحصول على بيانات التحويل" : "Confirm & Get Transfer Details")
+                : `${dir === "rtl" ? "ادفع" : "Pay"} OMR ${parseFloat(totalPrice).toFixed(3)}`}
+              <ChevronFwd className="w-5 h-5" />
             </span>
           )}
         </Button>
 
-        {/* WhatsApp fallback */}
         <a
           href="https://wa.me/96891000001?text=أريد%20طلب%20غاز"
           target="_blank"
@@ -267,7 +246,7 @@ export default function Payment() {
           className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-sm font-semibold bg-green-50 text-green-700 border border-green-200"
         >
           {WA_ICON}
-          تحتاج مساعدة؟ تواصل معنا عبر واتساب
+          {t("home.whatsapp")}
         </a>
       </div>
     </div>
