@@ -185,9 +185,10 @@ export default function ProviderLogin() {
   }
 
   function handleDigit(index: number, value: string) {
+    // Only accept a single digit 0-9
     if (!/^\d?$/.test(value)) return;
     const next = [...pin];
-    next[index] = value;
+    next[index] = value.slice(0, 1);
     setPin(next);
     if (value && index < 3) {
       inputRefs[index + 1].current?.focus();
@@ -198,6 +199,20 @@ export default function ProviderLogin() {
     if (e.key === "Backspace" && !pin[index] && index > 0) {
       inputRefs[index - 1].current?.focus();
     }
+  }
+
+  function handlePaste(e: React.ClipboardEvent<HTMLInputElement>) {
+    e.preventDefault();
+    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+    if (!text) return;
+    const next = ["", "", "", ""];
+    for (let i = 0; i < 4; i++) {
+      next[i] = text[i] ?? "";
+    }
+    setPin(next);
+    // Focus the last filled slot or slot 3
+    const focusIdx = Math.min(text.length, 3);
+    inputRefs[focusIdx].current?.focus();
   }
 
   if (!isValidId) {
@@ -240,6 +255,7 @@ export default function ProviderLogin() {
               value={digit}
               onChange={(e) => handleDigit(i, e.target.value)}
               onKeyDown={(e) => handleKeyDown(i, e)}
+              onPaste={handlePaste}
               className="w-14 h-14 text-center text-2xl font-extrabold rounded-2xl outline-none transition-all"
               style={{
                 background: digit ? "rgba(251,146,60,0.12)" : "rgba(255,255,255,0.06)",

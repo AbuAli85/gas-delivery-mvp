@@ -91,7 +91,14 @@ async function doAssignNext(orderId: number): Promise<void> {
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 // ─── PIN input schema (shared across all authenticated mutations) ─────────────
-const withPin = z.object({ providerId: z.number(), pinHash: z.string() });
+// pinHash must be SHA-256 hex (64 lowercase hex chars) — the hash of exactly 4 digits
+const withPin = z.object({
+  providerId: z.number().int().positive(),
+  pinHash: z
+    .string()
+    .length(64, "يجب أن يكون الرمز 4 أرقام")
+    .regex(/^[0-9a-f]{64}$/, "صيغة غير صالحة"),
+});
 
 // ─── Helper: assert PIN is valid ──────────────────────────────────────────────
 async function assertPin(providerId: number, pinHash: string): Promise<void> {

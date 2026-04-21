@@ -180,7 +180,7 @@ export default function ProviderRegister() {
   const canProceedStep1 =
     zoneId !== null &&
     (allSubZones === undefined || allSubZones.length === 0 || selectedSubZoneIds.length > 0);
-  const canProceedStep2 = pin.length >= 4 && pin === pinConfirm;
+  const canProceedStep2 = pin.length === 4 && pin === pinConfirm;
 
   const handleNext = () => setStep((s) => s + 1);
   const handleBack = () => setStep((s) => s - 1);
@@ -460,13 +460,14 @@ export default function ProviderRegister() {
           <>
             <Card>
               <p className="text-white/50 text-xs mb-4 leading-relaxed">
-                اختر رمزاً سرياً من 4 أرقام أو أكثر. ستستخدمه لتسجيل الدخول لاحقاً بعد الموافقة على طلبك.
+                اختر رمزاً سرياً مكوناً من 4 أرقام بالضبط. ستستخدمه لتسجيل الدخول لاحقاً بعد الموافقة على طلبك.
               </p>
               <Field icon={<Lock className="w-4 h-4" />} label="الرمز السري *">
                 <Input
                   value={pin}
-                  onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                  placeholder="أدخل 4-8 أرقام"
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="أدخل 4 أرقام"
+                  maxLength={4}
                   type="password"
                   inputMode="numeric"
                   autoComplete="new-password"
@@ -476,7 +477,8 @@ export default function ProviderRegister() {
               <Field icon={<Lock className="w-4 h-4" />} label="تأكيد الرمز السري *">
                 <Input
                   value={pinConfirm}
-                  onChange={(e) => setPinConfirm(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                  onChange={(e) => setPinConfirm(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  maxLength={4}
                   placeholder="أعد إدخال الرمز"
                   type="password"
                   inputMode="numeric"
@@ -484,7 +486,7 @@ export default function ProviderRegister() {
                   className={inputClass}
                 />
               </Field>
-              {pin.length >= 4 && pinConfirm.length >= 4 && pin !== pinConfirm && (
+              {pin.length === 4 && pinConfirm.length > 0 && pin !== pinConfirm && (
                 <p className="text-red-400 text-xs mt-1">الرمزان غير متطابقَين</p>
               )}
             </Card>

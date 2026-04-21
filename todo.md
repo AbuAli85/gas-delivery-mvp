@@ -441,3 +441,8 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 
 ## Fix: PIN digits not visible when typing in ProviderLogin
 - [x] Fix PIN input text color so typed digits are clearly visible (WebkitTextFillColor: white + moved helpers to pinStorage.ts for Fast Refresh)
+
+## Fix: PIN Validation Hardening
+- [x] Block paste of >4 digits in PIN inputs (handle onPaste event)
+- [x] Validate PIN is exactly 4 digits in ProviderRegister before hashing (maxLength=4, slice(0,4))
+- [x] Backend: reject verifyPin if pinHash is not a valid 64-char hex (withPin schema: length(64) + /^[0-9a-f]{64}$/)
