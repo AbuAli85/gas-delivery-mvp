@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { getStoredPinHash, clearPinHash } from "@/lib/pinStorage";
 import { WorkingHoursEditor } from "@/components/WorkingHoursEditor";
-import { MapView } from "@/components/Map";
+// MapView replaced with static map for mission screen
 
 type Tab = "home" | "history" | "settings";
 
@@ -141,7 +141,6 @@ function MissionScreen({
   onDeliver: (note?: string) => void;
   starting: boolean; delivering: boolean;
 }) {
-  const mapRef = useRef<google.maps.Map | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [note, setNote] = useState("");
   const [elapsed, setElapsed] = useState(0);
@@ -240,25 +239,21 @@ function MissionScreen({
         </div>
       </div>
 
-      {/* Map */}
+      {/* Static Map */}
       {hasCoords && (
         <div
-          className="rounded-3xl overflow-hidden"
+          className="rounded-3xl overflow-hidden relative"
           style={{ height: 200, border: "1px solid rgba(255,255,255,0.08)" }}
         >
-          <MapView
-            className="w-full h-full"
-            initialCenter={{ lat, lng }}
-            initialZoom={15}
-            onMapReady={(map) => {
-              mapRef.current = map;
-              new google.maps.marker.AdvancedMarkerElement({
-                map,
-                position: { lat, lng },
-                title: "موقع العميل",
-              });
-            }}
+          <img
+            src={`/api/maps/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=600x300&scale=2&maptype=roadmap&markers=color:red%7Clabel:C%7C${lat},${lng}&style=element:geometry%7Ccolor:0x212121&style=element:labels.icon%7Cvisibility:off&style=element:labels.text.fill%7Ccolor:0x757575&style=element:labels.text.stroke%7Ccolor:0x212121&style=feature:road%7Celement:geometry%7Ccolor:0x484848&style=feature:water%7Celement:geometry%7Ccolor:0x000000`}
+            alt="موقع العميل"
+            className="w-full h-full object-cover"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
+          <div className="absolute bottom-2 right-2 bg-black/70 rounded-xl px-2 py-1">
+            <span className="text-white/70 text-xs">موقع العميل</span>
+          </div>
         </div>
       )}
 
