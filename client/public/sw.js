@@ -102,7 +102,7 @@ self.addEventListener("push", (event) => {
   try {
     payload = event.data.json();
   } catch {
-    payload = { title: "OWASEEL | أًوصّل", body: event.data.text() };
+    payload = { title: "OWASEEL | أو وصل", body: event.data.text() };
   }
 
   const options = {
@@ -123,7 +123,7 @@ self.addEventListener("push", (event) => {
 
   event.waitUntil(
     self.registration.showNotification(
-      payload.title || "OWASEEL | أًوصّل",
+      payload.title || "OWASEEL | أو وصل",
       options
     )
   );

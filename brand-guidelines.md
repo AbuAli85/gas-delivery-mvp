@@ -1,6 +1,6 @@
 # OWASEEL — Brand Guidelines | دليل الهوية البصرية
 
-> **OWASEEL / أًوصّل** — منصة توصيل أسطوانات الغاز في مسقط، عُمان.
+> **OWASEEL / أو وصل** — منصة توصيل أسطوانات الغاز في مسقط، عُمان.
 
 ---
 
@@ -9,9 +9,9 @@
 | Language | Name |
 |----------|------|
 | English  | **OWASEEL** |
-| Arabic   | **أًوصّل** |
+| Arabic   | **أو وصل** |
 
-The name "أًوصّل" is a colloquial Omani Arabic phrase meaning **"it will arrive"** — a promise of reliable, on-time delivery. The English transliteration **OWASEEL** is used in all digital interfaces, domain names, and marketing materials.
+The name "أو وصل" is a colloquial Omani Arabic phrase meaning **"it will arrive"** — a promise of reliable, on-time delivery. The English transliteration **OWASEEL** is used in all digital interfaces, domain names, and marketing materials.
 
 ---
 
@@ -20,7 +20,7 @@ The name "أًوصّل" is a colloquial Omani Arabic phrase meaning **"it will a
 The brand mark is a **flame icon (🔥)** representing the gas product and the energy of fast delivery.
 
 - Primary logo: `🔥 OWASEEL` (flame + wordmark, horizontal)
-- Arabic variant: `🔥 أًوصّل`
+- Arabic variant: `🔥 أو وصل`
 - Minimum clear space: 16px on all sides
 - Do not rotate, distort, or recolor the flame icon
 
@@ -119,7 +119,7 @@ padding: 16–20px
 |-----------|-------------|
 | **Reassuring** | The app promises delivery — use confident, positive language |
 | **Concise** | Mobile-first: short labels, no filler text |
-| **Local** | Omani Arabic dialect where natural (e.g., "أًوصّل" not "سيتم التوصيل") |
+| **Local** | Omani Arabic dialect where natural (e.g., "أو وصل" not "سيتم التوصيل") |
 | **Action-oriented** | CTAs use imperative verbs: "اطلب الآن", "تتبع طلبك", "قبول" |
 | **Trustworthy** | Avoid hype; use factual trust signals (price, ETA, guarantee) |
 

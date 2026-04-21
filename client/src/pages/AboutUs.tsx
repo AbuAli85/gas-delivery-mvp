@@ -123,7 +123,7 @@ export default function AboutUs() {
 
         <div className="flex items-center gap-3 mb-6">
           <img
-            src="/manus-storage/logo-white-nobg_0df14254.png"
+            src="/manus-storage/logo-orange-nobg_dc89f071.png"
             alt="OWASEEL"
             className="h-12 w-auto object-contain"
           />
@@ -152,7 +152,7 @@ export default function AboutUs() {
           >
             <p className="text-white/70 text-sm leading-loose">
               <span className="text-orange-400 font-bold">OWASEEL</span>{" "}
-              {t("about.story.p1").replace("أًوصّل", "").replace("OWASEEL", "").trim()}
+              {t("about.story.p1").replace("أو وصل", "").replace("OWASEEL", "").trim()}
             </p>
             <p className="text-white/70 text-sm leading-loose mt-3">{t("about.story.p2")}</p>
           </div>

@@ -458,8 +458,8 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Remove mixed light/dark theme inconsistency
 
 ## Feature: OWASEEL Brand System Implementation
-- [x] Update VITE_APP_TITLE to "OWASEEL | أًوصّل" in all env/config
-- [x] Replace all "توصيل غاز مسقط" text with "OWASEEL" or "أًوصّل" across all pages
+- [x] Update VITE_APP_TITLE to "OWASEEL | أو وصل" in all env/config
+- [x] Replace all "توصيل غاز مسقط" text with "OWASEEL" or "أو وصل" across all pages
 - [x] Update Home.tsx: use OWASEEL name, orange #F57C00 CTA button "🔥 اطلب الغاز الآن"
 - [x] Update ProviderLogin.tsx: OWASEEL branding in header
 - [x] Update ProviderRegister.tsx: OWASEEL branding
@@ -471,7 +471,7 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Create brand-guidelines.md document
 
 ## Fix: Arabic Brand Name Correction
-- [x] Replace "أًوصّل" with "أًوصّل" in all source files (Home.tsx, ProviderLogin.tsx, ProviderRegister.tsx, ProviderDashboard.tsx, AdminPanel.tsx, index.html, brand-guidelines.md, todo.md)
+- [x] Replace "أو وصل" with "أو وصل" in all source files (Home.tsx, ProviderLogin.tsx, ProviderRegister.tsx, ProviderDashboard.tsx, AdminPanel.tsx, index.html, brand-guidelines.md, todo.md)
 
 ## صفحة "من نحن" — About Us Page
 - [x] Create AboutUs.tsx page with dark theme matching brand
@@ -561,3 +561,9 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Dev mode: OTP shown in toast for 15 seconds when FIREBASE_WEB_API_KEY not set
 - [x] Production mode: OTP sent via SMS when Firebase SMS provider configured
 - [x] All error messages translated AR/EN with proper attempt counter
+
+## Fix: Brand Name & Logo Update
+- [x] Replace all "أًوصّل" text with "أو وصل" to match official logo across all pages and files
+- [x] Switch all pages from logo-white-nobg to logo-orange-nobg (visible on dark backgrounds)
+- [x] Update index.html meta tags and OG title with correct brand name
+- [x] Update brand-guidelines.md with correct brand name

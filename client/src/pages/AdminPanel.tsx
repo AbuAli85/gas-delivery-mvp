@@ -153,7 +153,7 @@ export default function AdminPanel() {
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-3">
             <img
-              src="/manus-storage/logo-white-nobg_0df14254.png"
+              src="/manus-storage/logo-orange-nobg_dc89f071.png"
               alt="OWASEEL"
               className="h-8 w-auto object-contain"
             />
