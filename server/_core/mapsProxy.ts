@@ -17,9 +17,10 @@ export function registerMapsProxy(app: Express) {
   //   2. An Origin header matching the app's public domain
   app.get("/api/maps/*", async (req, res) => {
     const forgeBase = (ENV.forgeApiUrl || "").replace(/\/+$/, "");
-    // Use the frontend key (VITE_FRONTEND_FORGE_API_KEY) — the maps proxy
-    // validates against the frontend key, not the server-side key.
-    const forgeKey = process.env.VITE_FRONTEND_FORGE_API_KEY || ENV.forgeApiKey || "";
+    // Use the server-side key (BUILT_IN_FORGE_API_KEY) for static maps and other
+    // server-side proxied requests. The frontend key (VITE_FRONTEND_FORGE_API_KEY)
+    // is only valid for browser-side JS API requests.
+    const forgeKey = ENV.forgeApiKey || process.env.VITE_FRONTEND_FORGE_API_KEY || "";
 
     if (!forgeBase || !forgeKey) {
       res.status(500).send("Maps proxy not configured");

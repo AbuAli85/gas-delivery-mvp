@@ -136,6 +136,7 @@ function MissionScreen({
     customerName?: string | null; gasAmount: string; totalPrice: string;
     status: string; paymentMethod?: string | null; acceptedAt?: Date | string | null;
     customerLat?: number | null; customerLng?: number | null;
+    deliveryLat?: number | null; deliveryLng?: number | null;
   };
   onStartDelivery: () => void;
   onDeliver: (note?: string) => void;
@@ -158,9 +159,10 @@ function MissionScreen({
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
 
-  const lat = order.customerLat ?? 23.5880;
-  const lng = order.customerLng ?? 58.3829;
-  const hasCoords = !!(order.customerLat && order.customerLng);
+  // Prefer deliveryLat/deliveryLng (actual delivery point) over customerLat/customerLng
+  const lat = order.deliveryLat ?? order.customerLat ?? 23.5880;
+  const lng = order.deliveryLng ?? order.customerLng ?? 58.3829;
+  const hasCoords = !!(lat !== 23.5880 || lng !== 58.3829) && !!(order.deliveryLat ?? order.customerLat);
 
   const displayAddr = order.deliveryAddress || order.customerAddress || null;
   const isRawCoords = displayAddr && /^[\d.]+,\s*[\d.]+$/.test(displayAddr.trim());

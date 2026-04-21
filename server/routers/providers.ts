@@ -204,7 +204,10 @@ export const providersRouter = router({
         customerLat: order.customerLat,
         customerLng: order.customerLng,
         customerAddress: order.customerAddress,
-        deliveryAddress: order.deliveryAddress,
+        // Delivery location — use deliveryLat/Lng when available, fall back to customerLat/Lng
+        deliveryLat: order.deliveryLat ?? order.customerLat,
+        deliveryLng: order.deliveryLng ?? order.customerLng,
+        deliveryAddress: order.deliveryAddress ?? order.customerAddress,
         customerPhone: order.customerPhone,
         customerName: order.customerName,
         gasAmount: order.gasAmount,
