@@ -577,3 +577,21 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 ## Fix: OTP Expiry Bug (verifyOtp picks oldest record)
 - [x] Fix verifyOtp: order by createdAt DESC to get most recent OTP (not oldest)
 - [x] Fix requestOtp: delete/invalidate old unverified OTP records for same phone before inserting new one
+
+## Feature: Customer Loyalty & Registration System (COMPLETE)
+- [x] Add customers table (phone, name, email, type: individual/restaurant/business, points, tier, totalOrders, totalSpent)
+- [x] Add customer_offers table (title, titleAr, discountType, discountValue, minTier, pointsCost, isActive)
+- [x] Add customer_offer_redemptions table (customerId, offerId, redeemedAt)
+- [x] Add customerId FK to orders table
+- [x] Run migration 0012 (customers, customer_offers, customer_offer_redemptions, orders.customerId)
+- [x] Backend: getProfile, upsertProfile, getLoyalty, getOrderHistory, getOffers procedures
+- [x] Backend: awardOrderPoints on delivery (hook into providers.deliverOrder)
+- [x] Backend: admin stats (totalCustomers, byType, byTier, revenueByZone, topCustomers)
+- [x] Backend: admin offers CRUD (create, list, toggle)
+- [x] Frontend: CustomerProfile page (/customer/profile) with tabs: Profile, Orders, Offers
+- [x] Frontend: Home page shows loyalty card (points + tier) for registered customers
+- [x] Frontend: Admin panel Customers tab with stats, top customers, offers management
+- [x] Guest checkout still works (no registration required)
+- [x] Customer types: individual, restaurant, business
+- [x] Tier system: bronze (0-99pts) → silver (100-499pts) → gold (500-999pts) → platinum (1000+pts)
+- [x] Points engine: 10 pts per order delivered
