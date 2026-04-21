@@ -27,6 +27,7 @@ import {
   type LatLng,
 } from "../shared/domain";
 import { resolveZone, selectNextProvider } from "./assignmentEngine";
+import { normalizeDeliveryCommissionAmount } from "./db";
 import type { Zone, Provider } from "../drizzle/schema";
 
 // ─── 1. Order Status Transitions ─────────────────────────────────────────────
@@ -509,6 +510,17 @@ describe("Provider score calculation", () => {
     };
     expect(updated.totalOrders).toBe(4);
     expect(updated.totalCommission).toBe("0.400");
+  });
+});
+
+describe("normalizeDeliveryCommissionAmount", () => {
+  it("defaults invalid strings to 0.100", () => {
+    expect(normalizeDeliveryCommissionAmount("not-a-number", { test: true })).toBe(0.1);
+  });
+
+  it("allows zero commission (promo / waived)", () => {
+    expect(normalizeDeliveryCommissionAmount("0", {})).toBe(0);
+    expect(normalizeDeliveryCommissionAmount(0, {})).toBe(0);
   });
 });
 

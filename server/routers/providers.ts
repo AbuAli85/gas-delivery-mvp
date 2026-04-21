@@ -26,6 +26,7 @@ import {
   getAllProviders,
   getPendingProviders,
   incrementProviderScore,
+  normalizeDeliveryCommissionAmount,
   verifyProviderPin,
   createProvider,
   updateProviderStatus,
@@ -473,9 +474,19 @@ export const providersRouter = router({
         await updateAssignment(assignment.id, { status: "completed", respondedAt: new Date() });
       }
 
-      // Increment delivered score + commission
-      const commissionAmt = parseFloat(String(order.commissionAmount ?? "0.100"));
-      try { await incrementProviderScore(input.providerId, "delivered", commissionAmt); } catch (_) {}
+      const commissionAmt = normalizeDeliveryCommissionAmount(order.commissionAmount, {
+        orderId: order.id,
+        source: "deliverOrder",
+      });
+      try {
+        await incrementProviderScore(input.providerId, "delivered", commissionAmt);
+      } catch (err) {
+        console.error("[deliverOrder] incrementProviderScore failed", {
+          orderId: order.id,
+          providerId: input.providerId,
+          err,
+        });
+      }
 
       // Update commission status on order
       try {

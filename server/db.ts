@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, ne, notInArray, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -167,10 +167,25 @@ export async function setProviderAvailability(
 }
 
 /**
- * Increment provider score counters after accept/reject/deliver.
- * @param accepted - true = increment acceptedOrders + totalOrders
- * @param rejected - true = increment rejectedOrders + totalOrders
- * @param delivered - true = increment totalOrders + totalCommission
+ * Parse commission OMR for delivery accounting. Non-finite or negative → 0.100 default.
+ */
+export function normalizeDeliveryCommissionAmount(
+  raw: unknown,
+  logCtx?: Record<string, unknown>
+): number {
+  const parsed = parseFloat(String(raw ?? "0.100"));
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    if (logCtx && Object.keys(logCtx).length > 0) {
+      console.error("[commission] invalid amount; defaulting to 0.100 OMR", { raw, ...logCtx });
+    }
+    return 0.1;
+  }
+  return parsed;
+}
+
+/**
+ * Increment provider counters after accept / reject / deliver.
+ * Uses atomic SQL updates so concurrent deliveries do not lose increments.
  */
 export async function incrementProviderScore(
   providerId: number,
@@ -178,26 +193,38 @@ export async function incrementProviderScore(
   commissionAmount?: number
 ): Promise<void> {
   const db = await getDb();
-  if (!db) return;
-  const provider = await getProviderById(providerId);
-  if (!provider) return;
+  if (!db) {
+    console.warn("[incrementProviderScore] database unavailable", { providerId, event });
+    return;
+  }
 
-  const updates: Record<string, unknown> = {};
   if (event === "accepted") {
-    updates.acceptedOrders = (provider.acceptedOrders ?? 0) + 1;
-  } else if (event === "rejected") {
-    updates.rejectedOrders = (provider.rejectedOrders ?? 0) + 1;
-  } else if (event === "delivered") {
-    updates.totalOrders = (provider.totalOrders ?? 0) + 1;
-    if (commissionAmount) {
-      const current = parseFloat(String(provider.totalCommission ?? "0"));
-      updates.totalCommission = (current + commissionAmount).toFixed(3);
-    }
+    await db
+      .update(providers)
+      .set({ acceptedOrders: sql`${providers.acceptedOrders} + 1` })
+      .where(eq(providers.id, providerId));
+    return;
   }
 
-  if (Object.keys(updates).length > 0) {
-    await db.update(providers).set(updates).where(eq(providers.id, providerId));
+  if (event === "rejected") {
+    await db
+      .update(providers)
+      .set({ rejectedOrders: sql`${providers.rejectedOrders} + 1` })
+      .where(eq(providers.id, providerId));
+    return;
   }
+
+  const add = normalizeDeliveryCommissionAmount(commissionAmount, {
+    providerId,
+    source: "incrementProviderScore",
+  });
+  await db
+    .update(providers)
+    .set({
+      totalOrders: sql`${providers.totalOrders} + 1`,
+      totalCommission: sql`${providers.totalCommission} + ${add}`,
+    })
+    .where(eq(providers.id, providerId));
 }
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
