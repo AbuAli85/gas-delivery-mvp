@@ -419,3 +419,9 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Sub-zone fallback: point outside all sub-zones but inside parent zone → returns parent zone only
 - [x] Provider count per sub-zone: 0 providers → warning flag
 - [x] Provider registration with sub-zones: provider_sub_zones rows created correctly
+
+## Fix: Correct Sub-Zone (Neighborhood) Data for Muscat Wilayats
+- [x] Remove المصنعة from السيب (تابعة لمحافظة جنوب الباطنة وليست من مسقط)
+- [x] Fix all sub-zones to match official Muscat Governorate administrative divisions
+- [x] Re-seed the database with corrected data (27 أحياء صحيحة)
+- [x] Verify UI shows correct neighborhoods per zone

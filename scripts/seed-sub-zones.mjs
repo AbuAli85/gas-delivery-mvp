@@ -1,21 +1,24 @@
 /**
  * Seed script: Insert Muscat sub-zones (wilayats/neighborhoods) into the DB.
  *
- * Muscat Governorate has 6 wilayats:
- *   1. مسقط (Muscat/Old Muscat) → mapped to zone 1 (مسقط القديمة / مطرح)
- *   2. مطرح (Muttrah)           → mapped to zone 1
- *   3. بوشر (Bousher)           → mapped to zone 3 (الخوير / الغبرة)
- *   4. السيب (Seeb)             → mapped to zone 4 (السيب / مسقط الدولي)
- *   5. العامرات (Al Amerat)     → mapped to zone 2 (الروي / وسط المدينة)
- *   6. قريات (Quriyat)          → outside current delivery zones
+ * محافظة مسقط — 6 ولايات رسمية:
+ *   1. مسقط (Old Muscat)  → zone 1
+ *   2. مطرح (Muttrah)     → zone 1
+ *   3. بوشر (Bousher)     → zones 2 + 3
+ *   4. السيب (Seeb)       → zone 4
+ *   5. العامرات (Al Amerat) → zone 2
+ *   6. قريات (Quriyat)   → outside delivery zones
  *
- * Each wilayat is further divided into neighborhoods (أحياء).
- * Polygons are approximate bounding boxes for each neighborhood.
+ * تنبيه مهم:
+ *   - المصنعة تابعة لمحافظة جنوب الباطنة وليست من مسقط — محذوفة
+ *   - جامعة السلطان قابوس ليست حياً سكنياً — محذوفة
  *
  * Run: node scripts/seed-sub-zones.mjs
  */
 
 import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const conn = await mysql.createConnection(process.env.DATABASE_URL);
 
@@ -60,7 +63,8 @@ const subZones = [
     polygon: rect(23.580, 58.520, 23.618, 58.560),
   },
 
-  // ─── Zone 2: الروي / وسط المدينة (Ruwi / CBD) ────────────────────────────
+  // ─── Zone 2: الروي / وسط المدينة (بوشر + العامرات) ─────────────────────────
+  // ولاية بوشر: الروي، وادي الكبير، الحمرية
   {
     zoneId: 2,
     name: 'الروي',
@@ -82,6 +86,7 @@ const subZones = [
     centerLng: 58.5450,
     polygon: rect(23.575, 58.528, 23.608, 58.562),
   },
+  // ولاية العامرات (ولاية مستقلة في محافظة مسقط)
   {
     zoneId: 2,
     name: 'العامرات',
@@ -89,8 +94,15 @@ const subZones = [
     centerLng: 58.5900,
     polygon: rect(23.545, 58.560, 23.600, 58.625),
   },
+  {
+    zoneId: 2,
+    name: 'الحيل الجنوبية',
+    centerLat: 23.5650,
+    centerLng: 58.4700,
+    polygon: rect(23.548, 58.450, 23.585, 58.492),
+  },
 
-  // ─── Zone 3: الخوير / الغبرة (Khuwair / Ghubra) ──────────────────────────
+  // ─── Zone 3: الخوير / الغبرة (ولاية بوشر — الجزء الشمالي) ─────────────────
   {
     zoneId: 3,
     name: 'الخوير',
@@ -116,15 +128,15 @@ const subZones = [
     zoneId: 3,
     name: 'بوشر',
     centerLat: 23.5880,
-    centerLng: 58.4550,
-    polygon: rect(23.570, 58.430, 23.610, 58.480),
+    centerLng: 58.4950,
+    polygon: rect(23.570, 58.475, 23.610, 58.518),
   },
   {
     zoneId: 3,
     name: 'الحيل',
     centerLat: 23.5800,
-    centerLng: 58.4350,
-    polygon: rect(23.562, 58.415, 23.600, 58.458),
+    centerLng: 58.4750,
+    polygon: rect(23.562, 58.455, 23.600, 58.498),
   },
 
   // ─── Zone 4: السيب / مسقط الدولي (Seeb / Airport) ────────────────────────
@@ -186,13 +198,14 @@ const subZones = [
   },
   {
     zoneId: 4,
-    name: 'المصنعة',
-    centerLat: 23.6750,
-    centerLng: 58.1600,
-    polygon: rect(23.655, 58.138, 23.695, 58.182),
+    name: 'النهضة',
+    centerLat: 23.6150,
+    centerLng: 58.2450,
+    polygon: rect(23.598, 58.225, 23.634, 58.265),
   },
+  // ملاحظة: المصنعة محذوفة — تابعة لمحافظة جنوب الباطنة وليست من مسقط
 
-  // ─── Zone 5: القرم / مدينة السلطان قابوس (Qurum / MSQ) ──────────────────
+  // ─── Zone 5: القرم / مدينة السلطان قابوس (ولاية بوشر — الجزء الجنوبي) ────
   {
     zoneId: 5,
     name: 'القرم',
@@ -216,11 +229,12 @@ const subZones = [
   },
   {
     zoneId: 5,
-    name: 'جامعة السلطان قابوس',
-    centerLat: 23.5820,
-    centerLng: 58.4650,
-    polygon: rect(23.564, 58.445, 23.602, 58.485),
+    name: 'الأزيبة',
+    centerLat: 23.5850,
+    centerLng: 58.4900,
+    polygon: rect(23.568, 58.470, 23.604, 58.510),
   },
+  // ملاحظة: جامعة السلطان قابوس محذوفة — ليست حياً سكنياً
 ];
 
 // Clear existing sub-zones and re-seed
