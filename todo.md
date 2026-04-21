@@ -516,3 +516,15 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Global floating LanguageSwitcher in App.tsx changed to top-right fixed (fallback for any page without inline switcher)
 - [x] All headers use flex-1 min-w-0 on title div to prevent text overflow
 - [x] Chevron icons already use dir-aware ChevronBack/ChevronFwd pattern on all pages
+
+## Feature: Secure Firebase Phone Auth OTP (SMS)
+- [x] Install firebase-admin + bcryptjs SDKs
+- [x] Add otp_requests table to DB schema (phone, codeHash, expiresAt, attempts, verified)
+- [x] Apply DB migration for otp_requests table
+- [x] Build requestOtp tRPC procedure: crypto.randomBytes OTP, bcrypt hash, store in DB, send via Firebase SMS
+- [x] Build verifyOtp tRPC procedure: bcrypt compare, check expiry (5 min), check attempts (max 3), issue session token
+- [x] Rate limiting: max 3 OTP requests per phone per 10 minutes
+- [x] Update CustomerLogin.tsx: countdown timer, attempt counter, resend cooldown, security badge
+- [x] Show clear error messages (expired, wrong code, too many attempts, rate limited)
+- [x] Fallback: if Firebase not configured, show OTP in dev mode toast (for testing)
+- [ ] Add FIREBASE_WEB_API_KEY secret when SMS provider is ready in Firebase Console

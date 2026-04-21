@@ -296,3 +296,21 @@ export const orderReviews = mysqlTable("order_reviews", {
 });
 export type OrderReview = typeof orderReviews.$inferSelect;
 export type InsertOrderReview = typeof orderReviews.$inferInsert;
+
+// ─── OTP Requests ─────────────────────────────────────────────────────────────
+// Secure phone OTP verification for customer login.
+// codeHash: bcrypt hash of the 6-digit OTP (never stored in plain text).
+// expiresAt: 5 minutes from creation.
+// attempts: incremented on each wrong guess; locked after 3.
+// verified: set to true once the correct code is entered.
+export const otpRequests = mysqlTable("otp_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  phone: varchar("phone", { length: 32 }).notNull(),
+  codeHash: varchar("codeHash", { length: 128 }).notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  attempts: int("attempts").default(0).notNull(),
+  verified: boolean("verified").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type OtpRequest = typeof otpRequests.$inferSelect;
+export type InsertOtpRequest = typeof otpRequests.$inferInsert;
