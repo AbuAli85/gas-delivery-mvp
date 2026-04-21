@@ -104,7 +104,7 @@ export default function Home() {
           <img
             src="/manus-storage/logo-orange-nobg_dc89f071.png"
             alt="OWASEEL"
-            className="h-10 w-auto object-contain"
+            className="h-16 w-auto object-contain drop-shadow-lg"
           />
           <div className="ms-auto">
             <LanguageSwitcher />
