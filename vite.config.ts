@@ -160,6 +160,13 @@ export default defineConfig({
       "@shared": path.resolve(import.meta.dirname, "shared"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
     },
+    // Force a single React instance to prevent "useState null" / invalid hook call crashes
+    // that occur when packages like @sentry/react resolve their own React copy.
+    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
+  },
+  optimizeDeps: {
+    // Ensure all React-dependent packages share the same pre-bundled React
+    include: ["react", "react-dom", "react-dom/client"],
   },
   envDir: path.resolve(import.meta.dirname),
   root: path.resolve(import.meta.dirname, "client"),
