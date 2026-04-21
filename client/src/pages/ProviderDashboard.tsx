@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
-import { getStoredPinHash, clearPinHash } from "./ProviderLogin";
+import { getStoredPinHash, clearPinHash } from "@/lib/pinStorage";
 import { ORDER_STATUS_LABELS, type OrderStatus } from "../../../shared/domain";
 import { WorkingHoursEditor } from "@/components/WorkingHoursEditor";
 

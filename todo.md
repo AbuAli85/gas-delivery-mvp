@@ -435,3 +435,9 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Add listAll admin endpoint (adminListAll) to show approved/rejected providers too
 - [x] Wire /admin/providers route in App.tsx
 - [x] Add "مزودون" tab link in AdminPanel tab bar
+
+## Fix: ProviderLogin Dark Theme
+- [x] Redesign ProviderLogin to match dark theme (black bg, dark card, orange accents, white text)
+
+## Fix: PIN digits not visible when typing in ProviderLogin
+- [x] Fix PIN input text color so typed digits are clearly visible (WebkitTextFillColor: white + moved helpers to pinStorage.ts for Fast Refresh)
