@@ -539,6 +539,62 @@ export const providersRouter = router({
     }),
 
   /**
+   * Admin: list ALL providers (any status) with sub-zone names.
+   * Gated by ADMIN_PIN.
+   */
+  adminListAll: publicProcedure
+    .input(z.object({ adminPin: z.string() }))
+    .query(async ({ input }) => {
+      if (input.adminPin !== (process.env.ADMIN_PIN ?? "1234")) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "رمز الإدارة غير صحيح." });
+      }
+      const allProviders = await getAllProviders();
+      const enriched = await Promise.all(
+        allProviders.map(async (p) => {
+          const subZones = await getProviderSubZones(p.id);
+          return { ...p, subZoneNames: subZones.map((sz) => sz.name) };
+        })
+      );
+      return enriched;
+    }),
+
+  /**
+   * Admin: approve a pending provider (PIN-gated).
+   */
+  adminApprove: publicProcedure
+    .input(z.object({ adminPin: z.string(), providerId: z.number() }))
+    .mutation(async ({ input }) => {
+      if (input.adminPin !== (process.env.ADMIN_PIN ?? "1234")) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "رمز الإدارة غير صحيح." });
+      }
+      const provider = await getProviderById(input.providerId);
+      if (!provider) throw new TRPCError({ code: "NOT_FOUND" });
+      await updateProviderStatus(input.providerId, "approved");
+      try {
+        await notifyOwner({
+          title: `تمت موافقة المزود ${provider.name}`,
+          content: `تم قبول طلب انضمام ${provider.name} (هاتف: ${provider.phone}).`,
+        });
+      } catch (_) {}
+      return { success: true };
+    }),
+
+  /**
+   * Admin: reject a pending provider (PIN-gated).
+   */
+  adminReject: publicProcedure
+    .input(z.object({ adminPin: z.string(), providerId: z.number(), reason: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      if (input.adminPin !== (process.env.ADMIN_PIN ?? "1234")) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "رمز الإدارة غير صحيح." });
+      }
+      const provider = await getProviderById(input.providerId);
+      if (!provider) throw new TRPCError({ code: "NOT_FOUND" });
+      await updateProviderStatus(input.providerId, "rejected", input.reason);
+      return { success: true };
+    }),
+
+  /**
    * Get VAPID public key for push subscription.
    */
   getVapidPublicKey: publicProcedure.query(() => {

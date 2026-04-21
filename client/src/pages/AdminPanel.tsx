@@ -7,11 +7,12 @@ import { useState } from "react";
 import {
   ShieldCheck, Lock, Loader2, RefreshCw, XCircle, CheckCircle2,
   Package, TrendingUp, Clock, Ban, ChevronDown, ChevronUp,
-  Phone, MapPin, CreditCard, Star, MessageSquare
+  Phone, MapPin, CreditCard, Star, MessageSquare, Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { Link } from "wouter";
 import { ORDER_STATUS_LABELS, type OrderStatus } from "../../../shared/domain";
 
 const STATUS_FILTER_OPTIONS = [
@@ -189,6 +190,14 @@ export default function AdminPanel() {
           <Star className="w-4 h-4" />
           التقييمات
         </button>
+        <Link href="/admin/providers">
+          <button
+            className="flex items-center gap-1.5 px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-400 hover:text-orange-500 transition-colors"
+          >
+            <Users className="w-4 h-4" />
+            المزودون
+          </button>
+        </Link>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">

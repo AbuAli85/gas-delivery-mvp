@@ -425,3 +425,13 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Fix all sub-zones to match official Muscat Governorate administrative divisions
 - [x] Re-seed the database with corrected data (27 أحياء صحيحة)
 - [x] Verify UI shows correct neighborhoods per zone
+
+## Feature: Admin Provider Review Page (/admin/providers)
+- [x] Build AdminProviders.tsx page with pending/approved/rejected tabs
+- [x] Show full provider details: name, phone, email, zone, sub-zones, vehicle, national ID, date
+- [x] Approve button → calls providers.adminApprove, shows success toast, moves to approved tab
+- [x] Reject button with reason input → calls providers.adminReject
+- [x] Enhance listPending backend to return sub-zone names (via adminListAll/adminListPending)
+- [x] Add listAll admin endpoint (adminListAll) to show approved/rejected providers too
+- [x] Wire /admin/providers route in App.tsx
+- [x] Add "مزودون" tab link in AdminPanel tab bar
