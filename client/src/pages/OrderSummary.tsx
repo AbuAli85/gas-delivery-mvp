@@ -1,14 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
   ChevronRight, ChevronLeft, Flame, MapPin, Clock, ShieldCheck,
-  Loader2, Edit2, Package, AlertTriangle, CheckCircle2
+  Loader2, Edit2, Package, AlertTriangle, CheckCircle2, Minus, Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+
+const MAX_CYLINDERS = 10;
+const MIN_CYLINDERS = 1;
 
 interface DeliveryLocation {
   lat: number;
@@ -40,6 +43,7 @@ export default function OrderSummary() {
   const [draft, setDraft] = useState<OrderDraft | null>(null);
   const [deliveryLoc, setDeliveryLoc] = useState<DeliveryLocation | null>(null);
   const [creating, setCreating] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
   const { data: serviceStatus } = trpc.providers.getServiceStatus.useQuery(undefined, {
     refetchInterval: 60000,
@@ -50,7 +54,7 @@ export default function OrderSummary() {
       const loc = deliveryLoc;
       const d: OrderDraft = {
         orderId: data.orderId,
-        gasAmount: 1,
+        gasAmount: data.gasAmount,
         unitPrice: data.unitPrice,
         deliveryFee: data.deliveryFee,
         totalPrice: data.totalPrice,
@@ -75,18 +79,7 @@ export default function OrderSummary() {
     },
   });
 
-  useEffect(() => {
-    // Always re-create from the current deliveryLocation.
-    // A stale cached draft may have an empty zoneLabel from a previous session
-    // (e.g., the user was outside a zone then moved inside one).
-    // Clearing it ensures we always get a fresh zone resolution from the server.
-    sessionStorage.removeItem("orderDraft");
-
-    const storedLoc = sessionStorage.getItem("deliveryLocation");
-    if (!storedLoc) { navigate("/order/location"); return; }
-    let loc: DeliveryLocation;
-    try { loc = JSON.parse(storedLoc); } catch { navigate("/order/location"); return; }
-    setDeliveryLoc(loc);
+  const submitDraft = useCallback((loc: DeliveryLocation, qty: number) => {
     setCreating(true);
     createDraft.mutate({
       customerLat: loc.lat,
@@ -95,10 +88,30 @@ export default function OrderSummary() {
       deliveryLat: loc.lat,
       deliveryLng: loc.lng,
       deliveryAddress: loc.address,
-      gasAmount: 1,
+      gasAmount: qty,
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // Always re-create from the current deliveryLocation.
+    sessionStorage.removeItem("orderDraft");
+    const storedLoc = sessionStorage.getItem("deliveryLocation");
+    if (!storedLoc) { navigate("/order/location"); return; }
+    let loc: DeliveryLocation;
+    try { loc = JSON.parse(storedLoc); } catch { navigate("/order/location"); return; }
+    setDeliveryLoc(loc);
+    submitDraft(loc, quantity);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-create draft when quantity changes (debounced via creating flag)
+  function handleQuantityChange(newQty: number) {
+    if (newQty < MIN_CYLINDERS || newQty > MAX_CYLINDERS) return;
+    if (creating) return;
+    setQuantity(newQty);
+    if (deliveryLoc) submitDraft(deliveryLoc, newQty);
+  }
 
   function goToPayment() {
     sessionStorage.setItem("orderId", String(draft!.orderId));
@@ -167,12 +180,35 @@ export default function OrderSummary() {
             >
               <Flame className="w-7 h-7 text-orange-300" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="font-extrabold text-gray-900 text-base">{t("summary.product")}</p>
               <p className="text-sm text-gray-400 flex items-center gap-1 mt-0.5">
                 <Package className="w-3.5 h-3.5" />
-                {draft.gasAmount} {dir === "rtl" ? (draft.gasAmount === 1 ? "أسطوانة" : "أسطوانات") : (draft.gasAmount === 1 ? "cylinder" : "cylinders")}
+                {dir === "rtl" ? "غاز بترول" : "LPG Gas"}
               </p>
+            </div>
+            {/* Quantity selector */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => handleQuantityChange(quantity - 1)}
+                disabled={quantity <= MIN_CYLINDERS || creating}
+                className="w-9 h-9 rounded-full border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-primary hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <div className="text-center min-w-[2.5rem]">
+                <span className="text-xl font-extrabold text-gray-900">{quantity}</span>
+                <p className="text-[10px] text-gray-400 leading-none mt-0.5">
+                  {dir === "rtl" ? (quantity === 1 ? "أسطوانة" : "أسطوانات") : (quantity === 1 ? "cylinder" : "cylinders")}
+                </p>
+              </div>
+              <button
+                onClick={() => handleQuantityChange(quantity + 1)}
+                disabled={quantity >= MAX_CYLINDERS || creating}
+                className="w-9 h-9 rounded-full border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-primary hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
             </div>
           </div>
 

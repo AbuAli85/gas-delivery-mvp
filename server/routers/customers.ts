@@ -225,6 +225,7 @@ export const customersRouter = router({
           id: orders.id,
           status: orders.status,
           totalPrice: orders.totalPrice,
+          gasAmount: orders.gasAmount,
           createdAt: orders.createdAt,
           deliveryAddress: orders.deliveryAddress,
           paymentMethod: orders.paymentMethod,

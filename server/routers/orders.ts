@@ -9,9 +9,11 @@ import {
   getAllSubZones,
   getActiveAssignment,
   getAssignmentsByOrder,
-  getAvailableProvidersByZone,
-  getAvailableProvidersBySubZone,
+  getEligibleProvidersByZone,
+  getEligibleProvidersBySubZone,
   countAvailableProvidersBySubZone,
+  getProviderActiveOrders,
+  countProviderActiveOrders,
   getOrderById,
   setProviderActiveOrder,
   updateAssignment,
@@ -27,8 +29,10 @@ import {
   FIXED_ORDER_PRICE,
   COMMISSION_AMOUNT,
   DEFAULT_ETA_MINUTES,
+  MAX_CYLINDERS_PER_ORDER,
   LatLng,
   calculateOrderPrice,
+  calculateMultiOrderETA,
 } from "../../shared/domain";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -36,19 +40,31 @@ import {
 async function doAssignProvider(orderId: number): Promise<void> {
   const order = await getOrderById(orderId);
   if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "الطلب غير موجود" });
-
   const rejectedIds: number[] = Array.isArray(order.rejectedProviderIds)
     ? (order.rejectedProviderIds as number[])
     : [];
-
   if (!order.zoneId) {
     await updateOrder(orderId, { status: "cancelled" });
     throw new TRPCError({ code: "BAD_REQUEST", message: "لم يتم تحديد منطقة للطلب" });
   }
 
-  const available = await getAvailableProvidersByZone(order.zoneId, rejectedIds);
-  const provider = selectNextProvider(available, rejectedIds);
+  // Delivery location for proximity check
+  const newOrderLocation: LatLng = {
+    lat: order.deliveryLat ?? order.customerLat,
+    lng: order.deliveryLng ?? order.customerLng,
+  };
 
+  // Use getEligibleProvidersByZone which includes busy-but-eligible providers
+  const eligible = await getEligibleProvidersByZone(order.zoneId, rejectedIds);
+
+  // Build active orders map for proximity check
+  const activeOrdersByProvider = new Map<number, import("../../drizzle/schema").Order[]>();
+  for (const p of eligible) {
+    const activeOrders = await getProviderActiveOrders(p.id);
+    activeOrdersByProvider.set(p.id, activeOrders);
+  }
+
+  const provider = selectNextProvider(eligible, rejectedIds, newOrderLocation, activeOrdersByProvider);
   if (!provider) {
     await updateOrder(orderId, { status: "cancelled" });
     throw new TRPCError({
@@ -56,6 +72,11 @@ async function doAssignProvider(orderId: number): Promise<void> {
       message: "لا يوجد مزودون متاحون في منطقتك",
     });
   }
+
+  // Calculate ETA based on provider's current active order count
+  const providerActiveCount = (activeOrdersByProvider.get(provider.id) ?? []).length;
+  const gasAmount = parseFloat(String(order.gasAmount ?? "1"));
+  const estimatedMinutes = calculateMultiOrderETA(providerActiveCount, gasAmount);
 
   // Expire any stale pending assignments (safety guard)
   const existingActive = await getActiveAssignment(orderId);
@@ -65,23 +86,21 @@ async function doAssignProvider(orderId: number): Promise<void> {
       respondedAt: new Date(),
     });
   }
-
   const allAssignments = await getAssignmentsByOrder(orderId);
   const attemptNumber = allAssignments.length + 1;
-
   await createAssignment({
     orderId,
     providerId: provider.id,
     attemptNumber,
   });
-
+  // NOTE: setProviderActiveOrder is kept for backward compat but multi-order uses getProviderActiveOrders
   await setProviderActiveOrder(provider.id, orderId);
-
-  // Anti-cheat: record assignedAt timestamp
+  // Anti-cheat: record assignedAt timestamp + update ETA
   await updateOrder(orderId, {
     status: "assigned",
     assignedProviderId: provider.id,
     assignedAt: new Date(),
+    estimatedMinutes,
   });
 
   // Send Web Push notification to the assigned provider
@@ -129,13 +148,13 @@ export const ordersRouter = router({
         deliveryLat: z.number().optional(),
         deliveryLng: z.number().optional(),
         deliveryAddress: z.string().optional(),
-        // gasAmount is always 1 — kept for API compatibility
-        gasAmount: z.number().min(1).max(1).default(1),
+        // gasAmount: number of cylinders (1–10)
+        gasAmount: z.number().int().min(1).max(10).default(1),
       })
     )
     .mutation(async ({ input }) => {
-      // Fixed price — always 3.300 OMR
-      const { unitPrice, deliveryFee, totalPrice } = calculateOrderPrice();
+      // Price = gasAmount × 3.300 OMR per cylinder
+      const { unitPrice, deliveryFee, totalPrice } = calculateOrderPrice(input.gasAmount);
 
       // Zone resolution MUST use deliveryLat/Lng when provided.
       // Falls back to customerLat/Lng (ordering location) when delivery location is absent.
@@ -148,7 +167,7 @@ export const ordersRouter = router({
       const zonesWithProviders = await Promise.all(
         allZones.map(async (zone) => ({
           zone,
-          providers: await getAvailableProvidersByZone(zone.id),
+          providers: await getEligibleProvidersByZone(zone.id),
         }))
       );
 
@@ -182,7 +201,7 @@ export const ordersRouter = router({
         deliveryLat: input.deliveryLat ?? null,
         deliveryLng: input.deliveryLng ?? null,
         deliveryAddress: input.deliveryAddress ?? input.customerAddress ?? null,
-        gasAmount: "1",
+        gasAmount: String(input.gasAmount),
         totalPrice: String(totalPrice),
         currency: "OMR",
         estimatedMinutes: DEFAULT_ETA_MINUTES,
@@ -197,7 +216,7 @@ export const ordersRouter = router({
 
       return {
         orderId,
-        gasAmount: 1,
+        gasAmount: input.gasAmount,
         unitPrice,
         deliveryFee,
         totalPrice,
@@ -509,6 +528,7 @@ export const ordersRouter = router({
         paymentMethod: order.paymentMethod,
         estimatedMinutes: order.estimatedMinutes,
         totalPrice: order.totalPrice,
+        gasAmount: order.gasAmount,
         currency: order.currency,
         // Ordering location (where customer was)
         customerAddress: order.customerAddress,

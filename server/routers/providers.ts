@@ -9,7 +9,9 @@ import {
   getActiveAssignment,
   getAssignmentById,
   getAssignmentsByProvider,
-  getAvailableProvidersByZone,
+  getEligibleProvidersByZone,
+  getProviderActiveOrders,
+  countProviderActiveOrders,
   getOrderById,
   getPendingAssignmentForProvider,
   getProviderById,
@@ -36,7 +38,12 @@ import {
 } from "../db";
 import { sendPushNotification } from "../_core/webPush";
 import { selectNextProvider } from "../assignmentEngine";
-import { assertAssignmentTransition, assertOrderTransition } from "../../shared/domain";
+import {
+  assertAssignmentTransition,
+  assertOrderTransition,
+  MAX_CONCURRENT_ORDERS,
+  calculateMultiOrderETA,
+} from "../../shared/domain";
 
 // ─── Internal: assign next provider after rejection ───────────────────────────
 
@@ -48,8 +55,17 @@ async function doAssignNext(orderId: number): Promise<void> {
     ? (order.rejectedProviderIds as number[])
     : [];
 
-  const available = await getAvailableProvidersByZone(order.zoneId, rejectedIds);
-  const next = selectNextProvider(available, rejectedIds);
+  const available = await getEligibleProvidersByZone(order.zoneId, rejectedIds);
+  // Build active orders map for proximity-based multi-order selection
+  const activeOrdersByProvider = new Map<number, import("../../drizzle/schema").Order[]>();
+  for (const p of available) {
+    const activeOrders = await getProviderActiveOrders(p.id);
+    activeOrdersByProvider.set(p.id, activeOrders);
+  }
+  const orderLocation = order.deliveryLat
+    ? { lat: order.deliveryLat, lng: order.deliveryLng! }
+    : { lat: order.customerLat, lng: order.customerLng };
+  const next = selectNextProvider(available, rejectedIds, orderLocation, activeOrdersByProvider);
 
   if (!next) {
     // No more providers — cancel the order
@@ -185,18 +201,19 @@ export const providersRouter = router({
 
   /**
    * Get the active (accepted) order for a provider.
+   * @deprecated Use getActiveOrders instead for multi-order support.
+   * Kept for backward compatibility — returns the most recent active order.
    */
   getActiveOrder: publicProcedure
     .input(z.object({ providerId: z.number() }))
     .query(async ({ input }) => {
-      const provider = await getProviderById(input.providerId);
-      if (!provider || !provider.activeOrderId) return null;
-
-      const order = await getOrderById(provider.activeOrderId);
-      if (!order) return null;
-
+      const activeOrders = await getProviderActiveOrders(input.providerId);
+      if (activeOrders.length === 0) return null;
+      // Return the most recently accepted order
+      const order = activeOrders.sort(
+        (a, b) => new Date(b.acceptedAt ?? b.createdAt).getTime() - new Date(a.acceptedAt ?? a.createdAt).getTime()
+      )[0];
       const assignment = await getActiveAssignment(order.id);
-
       return {
         orderId: order.id,
         assignmentId: assignment?.id ?? null,
@@ -204,7 +221,6 @@ export const providersRouter = router({
         customerLat: order.customerLat,
         customerLng: order.customerLng,
         customerAddress: order.customerAddress,
-        // Delivery location — use deliveryLat/Lng when available, fall back to customerLat/Lng
         deliveryLat: order.deliveryLat ?? order.customerLat,
         deliveryLng: order.deliveryLng ?? order.customerLng,
         deliveryAddress: order.deliveryAddress ?? order.customerAddress,
@@ -218,6 +234,45 @@ export const providersRouter = router({
         acceptedAt: order.acceptedAt,
         createdAt: order.createdAt,
       };
+    }),
+
+  /**
+   * Get ALL active orders for a provider (multi-order support).
+   * Returns an array of accepted/out_for_delivery orders sorted by acceptance time.
+   */
+  getActiveOrders: publicProcedure
+    .input(z.object({ providerId: z.number() }))
+    .query(async ({ input }) => {
+      const activeOrders = await getProviderActiveOrders(input.providerId);
+      if (activeOrders.length === 0) return [];
+      const sorted = activeOrders.sort(
+        (a, b) => new Date(a.acceptedAt ?? a.createdAt).getTime() - new Date(b.acceptedAt ?? b.createdAt).getTime()
+      );
+      return Promise.all(
+        sorted.map(async (order) => {
+          const assignment = await getActiveAssignment(order.id);
+          return {
+            orderId: order.id,
+            assignmentId: assignment?.id ?? null,
+            status: order.status,
+            customerLat: order.customerLat,
+            customerLng: order.customerLng,
+            customerAddress: order.customerAddress,
+            deliveryLat: order.deliveryLat ?? order.customerLat,
+            deliveryLng: order.deliveryLng ?? order.customerLng,
+            deliveryAddress: order.deliveryAddress ?? order.customerAddress,
+            customerPhone: order.customerPhone,
+            customerName: order.customerName,
+            gasAmount: order.gasAmount,
+            totalPrice: order.totalPrice,
+            currency: order.currency,
+            paymentMethod: order.paymentMethod,
+            estimatedMinutes: order.estimatedMinutes,
+            acceptedAt: order.acceptedAt,
+            createdAt: order.createdAt,
+          };
+        })
+      );
     }),
 
   /**

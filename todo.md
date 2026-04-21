@@ -640,3 +640,37 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [ ] Provider notes/comment field on delivery confirmation
 - [ ] Mission timer showing elapsed time since acceptance
 - [ ] Customer name display if registered
+
+## Multi-Cylinder & Multi-Order Provider Features
+- [ ] shared/domain.ts: Update calculateOrderPrice(gasAmount) — totalPrice = gasAmount × PRICE_PER_CYLINDER (3.300 OMR each)
+- [ ] shared/domain.ts: Add MAX_CONCURRENT_ORDERS = 3, MULTI_ORDER_PROXIMITY_KM = 5 constants
+- [ ] server/routers/orders.ts: Update createOrderDraft input to accept gasAmount 1-10
+- [ ] server/routers/orders.ts: Compute totalPrice = gasAmount × 3.300 in createOrderDraft
+- [ ] server/routers/orders.ts: Store actual gasAmount in DB (not hardcoded "1")
+- [ ] server/db.ts: Add getProviderActiveOrders(providerId) — returns all active/accepted/out_for_delivery orders
+- [ ] server/db.ts: Update getAvailableProvidersByZone/SubZone to include providers with < MAX_CONCURRENT_ORDERS active orders
+- [ ] server/assignmentEngine.ts: Add isProviderEligibleForMultiOrder(provider, newOrderLat, newOrderLng, activeOrders[]) — proximity check
+- [ ] server/assignmentEngine.ts: Update selectNextProvider to include busy-but-eligible providers
+- [ ] server/routers/orders.ts: Update doAssignProvider to use new multi-order eligibility logic
+- [ ] server/routers/orders.ts: Calculate ETA for new order = sum of remaining ETAs for active orders + travel time to new order
+- [ ] server/routers/providers.ts: Update getActiveOrder → getActiveOrders (return array of all active orders for provider)
+- [ ] server/routers/providers.ts: Update acceptOrder to allow accepting when provider already has < MAX_CONCURRENT_ORDERS
+- [ ] server/routers/providers.ts: Update deliverOrder to clear only that specific order from provider's active list
+- [ ] client/src/pages/OrderSummary.tsx: Add quantity selector (1-10 cylinders) with live price update
+- [ ] client/src/pages/ProviderDashboard.tsx: Update MissionScreen to show all active orders as a list/queue
+- [ ] client/src/pages/ProviderDashboard.tsx: Show per-order ETA and route order in MissionScreen
+- [ ] server/gas-delivery.test.ts: Update tests for multi-cylinder pricing
+- [ ] server/gas-delivery.test.ts: Add tests for multi-order eligibility and ETA calculation
+
+## Multi-Cylinder & Multi-Order Features (Apr 21, 2026)
+- [x] Customer can order 1-10 cylinders per order with quantity selector in OrderSummary
+- [x] Price scales linearly: gasAmount × 3.300 OMR
+- [x] Provider can accept up to 3 concurrent orders (MAX_CONCURRENT_ORDERS)
+- [x] Multi-order proximity check: new orders within 5km of active orders
+- [x] ETA recalculation: each new order adds estimated delivery time
+- [x] MissionScreen shows all active orders as separate cards with order count banner
+- [x] getActiveOrders replaces getActiveOrder in providers router
+- [x] CustomerProfile order history shows gasAmount
+- [x] OrderPlaced shows cylinder count when > 1
+- [x] getOrderStatus returns gasAmount
+- [x] All 102 tests passing

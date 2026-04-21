@@ -501,9 +501,11 @@ export default function ProviderDashboard() {
     { providerId: id },
     { enabled: !!id && provider?.isAvailable === true, refetchInterval: (q) => (q.state.data ? false : 5_000) }
   );
-  const { data: activeOrder } = trpc.providers.getActiveOrder.useQuery(
+  const { data: activeOrders } = trpc.providers.getActiveOrders.useQuery(
     { providerId: id }, { enabled: !!id, refetchInterval: 8_000 }
   );
+  // backward-compat alias
+  const activeOrder = activeOrders?.[0] ?? null;
   const { data: history } = trpc.providers.getOrderHistory.useQuery(
     { providerId: id }, { enabled: !!id && activeTab === "history" }
   );
@@ -526,7 +528,7 @@ export default function ProviderDashboard() {
     onSuccess: () => {
       toast.success("تم قبول الطلب!");
       utils.providers.getIncomingOrder.invalidate({ providerId: id });
-      utils.providers.getActiveOrder.invalidate({ providerId: id });
+      utils.providers.getActiveOrders.invalidate({ providerId: id });
     },
     onError: (err) => toast.error(err.message || "فشل قبول الطلب"),
   });
@@ -540,7 +542,7 @@ export default function ProviderDashboard() {
   const startDelivery = trpc.providers.startDelivery.useMutation({
     onSuccess: () => {
       toast.success("بدأ التوصيل!");
-      utils.providers.getActiveOrder.invalidate({ providerId: id });
+      utils.providers.getActiveOrders.invalidate({ providerId: id });
       startLocationUpdates();
     },
     onError: (err) => toast.error(err.message || "فشل بدء التوصيل"),
@@ -548,9 +550,10 @@ export default function ProviderDashboard() {
   const deliverOrder = trpc.providers.deliverOrder.useMutation({
     onSuccess: () => {
       toast.success("تم التوصيل! عمل رائع.");
-      utils.providers.getActiveOrder.invalidate({ providerId: id });
+      utils.providers.getActiveOrders.invalidate({ providerId: id });
       utils.providers.getById.invalidate({ providerId: id });
-      stopLocationUpdates();
+      // Stop location if no more active orders
+      if ((activeOrders?.length ?? 0) <= 1) stopLocationUpdates();
     },
     onError: (err) => toast.error(err.message || "فشل تأكيد التوصيل"),
   });
@@ -703,16 +706,33 @@ export default function ProviderDashboard() {
                 rejecting={rejectOrder.isPending}
               />
             )}
-            {activeOrder && (
-              <MissionScreen
-                order={activeOrder}
-                onStartDelivery={() => startDelivery.mutate({ orderId: activeOrder.orderId, providerId: id, pinHash: pinHash! })}
-                onDeliver={(note) => deliverOrder.mutate({ orderId: activeOrder.orderId, providerId: id, pinHash: pinHash!, providerNote: note })}
-                starting={startDelivery.isPending}
-                delivering={deliverOrder.isPending}
-              />
+            {/* Multiple active orders — render each as a MissionScreen card */}
+            {activeOrders && activeOrders.length > 0 && (
+              <div className="space-y-3">
+                {activeOrders.length > 1 && (
+                  <div
+                    className="flex items-center gap-2 px-3 py-2 rounded-2xl"
+                    style={{ background: "oklch(0.18 0.06 27 / 0.5)", border: "1px solid oklch(0.62 0.22 27 / 0.3)" }}
+                  >
+                    <Flame className="w-4 h-4 text-orange-400 shrink-0" />
+                    <span className="text-orange-300 font-bold text-sm">
+                      {activeOrders.length} طلبات نشطة — رتب حسب الأقدمية
+                    </span>
+                  </div>
+                )}
+                {activeOrders.map((order) => (
+                  <MissionScreen
+                    key={order.orderId}
+                    order={order}
+                    onStartDelivery={() => startDelivery.mutate({ orderId: order.orderId, providerId: id, pinHash: pinHash! })}
+                    onDeliver={(note) => deliverOrder.mutate({ orderId: order.orderId, providerId: id, pinHash: pinHash!, providerNote: note })}
+                    starting={startDelivery.isPending}
+                    delivering={deliverOrder.isPending}
+                  />
+                ))}
+              </div>
             )}
-            {!incoming && !activeOrder && (
+            {!incoming && (!activeOrders || activeOrders.length === 0) && (
               <div
                 className="rounded-3xl p-8 text-center"
                 style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.06)" }}

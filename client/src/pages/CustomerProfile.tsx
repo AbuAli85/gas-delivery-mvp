@@ -393,6 +393,11 @@ export default function CustomerProfile() {
                     {order.deliveryAddress && (
                       <p className="text-xs text-gray-500 truncate">{order.deliveryAddress}</p>
                     )}
+                    {order.gasAmount && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {isRTL ? "الكمية:" : "Qty:"} {order.gasAmount} {isRTL ? (parseFloat(String(order.gasAmount)) === 1 ? "أسطوانة" : "أسطوانات") : (parseFloat(String(order.gasAmount)) === 1 ? "cylinder" : "cylinders")}
+                      </p>
+                    )}
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-sm font-bold text-orange-500">
                         OMR {parseFloat(String(order.totalPrice)).toFixed(3)}

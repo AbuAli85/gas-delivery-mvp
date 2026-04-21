@@ -116,9 +116,9 @@ describe("calculateOrderPrice", () => {
     expect(totalPrice).toBe(3.3);
   });
 
-  it("returns same fixed price regardless of cylinder count (flat-rate MVP)", () => {
+  it("returns price proportional to cylinder count (multi-cylinder pricing)", () => {
     const { totalPrice } = calculateOrderPrice(3);
-    expect(totalPrice).toBe(3.3); // flat rate — gasAmount ignored
+    expect(totalPrice).toBe(9.9); // 3 × 3.300 OMR
   });
 
   it("total price matches 3 decimal OMR format", () => {
@@ -253,15 +253,17 @@ describe("selectNextProvider", () => {
 
   it("skips offline providers", () => {
     const result = selectNextProvider(providers, [1, 2]);
-    // Provider 3 is offline, provider 4 is busy → null
-    expect(result).toBeNull();
+    // Provider 3 is offline; provider 4 has activeOrderId but multi-order allows it
+    // So result should be provider 4 (online, not rejected)
+    expect(result?.id).toBe(4);
   });
 
-  it("skips providers with active orders", () => {
-    const result = selectNextProvider([makeProvider(4, 1, true)], []);
-    // Provider 4 has activeOrderId set
+  it("skips providers with active orders (legacy single-order check)", () => {
+    // In multi-order mode, selectNextProvider accepts extra args; with no location/map, it uses score-based selection
     const busyProvider = { ...makeProvider(4, 1, true), activeOrderId: 99 };
-    expect(selectNextProvider([busyProvider], [])).toBeNull();
+    // Without proximity args, provider with activeOrderId is still eligible (multi-order)
+    // The old single-order guard was removed; eligibility is now checked by getEligibleProvidersByZone
+    expect(selectNextProvider([busyProvider], [])).not.toBeNull();
   });
 
   it("returns null when all providers rejected", () => {
@@ -527,14 +529,15 @@ describe("Fixed price enforcement (3.300 OMR)", () => {
     expect(p1.deliveryFee).toBe(p2.deliveryFee);
   });
 
-  it("price is flat-rate (same for any cylinder count in MVP)", () => {
+  it("price scales linearly with cylinder count", () => {
     const p1 = calculateOrderPrice(1);
     const p2 = calculateOrderPrice(2);
     const p3 = calculateOrderPrice(3);
-    // All return the same fixed price in MVP
-    expect(p1.totalPrice).toBe(p2.totalPrice);
-    expect(p2.totalPrice).toBe(p3.totalPrice);
-    expect(p1.totalPrice).toBe(3.3);
+    expect(p1.totalPrice).toBeCloseTo(3.3, 2);
+    expect(p2.totalPrice).toBeCloseTo(6.6, 2);
+    expect(p3.totalPrice).toBeCloseTo(9.9, 2);
+    expect(p2.totalPrice).toBeCloseTo(p1.totalPrice * 2, 2);
+    expect(p3.totalPrice).toBeCloseTo(p1.totalPrice * 3, 2);
   });
 });
 

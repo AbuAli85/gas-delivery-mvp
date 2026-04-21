@@ -842,3 +842,104 @@ export async function getSubZoneCoverageStats(): Promise<
   }
   return result;
 }
+
+// ─── Multi-Order Provider Support ─────────────────────────────────────────────
+
+/**
+ * Get all active orders for a provider (accepted or out_for_delivery).
+ * Used to check concurrent order count and proximity for multi-order eligibility.
+ */
+export async function getProviderActiveOrders(providerId: number): Promise<Order[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(orders)
+    .where(
+      and(
+        eq(orders.assignedProviderId, providerId),
+        or(eq(orders.status, "accepted"), eq(orders.status, "out_for_delivery"))
+      )
+    );
+}
+
+/**
+ * Count active orders for a provider.
+ */
+export async function countProviderActiveOrders(providerId: number): Promise<number> {
+  const activeOrders = await getProviderActiveOrders(providerId);
+  return activeOrders.length;
+}
+
+/**
+ * Get available OR busy-but-eligible providers in a zone.
+ * Eligible = isAvailable=true AND providerStatus=approved AND activeOrderCount < MAX_CONCURRENT_ORDERS.
+ * This replaces the strict "activeOrderId IS NULL" check for multi-order support.
+ */
+export async function getEligibleProvidersByZone(
+  zoneId: number,
+  excludeProviderIds: number[] = [],
+  maxConcurrentOrders: number = 3
+): Promise<Provider[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [
+    eq(providers.zoneId, zoneId),
+    eq(providers.isAvailable, true),
+    eq(providers.providerStatus, "approved"),
+  ];
+  if (excludeProviderIds.length > 0) {
+    conditions.push(notInArray(providers.id, excludeProviderIds));
+  }
+  const allAvailable = await db.select().from(providers).where(and(...conditions));
+  // Filter: include only those with fewer than maxConcurrentOrders active orders
+  const eligible: Provider[] = [];
+  for (const provider of allAvailable) {
+    const activeCount = await countProviderActiveOrders(provider.id);
+    if (activeCount < maxConcurrentOrders) {
+      eligible.push(provider);
+    }
+  }
+  return eligible;
+}
+
+/**
+ * Get eligible providers in a sub-zone (for multi-order assignment).
+ */
+export async function getEligibleProvidersBySubZone(
+  subZoneId: number,
+  excludeProviderIds: number[] = [],
+  maxConcurrentOrders: number = 3
+): Promise<Provider[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const coverage = await db
+    .select({ providerId: providerSubZones.providerId })
+    .from(providerSubZones)
+    .where(eq(providerSubZones.subZoneId, subZoneId));
+  if (coverage.length === 0) return [];
+  let providerIds = coverage.map((r) => r.providerId);
+  if (excludeProviderIds.length > 0) {
+    providerIds = providerIds.filter((id) => !excludeProviderIds.includes(id));
+  }
+  if (providerIds.length === 0) return [];
+  const allAvailable = await db
+    .select()
+    .from(providers)
+    .where(
+      and(
+        inArray(providers.id, providerIds),
+        eq(providers.isAvailable, true),
+        eq(providers.providerStatus, "approved")
+      )
+    );
+  // Filter: include only those with fewer than maxConcurrentOrders active orders
+  const eligible: Provider[] = [];
+  for (const provider of allAvailable) {
+    const activeCount = await countProviderActiveOrders(provider.id);
+    if (activeCount < maxConcurrentOrders) {
+      eligible.push(provider);
+    }
+  }
+  return eligible;
+}

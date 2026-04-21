@@ -112,6 +112,11 @@ export default function OrderPlaced() {
                 <span className="truncate">{order.customerAddress}</span>
               </div>
             )}
+            {order?.gasAmount && parseFloat(String(order.gasAmount)) > 1 && (
+              <p className="text-sm text-gray-600">
+                الكمية: <strong>{order.gasAmount} أسطوانات</strong>
+              </p>
+            )}
             {order?.totalPrice && (
               <p className="text-sm text-gray-600">
                 {t("summary.total")}: <strong>OMR {parseFloat(order.totalPrice).toFixed(3)}</strong>

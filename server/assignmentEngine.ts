@@ -4,8 +4,8 @@
  * All DB writes happen in routers.ts — this module only computes decisions.
  */
 
-import { Zone, Provider, SubZone } from "../drizzle/schema";
-import { haversineKm, isPointInPolygon, LatLng } from "../shared/domain";
+import { Zone, Provider, SubZone, Order } from "../drizzle/schema";
+import { haversineKm, isPointInPolygon, LatLng, MULTI_ORDER_PROXIMITY_KM, MAX_CONCURRENT_ORDERS } from "../shared/domain";
 
 export interface ZoneWithProviders {
   zone: Zone;
@@ -80,19 +80,72 @@ export function resolveSubZone(
 }
 
 /**
+ * Check if a provider is eligible to accept a new order alongside their existing active orders.
+ * Conditions:
+ *   1. Provider is available and approved.
+ *   2. Provider has fewer than MAX_CONCURRENT_ORDERS active orders.
+ *   3. The new order is within MULTI_ORDER_PROXIMITY_KM of ALL existing active orders.
+ *      (If the provider has no active orders, they are always eligible.)
+ */
+export function isProviderEligibleForMultiOrder(
+  provider: Provider,
+  newOrderLocation: LatLng,
+  activeOrders: Order[],
+  maxConcurrent: number = MAX_CONCURRENT_ORDERS,
+  proximityKm: number = MULTI_ORDER_PROXIMITY_KM
+): boolean {
+  if (!provider.isAvailable) return false;
+  if (activeOrders.length >= maxConcurrent) return false;
+  // If no active orders, provider is free — always eligible
+  if (activeOrders.length === 0) return true;
+  // Check proximity: new order must be within proximityKm of ALL active orders
+  for (const activeOrder of activeOrders) {
+    const activeLat = activeOrder.deliveryLat ?? activeOrder.customerLat;
+    const activeLng = activeOrder.deliveryLng ?? activeOrder.customerLng;
+    const dist = haversineKm(newOrderLocation, { lat: activeLat, lng: activeLng });
+    if (dist > proximityKm) return false;
+  }
+  return true;
+}
+
+/**
  * Select the next eligible provider for an order.
- * Eligible = isAvailable AND no activeOrderId AND not in rejectedProviderIds.
- * Returns null if no eligible provider exists.
+ * Priority:
+ *   1. Free providers (no active orders) — preferred.
+ *   2. Busy-but-eligible providers (< MAX_CONCURRENT_ORDERS AND within proximity).
+ * Providers in rejectedProviderIds are excluded.
+ * @param availableProviders Providers fetched from DB (already filtered by zone/availability)
+ * @param rejectedProviderIds Provider IDs that have already rejected this order
+ * @param newOrderLocation Delivery coordinates of the new order
+ * @param activeOrdersByProvider Map of providerId -> active orders (for proximity check)
  */
 export function selectNextProvider(
   availableProviders: Provider[],
-  rejectedProviderIds: number[]
+  rejectedProviderIds: number[],
+  newOrderLocation?: LatLng,
+  activeOrdersByProvider?: Map<number, Order[]>
 ): Provider | null {
   const rejected = new Set(rejectedProviderIds);
-  const eligible = availableProviders.filter(
-    (p) => p.isAvailable && p.activeOrderId == null && !rejected.has(p.id)
-  );
-  if (eligible.length === 0) return null;
-  // For MVP: first eligible provider (could be randomized or scored in future)
-  return eligible[0];
+  const candidates = availableProviders.filter((p) => !rejected.has(p.id) && p.isAvailable);
+  if (candidates.length === 0) return null;
+
+  // Separate free providers from busy-but-eligible providers
+  const freeProviders: Provider[] = [];
+  const busyEligibleProviders: Provider[] = [];
+
+  for (const provider of candidates) {
+    const activeOrders = activeOrdersByProvider?.get(provider.id) ?? [];
+    if (activeOrders.length === 0) {
+      freeProviders.push(provider);
+    } else if (
+      newOrderLocation &&
+      isProviderEligibleForMultiOrder(provider, newOrderLocation, activeOrders)
+    ) {
+      busyEligibleProviders.push(provider);
+    }
+  }
+
+  // Prefer free providers first, then busy-but-eligible
+  const ordered = [...freeProviders, ...busyEligibleProviders];
+  return ordered[0] ?? null;
 }
