@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
@@ -6,6 +7,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import LanguageSwitcher from "./components/LanguageSwitcher";
+import { initSentryBrowser, SentryErrorBoundary } from "./lib/sentry";
 
 // Customer pages
 import Home from "./pages/Home";
@@ -71,18 +73,32 @@ function Router() {
 }
 
 function App() {
+  // Initialize Sentry INSIDE the React tree (after createRoot) to avoid
+  // "Cannot read properties of null (reading 'useState')" crash.
+  useEffect(() => {
+    initSentryBrowser();
+  }, []);
+
   return (
-    <ErrorBoundary>
-      <LanguageProvider>
-        <ThemeProvider defaultTheme="light">
-          <TooltipProvider>
-            <Toaster position="top-center" richColors />
-            <Router />
-            <LanguageSwitcher floating />
-          </TooltipProvider>
-        </ThemeProvider>
-      </LanguageProvider>
-    </ErrorBoundary>
+    <SentryErrorBoundary
+      fallback={
+        <div style={{ padding: "2rem", textAlign: "center" }}>
+          Something went wrong. Please refresh the page.
+        </div>
+      }
+    >
+      <ErrorBoundary>
+        <LanguageProvider>
+          <ThemeProvider defaultTheme="light">
+            <TooltipProvider>
+              <Toaster position="top-center" richColors />
+              <Router />
+              <LanguageSwitcher floating />
+            </TooltipProvider>
+          </ThemeProvider>
+        </LanguageProvider>
+      </ErrorBoundary>
+    </SentryErrorBoundary>
   );
 }
 
