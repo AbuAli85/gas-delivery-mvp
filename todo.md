@@ -567,3 +567,9 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Switch all pages from logo-white-nobg to logo-orange-nobg (visible on dark backgrounds)
 - [x] Update index.html meta tags and OG title with correct brand name
 - [x] Update brand-guidelines.md with correct brand name
+
+## Fix: OTP Login Flow
+- [x] Show OTP code clearly on screen in dev mode (large visible box, not just disappearing toast)
+- [x] Extend OTP expiry from 5 to 10 minutes
+- [x] Add clear note: "SMS will be sent when Firebase Phone Auth is activated"
+- [x] Return devOtp from server requestOtp response so client can display it

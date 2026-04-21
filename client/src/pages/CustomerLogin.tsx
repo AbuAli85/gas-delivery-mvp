@@ -1,14 +1,15 @@
 /**
  * CustomerLogin — Secure Server-Side OTP Authentication
  * ────────────────────────────────────────────────────────
- * Uses server-side requestOtp + verifyOtp procedures (bcrypt-hashed, 5-min expiry, 3 attempts).
+ * Uses server-side requestOtp + verifyOtp procedures (bcrypt-hashed, 10-min expiry, 3 attempts).
  * Firebase Phone Auth can be layered on top later — no client-side Firebase dependency here.
+ * Dev mode: OTP shown in a large persistent box on screen (no SMS needed).
  */
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import {
   Phone, ArrowRight, Loader2, CheckCircle2,
-  ShieldCheck, Clock, AlertTriangle, RefreshCw, Lock
+  ShieldCheck, Clock, AlertTriangle, RefreshCw, Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
@@ -73,6 +74,8 @@ export default function CustomerLogin() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifySuccess, setVerifySuccess] = useState(false);
+  // Dev mode: store the OTP returned from server to display on screen
+  const [devOtp, setDevOtp] = useState<string | null>(null);
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const resendTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -85,18 +88,21 @@ export default function CustomerLogin() {
       setStep("otp");
       setAttemptsLeft(3);
       setOtp(["", "", "", "", "", ""]);
-      startOtpTimer(data.expiresInSeconds ?? 300);
+      startOtpTimer(data.expiresInSeconds ?? 600);
       startResendCooldown(60);
 
       if (data.demoOtp) {
-        // Dev mode: show OTP in toast
+        // Dev mode: store OTP in state for persistent display on screen
+        setDevOtp(data.demoOtp);
+        // Also show a brief toast as backup
         toast.success(
           isRTL
-            ? `وضع تجريبي 🔑 رمزك هو: ${data.demoOtp}`
-            : `Dev mode 🔑 Your code: ${data.demoOtp}`,
-          { duration: 15000 }
+            ? `رمزك التجريبي: ${data.demoOtp}`
+            : `Dev code: ${data.demoOtp}`,
+          { duration: 8000 }
         );
       } else {
+        setDevOtp(null);
         toast.success(
           isRTL ? "تم إرسال رمز التحقق إلى هاتفك عبر SMS ✓" : "Verification code sent via SMS ✓"
         );
@@ -118,6 +124,7 @@ export default function CustomerLogin() {
     onSuccess: (data) => {
       saveCustomerSession(data.token, data.phone);
       setVerifySuccess(true);
+      setDevOtp(null);
       toast.success(isRTL ? "تم تسجيل الدخول بنجاح! ✓" : "Logged in successfully! ✓");
       setTimeout(() => navigate("/"), 800);
     },
@@ -251,8 +258,18 @@ export default function CustomerLogin() {
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
             <p className="text-xs text-emerald-700">
               {isRTL
-                ? "مشفّر بالكامل · صالح 5 دقائق · 3 محاولات فقط"
-                : "Fully encrypted · Valid 5 minutes · 3 attempts only"}
+                ? "مشفّر بالكامل · صالح 10 دقائق · 3 محاولات فقط"
+                : "Fully encrypted · Valid 10 minutes · 3 attempts only"}
+            </p>
+          </div>
+
+          {/* Dev mode notice */}
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3">
+            <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-700 leading-relaxed">
+              {isRTL
+                ? "وضع تجريبي: سيظهر الرمز على الشاشة. سيُرسَل عبر SMS بعد تفعيل Firebase Phone Auth."
+                : "Dev mode: code will appear on screen. SMS will be sent once Firebase Phone Auth is activated."}
             </p>
           </div>
 
@@ -283,19 +300,39 @@ export default function CustomerLogin() {
         </form>
       ) : (
         <div className="w-full space-y-4">
+
+          {/* ── Dev mode OTP display box ── */}
+          {devOtp && (
+            <div className="bg-orange-500 rounded-3xl p-5 text-center shadow-lg">
+              <p className="text-white text-xs font-semibold mb-1 opacity-90">
+                {isRTL ? "🔑 رمز التحقق التجريبي" : "🔑 Dev Verification Code"}
+              </p>
+              <p className="text-white text-4xl font-black tracking-[0.3em] my-2 font-mono">
+                {devOtp}
+              </p>
+              <p className="text-white text-xs opacity-80">
+                {isRTL
+                  ? "أدخل هذا الرمز في الحقول أدناه"
+                  : "Enter this code in the fields below"}
+              </p>
+              <p className="text-orange-100 text-xs mt-2 opacity-70">
+                {isRTL
+                  ? "سيُرسَل عبر SMS بعد تفعيل Firebase Phone Auth"
+                  : "Will be sent via SMS once Firebase Phone Auth is activated"}
+              </p>
+            </div>
+          )}
+
           <div className="bg-white rounded-3xl shadow-sm p-6 space-y-5">
             {/* Header row */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Lock className="w-5 h-5 text-primary" />
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">
-                    {isRTL ? "رمز التحقق" : "Verification Code"}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {isRTL ? `أُرسل إلى ${phone}` : `Sent to ${phone}`}
-                  </p>
-                </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-700">
+                  {isRTL ? "رمز التحقق" : "Verification Code"}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {isRTL ? `أُرسل إلى ${phone}` : `Sent to ${phone}`}
+                </p>
               </div>
               {/* Countdown */}
               <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
@@ -369,6 +406,7 @@ export default function CustomerLogin() {
                 setOtp(["", "", "", "", "", ""]);
                 setAttemptsLeft(3);
                 setVerifySuccess(false);
+                setDevOtp(null);
               }}
               className="flex-1 text-sm text-gray-400 py-3 rounded-2xl border border-gray-200 bg-white"
             >

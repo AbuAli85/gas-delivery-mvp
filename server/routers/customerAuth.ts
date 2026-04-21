@@ -3,7 +3,7 @@
  * ────────────────────────────────────────────────────
  * Security features:
  *  - OTP stored as bcrypt hash (never plain text)
- *  - 5-minute expiry
+ *  - 10-minute expiry
  *  - Max 3 wrong attempts → locked
  *  - Rate limiting: max 3 OTP requests per phone per 10 minutes
  *  - Firebase SMS in production, dev-mode console log as fallback
@@ -25,7 +25,7 @@ import { otpRequests } from "../../drizzle/schema";
 import { eq, and, gte, count } from "drizzle-orm";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const OTP_EXPIRY_MS = 5 * 60 * 1000;        // 5 minutes
+const OTP_EXPIRY_MS = 10 * 60 * 1000;       // 10 minutes
 const MAX_ATTEMPTS = 3;                       // wrong guesses before lock
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10-minute window
 const RATE_LIMIT_MAX = 3;                     // max OTP requests per window
@@ -55,7 +55,7 @@ async function sendOtpSms(phone: string, otp: string): Promise<void> {
     // Production: Firebase Auth REST API
     // Firebase sends the SMS automatically when we trigger phone auth
     // We use a custom SMS message approach via the REST API
-    const message = `رمز التحقق لـ OWASEEL: ${otp}\nصالح 5 دقائق فقط.\nلا تشاركه مع أحد.`;
+    const message = `رمز التحقق لـ OWASEEL: ${otp}\nصالح 10 دقائق فقط.\nلا تشاركه مع أحد.`;
     
     // Firebase doesn't support custom SMS text directly via REST API.
     // For custom SMS, use Firebase Admin SDK with a custom SMS provider.
@@ -176,7 +176,7 @@ export const customerAuthRouter = router({
       if (new Date() > new Date(otpRecord.expiresAt)) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "انتهت صلاحية رمز التحقق (5 دقائق). اطلب رمزاً جديداً.",
+          message: "انتهت صلاحية رمز التحقق (10 دقائق). اطلب رمزاً جديداً.",
         });
       }
 
