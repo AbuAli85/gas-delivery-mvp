@@ -407,6 +407,9 @@ export const providersRouter = router({
                 totalPrice: order.totalPrice,
                 currency: order.currency,
                 customerAddress: order.customerAddress,
+                deliveryAddress: order.deliveryAddress,
+                gasAmount: order.gasAmount,
+                paymentMethod: order.paymentMethod,
                 createdAt: order.createdAt,
                 deliveredAt: order.deliveredAt,
               }

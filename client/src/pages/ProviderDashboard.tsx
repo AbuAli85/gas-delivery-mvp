@@ -554,48 +554,114 @@ export default function ProviderDashboard() {
 
         {/* HISTORY TAB */}
         {activeTab === "history" && (
-          <div className="p-4">
+          <div className="p-4 space-y-3">
+            {/* Earnings summary */}
+            {history && history.length > 0 && (() => {
+              const delivered = history.filter(h => h?.status === "delivered");
+              const totalEarned = delivered.reduce((s, h) => s + parseFloat(String(h?.totalPrice ?? "0")), 0);
+              const today = new Date().toDateString();
+              const todayEarned = delivered
+                .filter(h => h?.deliveredAt && new Date(h.deliveredAt).toDateString() === today)
+                .reduce((s, h) => s + parseFloat(String(h?.totalPrice ?? "0")), 0);
+              return (
+                <div
+                  className="rounded-3xl p-4 flex gap-3"
+                  style={{ background: "linear-gradient(135deg, oklch(0.16 0.06 27) 0%, oklch(0.13 0 0) 100%)", border: "1px solid rgba(255,150,50,0.15)" }}
+                >
+                  <div className="flex-1 text-center">
+                    <p className="text-white/40 text-xs mb-1">اليوم</p>
+                    <p className="text-orange-300 font-black text-lg leading-tight">{todayEarned.toFixed(3)}</p>
+                    <p className="text-white/30 text-xs">OMR</p>
+                  </div>
+                  <div className="w-px bg-white/10" />
+                  <div className="flex-1 text-center">
+                    <p className="text-white/40 text-xs mb-1">إجمالي التوصيلات</p>
+                    <p className="text-white font-black text-lg leading-tight">{delivered.length}</p>
+                    <p className="text-white/30 text-xs">طلب</p>
+                  </div>
+                  <div className="w-px bg-white/10" />
+                  <div className="flex-1 text-center">
+                    <p className="text-white/40 text-xs mb-1">الإجمالي</p>
+                    <p className="text-emerald-400 font-black text-lg leading-tight">{totalEarned.toFixed(3)}</p>
+                    <p className="text-white/30 text-xs">OMR</p>
+                  </div>
+                </div>
+              );
+            })()}
+
             {!history ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-6 h-6 animate-spin text-orange-400" />
               </div>
             ) : history.length === 0 ? (
               <div
-                className="rounded-3xl p-8 text-center"
+                className="rounded-3xl p-10 text-center"
                 style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.06)" }}
               >
-                <History className="w-10 h-10 text-white/15 mx-auto mb-3" />
-                <p className="text-white/40 text-sm">لا توجد طلبات بعد</p>
+                <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(255,255,255,0.04)" }}>
+                  <History className="w-7 h-7 text-white/15" />
+                </div>
+                <p className="text-white/50 font-semibold text-sm mb-1">لا توجد طلبات بعد</p>
+                <p className="text-white/25 text-xs">ستظهر طلباتك المكتملة هنا</p>
               </div>
             ) : (
               <div
                 className="rounded-3xl overflow-hidden"
                 style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.06)" }}
               >
-                {history.map((item, i) => (
-                  <div
-                    key={item?.orderId}
-                    className="flex items-center gap-3 px-4 py-3.5"
-                    style={{ borderBottom: i < history.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}
-                  >
+                {history.map((item, i) => {
+                  const addr = (item as any)?.deliveryAddress || (item as any)?.customerAddress || null;
+                  const isCoords = addr && /^[\d.]+,\s*[\d.]+$/.test(addr.trim());
+                  const displayAddr = isCoords ? null : addr;
+                  const gas = (item as any)?.gasAmount;
+                  const pm = (item as any)?.paymentMethod;
+                  const pmLabel: Record<string, string> = { cash: "نقداً", online: "أونلاين", bank_transfer: "تحويل" };
+                  const pmColor: Record<string, string> = { cash: "text-emerald-400", online: "text-blue-400", bank_transfer: "text-purple-400" };
+                  const dt = item?.deliveredAt || item?.createdAt;
+                  const dateStr = dt ? new Date(dt).toLocaleDateString("ar-OM", { month: "short", day: "numeric" }) : null;
+                  const timeStr = dt ? new Date(dt).toLocaleTimeString("ar-OM", { hour: "2-digit", minute: "2-digit" }) : null;
+                  return (
                     <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ background: "rgba(255,255,255,0.05)" }}
+                      key={item?.orderId}
+                      className="px-4 py-3.5"
+                      style={{ borderBottom: i < history.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none" }}
                     >
-                      <Package className="w-4 h-4 text-white/30" />
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                          style={{ background: item?.status === "delivered" ? "rgba(52,211,153,0.12)" : "rgba(255,255,255,0.05)" }}
+                        >
+                          <Package className={`w-4 h-4 ${item?.status === "delivered" ? "text-emerald-400" : "text-white/30"}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-white text-sm font-bold">طلب #{item?.orderId}</p>
+                            <p className="text-orange-300 text-sm font-black shrink-0">
+                              OMR {parseFloat(item?.totalPrice ?? "0").toFixed(3)}
+                            </p>
+                          </div>
+                          {displayAddr && (
+                            <p className="text-white/50 text-xs truncate mt-0.5">{displayAddr}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            <StatusBadge status={item?.status ?? ""} />
+                            {gas && (
+                              <span className="text-white/40 text-xs">
+                                {gas} {parseFloat(String(gas)) === 1 ? "أسطوانة" : "أسطوانات"}
+                              </span>
+                            )}
+                            {pm && pmLabel[pm] && (
+                              <span className={`text-xs font-semibold ${pmColor[pm] || "text-white/40"}`}>{pmLabel[pm]}</span>
+                            )}
+                            {dateStr && (
+                              <span className="text-white/25 text-xs mr-auto">{dateStr} · {timeStr}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-semibold">طلب #{item?.orderId}</p>
-                      <p className="text-white/40 text-xs truncate">{(item as any)?.customerAddress || "—"}</p>
-                    </div>
-                    <div className="text-left shrink-0 space-y-1">
-                      <p className="text-orange-300 text-sm font-bold text-right">
-                        OMR {parseFloat(item?.totalPrice ?? "0").toFixed(3)}
-                      </p>
-                      <StatusBadge status={item?.status ?? ""} />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

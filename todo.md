@@ -615,3 +615,15 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Fix: cleaned stale 'pending' assignments for delivered/cancelled orders in DB
 - [x] Fix: cleared stale activeOrderId for providers whose orders were already delivered
 - [x] 102/102 tests passing after fix
+
+## Enhancement: Provider Dashboard UX
+- [x] Fix order history: show customerAddress instead of raw lat/lng coordinates
+- [x] Fix order history: add delivery date/time to each order card
+- [x] Fix order history: show payment method badge (cash/online/bank)
+- [x] Fix order history: show cylinder count (gasAmount)
+- [ ] Fix stats: commission card should show total earned (not 0.000 for delivered orders)
+- [ ] Fix stats: delivery count should reflect actual delivered orders count
+- [ ] Enhance empty state on home tab: make it more engaging with animation hint
+- [ ] Enhance settings tab: add logout button, show zone name, add PIN change option
+- [x] Add earnings summary card: today / total deliveries / total OMR
+- [x] Improve order card in history: better visual hierarchy, status badge colors
