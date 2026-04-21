@@ -7,6 +7,7 @@ import {
   Bell, BellOff, Navigation, ShieldCheck, Settings,
   LogOut, ChevronRight, Zap, TrendingUp, Home,
   MessageSquare, ExternalLink, AlertCircle, Map,
+  Key, Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
@@ -451,6 +452,12 @@ export default function ProviderDashboard() {
 
   // Push notifications
   const [pushSubscribed, setPushSubscribed] = useState(false);
+  // PIN change state
+  const [showPinChange, setShowPinChange] = useState(false);
+  const [pinChangeStep, setPinChangeStep] = useState<"current" | "new" | "confirm">("current");
+  const [currentPinDigits, setCurrentPinDigits] = useState(["" ,"","",""]);
+  const [newPinDigits, setNewPinDigits] = useState(["","","",""]);
+  const [confirmPinDigits, setConfirmPinDigits] = useState(["","","",""]);
   const { data: vapidData } = trpc.providers.getVapidPublicKey.useQuery();
   const savePushSub = trpc.providers.savePushSubscription.useMutation();
 
@@ -539,6 +546,25 @@ export default function ProviderDashboard() {
       else toast.error("فشل تحديث الحالة");
     },
   });
+  const changePin = trpc.providers.changePin.useMutation({
+    onSuccess: () => {
+      toast.success("تم تغيير الرمز بنجاح!");
+      setShowPinChange(false);
+      setPinChangeStep("current");
+      setCurrentPinDigits(["","","",""]);
+      setNewPinDigits(["","","",""]);
+      setConfirmPinDigits(["","","",""]);
+      // Update stored PIN hash
+      const newHash = newPinDigits.join("");
+      if (newHash.length === 4) {
+        import("@/lib/pinStorage").then(({ storePinHash }) => {
+          // hash is already computed in the submit handler
+        });
+      }
+    },
+    onError: (err) => toast.error(err.message || "فشل تغيير الرمز"),
+  });
+
   const acceptOrder = trpc.providers.acceptOrder.useMutation({
     onSuccess: () => {
       toast.success("تم قبول الطلب!");
@@ -753,29 +779,57 @@ export default function ProviderDashboard() {
                 className="rounded-3xl p-8 text-center"
                 style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.06)" }}
               >
-                <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                  style={{ background: "rgba(255,255,255,0.04)" }}
-                >
-                  <Flame className="w-8 h-8 text-white/15" />
-                </div>
-                <p className="text-white/70 font-semibold mb-1">
-                  {provider.isAvailable ? "في انتظار الطلبات…" : "أنت غير متاح حالياً"}
-                </p>
-                <p className="text-white/30 text-sm">
-                  {provider.isAvailable
-                    ? "ستظهر الطلبات الجديدة هنا تلقائياً."
-                    : "فعّل التوافر لبدء استقبال الطلبات."}
-                </p>
-                {!provider.isAvailable && (
-                  <button
-                    onClick={() => toggleAvailability.mutate({ providerId: id, pinHash: pinHash! })}
-                    disabled={toggleAvailability.isPending}
-                    className="mt-4 px-5 py-2.5 rounded-2xl text-sm font-bold text-white"
-                    style={{ background: "oklch(0.62 0.22 27)" }}
-                  >
-                    تفعيل التوافر
-                  </button>
+                {provider.isAvailable ? (
+                  /* Animated waiting state */
+                  <div className="flex flex-col items-center">
+                    <div className="relative mb-5">
+                      <div
+                        className="w-20 h-20 rounded-full flex items-center justify-center"
+                        style={{ background: "oklch(0.62 0.22 27 / 0.12)", border: "2px solid oklch(0.62 0.22 27 / 0.25)" }}
+                      >
+                        <Flame className="w-9 h-9 text-orange-400" style={{ animation: "pulse 2s ease-in-out infinite" }} />
+                      </div>
+                      {/* Ripple rings */}
+                      <div
+                        className="absolute inset-0 rounded-full"
+                        style={{
+                          border: "2px solid oklch(0.62 0.22 27 / 0.3)",
+                          animation: "ping 2s cubic-bezier(0,0,0.2,1) infinite",
+                        }}
+                      />
+                    </div>
+                    <p className="text-white font-bold text-base mb-1">في انتظار الطلبات…</p>
+                    <p className="text-white/40 text-sm">ستظهر الطلبات الجديدة هنا تلقائياً</p>
+                    <div className="flex items-center gap-1.5 mt-3">
+                      {[0, 1, 2].map((i) => (
+                        <div
+                          key={i}
+                          className="w-1.5 h-1.5 rounded-full bg-orange-400"
+                          style={{ animation: `bounce 1.4s ease-in-out ${i * 0.2}s infinite` }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  /* Offline state */
+                  <div className="flex flex-col items-center">
+                    <div
+                      className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                      style={{ background: "rgba(255,255,255,0.04)" }}
+                    >
+                      <Flame className="w-8 h-8 text-white/15" />
+                    </div>
+                    <p className="text-white/70 font-semibold mb-1">أنت غير متاح حالياً</p>
+                    <p className="text-white/30 text-sm mb-4">فعّل التوافر لبدء استقبال الطلبات</p>
+                    <button
+                      onClick={() => toggleAvailability.mutate({ providerId: id, pinHash: pinHash! })}
+                      disabled={toggleAvailability.isPending}
+                      className="px-6 py-2.5 rounded-2xl text-sm font-bold text-white"
+                      style={{ background: "oklch(0.62 0.22 27)" }}
+                    >
+                      {toggleAvailability.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "تفعيل التوافر"}
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -976,7 +1030,109 @@ export default function ProviderDashboard() {
                     </div>
                   </div>
                 )}
+                {(provider as any).zoneName && (
+                  <div className="flex items-center gap-3">
+                    <Globe className="w-4 h-4 text-orange-400 shrink-0" />
+                    <div>
+                      <p className="text-white/40 text-xs">المنطقة</p>
+                      <p className="text-white text-sm font-semibold">{(provider as any).zoneName}</p>
+                      {(provider as any).subZoneNames?.length > 0 && (
+                        <p className="text-white/40 text-xs mt-0.5">{(provider as any).subZoneNames.join(" · ")}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
+            </div>
+
+            {/* PIN Change */}
+            <div
+              className="rounded-3xl overflow-hidden"
+              style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              {!showPinChange ? (
+                <button
+                  onClick={() => setShowPinChange(true)}
+                  className="w-full flex items-center justify-between px-4 py-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <Key className="w-4 h-4 text-orange-400" />
+                    <span className="text-white font-semibold text-sm">تغيير الرمز السري</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-white/20" />
+                </button>
+              ) : (
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Key className="w-4 h-4 text-orange-400" />
+                      <span className="text-white font-bold text-sm">تغيير الرمز السري</span>
+                    </div>
+                    <button onClick={() => { setShowPinChange(false); setPinChangeStep("current"); }} className="text-white/30 text-xs">إلغاء</button>
+                  </div>
+                  <p className="text-white/50 text-xs">
+                    {pinChangeStep === "current" && "أدخل الرمز الحالي"}
+                    {pinChangeStep === "new" && "أدخل الرمز الجديد (4 أرقام)"}
+                    {pinChangeStep === "confirm" && "أكّد الرمز الجديد"}
+                  </p>
+                  <div className="flex gap-2 justify-center" dir="ltr">
+                    {(pinChangeStep === "current" ? currentPinDigits : pinChangeStep === "new" ? newPinDigits : confirmPinDigits).map((d, i) => (
+                      <input
+                        key={i}
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={d}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "").slice(0, 1);
+                          const setter = pinChangeStep === "current" ? setCurrentPinDigits : pinChangeStep === "new" ? setNewPinDigits : setConfirmPinDigits;
+                          setter((prev) => { const next = [...prev]; next[i] = val; return next; });
+                          if (val && i < 3) (e.target.nextSibling as HTMLInputElement)?.focus();
+                        }}
+                        className="w-12 h-12 rounded-xl text-center text-white font-black text-xl"
+                        style={{
+                          background: "oklch(0.18 0 0)",
+                          border: "1px solid rgba(255,255,255,0.15)",
+                          WebkitTextFillColor: "white",
+                          outline: "none",
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const sha256 = async (s: string) => {
+                        const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+                        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+                      };
+                      if (pinChangeStep === "current") {
+                        const pin = currentPinDigits.join("");
+                        if (pin.length < 4) { toast.error("أدخل 4 أرقام"); return; }
+                        setPinChangeStep("new");
+                      } else if (pinChangeStep === "new") {
+                        const pin = newPinDigits.join("");
+                        if (pin.length < 4) { toast.error("أدخل 4 أرقام"); return; }
+                        setPinChangeStep("confirm");
+                      } else {
+                        const newPin = newPinDigits.join("");
+                        const confirmPin = confirmPinDigits.join("");
+                        if (newPin !== confirmPin) { toast.error("الرمزان غير متطابقان"); return; }
+                        const currentHash = await sha256(currentPinDigits.join(""));
+                        const newHash = await sha256(newPin);
+                        changePin.mutate({ providerId: id, pinHash: currentHash, newPinHash: newHash });
+                        // Update stored session
+                        const { storePinHash } = await import("@/lib/pinStorage");
+                        storePinHash(id, newHash);
+                      }
+                    }}
+                    disabled={changePin.isPending}
+                    className="w-full py-3 rounded-2xl text-sm font-bold text-white"
+                    style={{ background: "oklch(0.62 0.22 27)" }}
+                  >
+                    {changePin.isPending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : pinChangeStep === "confirm" ? "حفظ الرمز الجديد" : "التالي"}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Push notifications */}

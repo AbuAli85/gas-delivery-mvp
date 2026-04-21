@@ -39,6 +39,7 @@ import {
   setProviderSubZones,
   getProviderSubZones,
   getDb,
+  getZoneById,
 } from "../db";
 import { sendPushNotification } from "../_core/webPush";
 import { selectNextProvider } from "../assignmentEngine";
@@ -162,7 +163,14 @@ export const providersRouter = router({
     .query(async ({ input }) => {
       const provider = await getProviderById(input.providerId);
       if (!provider) throw new TRPCError({ code: "NOT_FOUND" });
-      return provider;
+      // Enrich with zone name and sub-zone names for display
+      const zone = provider.zoneId ? await getZoneById(provider.zoneId) : null;
+      const subZones = await getProviderSubZones(provider.id);
+      return {
+        ...provider,
+        zoneName: zone?.name ?? null,
+        subZoneNames: subZones.map((sz) => sz.name),
+      };
     }),
 
   /**
@@ -177,6 +185,30 @@ export const providersRouter = router({
       const next = !provider.isAvailable;
       await setProviderAvailability(input.providerId, next);
       return { isAvailable: next };
+    }),
+
+  /**
+   * Change a provider's PIN (requires current PIN for auth).
+   */
+  changePin: publicProcedure
+    .input(
+      z.object({
+        providerId: z.number().int().positive(),
+        pinHash: z.string().length(64).regex(/^[0-9a-f]{64}$/),
+        newPinHash: z.string().length(64).regex(/^[0-9a-f]{64}$/),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await assertPin(input.providerId, input.pinHash);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { providers: providersTable } = await import("../../drizzle/schema");
+      const { eq: eqOp } = await import("drizzle-orm");
+      await db
+        .update(providersTable)
+        .set({ pinHash: input.newPinHash })
+        .where(eqOp(providersTable.id, input.providerId));
+      return { success: true };
     }),
 
   /**

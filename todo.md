@@ -646,9 +646,9 @@ Each wilayat may have different provider availability, so we need sub-zone granu
   - Fixed: `normalizeDeliveryCommissionAmount` + atomic `totalCommission` SQL increment on deliver
   - Zero commission supported (promo orders)
   - Concurrent delivers no longer race on read-then-write totals
-- [ ] Fix stats: delivery count should reflect actual delivered orders count
-- [ ] Enhance empty state on home tab: make it more engaging with animation hint
-- [ ] Enhance settings tab: add logout button, show zone name, add PIN change option
+- [x] Fix stats: delivery count should reflect actual delivered orders count (totalOrders is only incremented on 'delivered' event — already correct)
+- [x] Enhance empty state on home tab: animated flame with ripple rings + bouncing dots when available; clean offline state with toggle button
+- [x] Enhance settings tab: logout button already present; added zone name + sub-zone names display; added PIN change dialog with 3-step flow (current → new → confirm)
 - [x] Add earnings summary card: today / total deliveries / total OMR
 - [x] Improve order card in history: better visual hierarchy, status badge colors
 
@@ -693,7 +693,7 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [ ] No CDN for first-party static assets (depends on deploy topology)
 
 ### Monitoring
-- [ ] No APM (e.g. Sentry, Datadog, New Relic)
+- [x] No APM — Sentry integrated for both Express backend and React frontend (SENTRY_DSN + VITE_SENTRY_DSN)
 - [ ] No structured logging pipeline (console-based today)
 - [ ] No dedicated uptime / synthetic checks (e.g. Pingdom, UptimeRobot)
 
