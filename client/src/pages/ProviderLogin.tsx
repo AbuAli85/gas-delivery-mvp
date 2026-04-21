@@ -34,7 +34,7 @@ function Brand() {
       </div>
       <div className="flex flex-col leading-none">
         <span className="text-[10px] text-white/40 uppercase tracking-widest">OWASEEL</span>
-        <span className="text-white font-extrabold text-lg tracking-tight">أو وصل</span>
+        <span className="text-white font-extrabold text-lg tracking-tight">أًوصّل</span>
       </div>
     </div>
   );

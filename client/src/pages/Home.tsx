@@ -37,7 +37,7 @@ export default function Home() {
           </div>
           <div>
             <p className="text-[10px] text-white/50 uppercase tracking-widest">OWASEEL</p>
-            <p className="text-base font-bold leading-none">أو وصل</p>
+            <p className="text-base font-bold leading-none">أًوصّل</p>
           </div>
           {serviceStatus ? (
             <div className={`mr-3 flex items-center gap-1.5 rounded-full px-3 py-1 border ${
