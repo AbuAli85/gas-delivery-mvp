@@ -456,3 +456,16 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Order history tab: list of past orders with status badges
 - [x] Settings tab: working hours (compact grid, not 7 separate rows), notifications toggle, logout
 - [x] Remove mixed light/dark theme inconsistency
+
+## Feature: OWASEEL Brand System Implementation
+- [x] Update VITE_APP_TITLE to "OWASEEL | أو وصل" in all env/config
+- [x] Replace all "توصيل غاز مسقط" text with "OWASEEL" or "أو وصل" across all pages
+- [x] Update Home.tsx: use OWASEEL name, orange #F57C00 CTA button "🔥 اطلب الغاز الآن"
+- [x] Update ProviderLogin.tsx: OWASEEL branding in header
+- [x] Update ProviderRegister.tsx: OWASEEL branding
+- [x] Update ProviderDashboard.tsx: OWASEEL branding in header
+- [x] Update AdminPanel.tsx: OWASEEL branding
+- [x] Update index.html title and meta tags to OWASEEL
+- [x] Ensure brand color #F57C00 is the primary orange throughout (gas service) — CSS var updated to oklch(0.71 0.18 54)
+- [x] Add /gas route alias in App.tsx (already present from Conversion Optimization phase)
+- [x] Create brand-guidelines.md document

@@ -151,7 +151,10 @@ export default function AdminPanel() {
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-orange-400" />
-            <h1 className="text-lg font-extrabold">لوحة الإدارة</h1>
+            <div>
+              <p className="text-orange-400 text-[10px] font-bold tracking-widest leading-none">OWASEEL</p>
+              <h1 className="text-lg font-extrabold leading-tight">لوحة الإدارة</h1>
+            </div>
           </div>
           <button
             onClick={() => {

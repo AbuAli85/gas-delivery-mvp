@@ -366,7 +366,7 @@ export default function ProviderDashboard() {
               <Flame className="w-5 h-5 text-orange-400" />
             </div>
             <div className="min-w-0">
-              <p className="text-white/50 text-xs">لوحة تحكم المزود</p>
+              <p className="text-orange-400 text-xs font-bold tracking-widest">OWASEEL</p>
               <p className="text-white font-bold text-base leading-tight truncate">{provider.name}</p>
             </div>
           </div>

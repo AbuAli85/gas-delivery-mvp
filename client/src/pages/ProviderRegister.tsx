@@ -226,7 +226,7 @@ export default function ProviderRegister() {
           </button>
         )}
         <div className="flex-1">
-          <p className="text-white font-bold text-base">انضم كمزوّد غاز</p>
+          <p className="text-white font-bold text-base">انضم كمزوّد — OWASEEL</p>
           <p className="text-white/40 text-xs">سجّل بياناتك وابدأ الاستلام خلال 24 ساعة</p>
         </div>
         <Flame className="w-6 h-6 text-orange-500" />

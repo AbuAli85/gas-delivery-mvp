@@ -36,8 +36,8 @@ export default function Home() {
             <Flame className="w-6 h-6 text-orange-400" />
           </div>
           <div>
-            <p className="text-[10px] text-white/50 uppercase tracking-widest">توصيل غاز</p>
-            <p className="text-base font-bold leading-none">مسقط</p>
+            <p className="text-[10px] text-white/50 uppercase tracking-widest">OWASEEL</p>
+            <p className="text-base font-bold leading-none">أو وصل</p>
           </div>
           {serviceStatus ? (
             <div className={`mr-3 flex items-center gap-1.5 rounded-full px-3 py-1 border ${
@@ -67,7 +67,7 @@ export default function Home() {
         </div>
 
         <h1 className="text-4xl font-extrabold text-center leading-tight mb-3">
-          توصيل غاز خلال <span className="text-orange-400">٣٠ دقيقة</span>
+          توصيل الغاز خلال <span className="text-orange-400">٣٠ دقيقة</span>
         </h1>
         <p className="text-white/50 text-center text-sm max-w-xs">
           بدون تطبيق. بدون تسجيل. بضغطة واحدة.
@@ -93,7 +93,7 @@ export default function Home() {
             onClick={() => navigate("/order/location")}
           >
             <Flame className="w-5 h-5" />
-            اطلب الغاز الآن
+            🔥 اطلب الغاز الآن
             <ChevronLeft className="w-5 h-5" />
           </Button>
 

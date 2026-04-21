@@ -32,7 +32,10 @@ function Brand() {
       >
         <Flame className="w-5 h-5 text-white" />
       </div>
-      <span className="text-white font-extrabold text-xl tracking-tight">توصيل غاز</span>
+      <div className="flex flex-col leading-none">
+        <span className="text-[10px] text-white/40 uppercase tracking-widest">OWASEEL</span>
+        <span className="text-white font-extrabold text-lg tracking-tight">أو وصل</span>
+      </div>
     </div>
   );
 }
