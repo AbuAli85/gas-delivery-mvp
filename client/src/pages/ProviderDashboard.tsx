@@ -6,15 +6,16 @@ import {
   XCircle, Truck, History, Loader2, Wallet, Star,
   Bell, BellOff, Navigation, ShieldCheck, Settings,
   LogOut, ChevronRight, Zap, TrendingUp, Home,
-  MessageSquare, ExternalLink, AlertCircle,
+  MessageSquare, ExternalLink, AlertCircle, Map,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { getStoredPinHash, clearPinHash } from "@/lib/pinStorage";
 import { WorkingHoursEditor } from "@/components/WorkingHoursEditor";
+import { ProviderMapView } from "./ProviderMapView";
 // MapView replaced with static map for mission screen
 
-type Tab = "home" | "history" | "settings";
+type Tab = "home" | "map" | "history" | "settings";
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
@@ -687,6 +688,7 @@ export default function ProviderDashboard() {
       >
         {([
           { id: "home" as Tab,     icon: <Home className="w-4 h-4" />,     label: "الرئيسية" },
+          { id: "map" as Tab,      icon: <Map className="w-4 h-4" />,      label: "الخريطة" },
           { id: "history" as Tab,  icon: <History className="w-4 h-4" />,  label: "السجل" },
           { id: "settings" as Tab, icon: <Settings className="w-4 h-4" />, label: "الإعدادات" },
         ] as const).map((tab) => (
@@ -819,6 +821,12 @@ export default function ProviderDashboard() {
           </div>
         )}
 
+        {/* MAP TAB */}
+        {activeTab === "map" && (
+          <div className="h-full" style={{ height: "calc(100vh - 180px)" }}>
+            <ProviderMapView providerId={id} />
+          </div>
+        )}
         {/* HISTORY TAB */}
         {activeTab === "history" && (
           <div className="p-4 space-y-3">

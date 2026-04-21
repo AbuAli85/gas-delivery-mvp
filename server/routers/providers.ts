@@ -1,4 +1,5 @@
 import { TRPCError } from "@trpc/server";
+import { and, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
 import { notifyOwner } from "../_core/notification";
@@ -35,6 +36,7 @@ import {
   upsertWorkingHoursRow,
   setProviderSubZones,
   getProviderSubZones,
+  getDb,
 } from "../db";
 import { sendPushNotification } from "../_core/webPush";
 import { selectNextProvider } from "../assignmentEngine";
@@ -823,5 +825,66 @@ export const providersRouter = router({
       }
 
       return { isOpen, nextOpenLabel, currentTime, dayOfWeek };
+    }),
+
+  /**
+   * Real-time map data for a provider:
+   * - Provider's own current location
+   * - Provider's active orders (accepted / out_for_delivery) with delivery coords
+   * - All pending/assigned orders in the same zone (for situational awareness)
+   */
+  getMapData: publicProcedure
+    .input(z.object({ providerId: z.number() }))
+    .query(async ({ input }) => {
+      const { providerId } = input;
+      const provider = await getProviderById(providerId);
+      if (!provider) throw new TRPCError({ code: "NOT_FOUND", message: "المزود غير موجود" });
+
+      const providerLoc = await getProviderLocation(providerId);
+      const myActiveOrders = await getProviderActiveOrders(providerId);
+
+      // All pending/assigned orders in the same zone for situational awareness
+      const db = await getDb();
+      const { orders: ordersTable } = await import("../../drizzle/schema");
+      const zoneOrders = db && provider.zoneId ? await db
+        .select()
+        .from(ordersTable)
+        .where(
+          and(
+            eq(ordersTable.zoneId, provider.zoneId),
+            or(
+              eq(ordersTable.status, "pending"),
+              eq(ordersTable.status, "assigned")
+            )
+          )
+        )
+        .limit(50) : [];
+
+      return {
+        providerLocation: providerLoc
+          ? { lat: providerLoc.lat, lng: providerLoc.lng, updatedAt: providerLoc.updatedAt }
+          : null,
+        myActiveOrders: myActiveOrders.map(o => ({
+          orderId: o.id,
+          status: o.status as string,
+          deliveryLat: o.deliveryLat ?? o.customerLat,
+          deliveryLng: o.deliveryLng ?? o.customerLng,
+          deliveryAddress: o.deliveryAddress ?? o.customerAddress,
+          customerName: o.customerName,
+          customerPhone: o.customerPhone,
+          gasAmount: o.gasAmount,
+          totalPrice: o.totalPrice,
+          estimatedMinutes: o.estimatedMinutes,
+          paymentMethod: o.paymentMethod,
+        })),
+        zoneOrders: zoneOrders.map(o => ({
+          orderId: o.id,
+          status: o.status as string,
+          deliveryLat: o.deliveryLat ?? o.customerLat,
+          deliveryLng: o.deliveryLng ?? o.customerLng,
+          deliveryAddress: o.deliveryAddress ?? o.customerAddress,
+          gasAmount: o.gasAmount,
+        })),
+      };
     }),
 });
