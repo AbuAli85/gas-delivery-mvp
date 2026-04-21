@@ -61,7 +61,7 @@ async function doAssignNext(orderId: number): Promise<void> {
   const attemptNumber = allAssignments.length + 1;
 
   await createAssignment({ orderId, providerId: next.id, attemptNumber });
-  await setProviderActiveOrder(next.id, orderId);
+  // NOTE: activeOrderId is set when provider ACCEPTS (not when assigned)
   await updateOrder(orderId, {
     status: "assigned",
     assignedProviderId: next.id,
@@ -253,6 +253,9 @@ export const providersRouter = router({
         status: "accepted",
         acceptedAt: new Date(),
       });
+
+      // Set activeOrderId NOW (when provider accepts, not when assigned)
+      await setProviderActiveOrder(input.providerId, order.id);
 
       // Increment provider score
       try { await incrementProviderScore(input.providerId, "accepted"); } catch (_) {}

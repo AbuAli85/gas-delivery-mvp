@@ -608,3 +608,10 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [ ] Frontend: CustomerProfile Referral tab — share link, QR-like card, stats (total invited, rewarded)
 - [ ] Frontend: CustomerLogin registration step — optional "Referral code" field
 - [ ] Admin: show total referrals count in Customers tab stats
+
+## Bug Fix: Provider State Machine (COMPLETE)
+- [x] Root cause: activeOrderId was set on 'assigned' (doAssignNext) instead of on 'accepted' (acceptOrder)
+- [x] Fix: moved setProviderActiveOrder call from doAssignNext to acceptOrder procedure
+- [x] Fix: cleaned stale 'pending' assignments for delivered/cancelled orders in DB
+- [x] Fix: cleared stale activeOrderId for providers whose orders were already delivered
+- [x] 102/102 tests passing after fix
