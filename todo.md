@@ -446,3 +446,13 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Block paste of >4 digits in PIN inputs (handle onPaste event)
 - [x] Validate PIN is exactly 4 digits in ProviderRegister before hashing (maxLength=4, slice(0,4))
 - [x] Backend: reject verifyPin if pinHash is not a valid 64-char hex (withPin schema: length(64) + /^[0-9a-f]{64}$/)
+
+## Feature: ProviderDashboard Complete Redesign
+- [x] Full dark theme (black bg, dark cards, orange accents) — consistent with rest of app
+- [x] Tabbed navigation: الطلب الحالي / السجل / الإعدادات
+- [x] Header: provider name, availability toggle (prominent), zone/sub-zone badge
+- [x] Stats row: total deliveries, acceptance rate, total earnings, avg rating — with icons
+- [x] Active order card: shows customer address, amount, action buttons (Accept/Reject/Start/Complete)
+- [x] Order history tab: list of past orders with status badges
+- [x] Settings tab: working hours (compact grid, not 7 separate rows), notifications toggle, logout
+- [x] Remove mixed light/dark theme inconsistency
