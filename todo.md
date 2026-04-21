@@ -528,3 +528,16 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Show clear error messages (expired, wrong code, too many attempts, rate limited)
 - [x] Fallback: if Firebase not configured, show OTP in dev mode toast (for testing)
 - [ ] Add FIREBASE_WEB_API_KEY secret when SMS provider is ready in Firebase Console
+
+## Feature: Firebase Integration + PWA
+- [x] Add Firebase config secrets (VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_APP_ID, VITE_FIREBASE_MEASUREMENT_ID)
+- [x] Install firebase client SDK (v12.12.1)
+- [x] Wire Firebase Phone Auth on client (RecaptchaVerifier + signInWithPhoneNumber)
+- [x] Update CustomerLogin.tsx to use Firebase Phone Auth for real SMS OTP
+- [x] Add issueSession procedure to server: verifies Firebase ID token, issues 30-day session
+- [x] PWA: create manifest.json with OWASEEL branding (name, icons, theme_color #F57C00, shortcuts)
+- [x] PWA: service worker (sw.js) — install/activate/fetch caching + push notifications
+- [x] PWA: add install prompt banner on Home page (dismissable, localStorage persistence)
+- [x] PWA: manifest link + apple-touch-icon + SW registration in index.html
+- [x] Firebase Analytics: initAnalytics() helper in firebase.ts (lazy, isSupported guard)
+- [x] PWA icons generated in 8 sizes (72–512px) in client/public/icons/

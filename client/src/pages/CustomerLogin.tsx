@@ -1,12 +1,7 @@
 /**
- * CustomerLogin — Secure Phone OTP authentication.
- * Features:
- *  - 5-minute countdown timer
- *  - Attempt counter (max 3)
- *  - Rate limit feedback
- *  - Security badge
- *  - Auto-submit on 6th digit
- *  - Resend with cooldown
+ * CustomerLogin — Firebase Phone Auth OTP
+ * Real SMS via Firebase Authentication.
+ * Features: countdown timer, 3-attempt limit, resend cooldown, security badge.
  */
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
@@ -14,6 +9,12 @@ import {
   Flame, Phone, ArrowRight, Loader2, CheckCircle2,
   ShieldCheck, Clock, AlertTriangle, RefreshCw, Lock
 } from "lucide-react";
+import {
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  type ConfirmationResult,
+} from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -42,7 +43,7 @@ export function saveCustomerSession(token: string, phone: string): void {
 }
 
 // ─── Countdown hook ───────────────────────────────────────────────────────────
-function useCountdown(seconds: number) {
+function useCountdown() {
   const [remaining, setRemaining] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -51,10 +52,7 @@ function useCountdown(seconds: number) {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setRemaining((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current!);
-          return 0;
-        }
+        if (prev <= 1) { clearInterval(timerRef.current!); return 0; }
         return prev - 1;
       });
     }, 1000);
@@ -64,7 +62,6 @@ function useCountdown(seconds: number) {
 
   const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
   const ss = String(remaining % 60).padStart(2, "0");
-
   return { remaining, label: `${mm}:${ss}`, start };
 }
 
@@ -77,14 +74,33 @@ export default function CustomerLogin() {
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [demoOtp, setDemoOtp] = useState<string | null>(null);
   const [attemptsLeft, setAttemptsLeft] = useState(3);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [isSending, setIsSending] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifySuccess, setVerifySuccess] = useState(false);
+
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
+  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const resendTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const { remaining: otpRemaining, label: otpLabel, start: startOtpTimer } = useCountdown(300);
 
-  // Resend cooldown timer
+  const { remaining: otpRemaining, label: otpLabel, start: startOtpTimer } = useCountdown();
+
+  // Server-side session issuer (after Firebase verifies the OTP)
+  const issueSession = trpc.customerAuth.issueSession.useMutation({
+    onSuccess: (data) => {
+      saveCustomerSession(data.token, data.phone);
+      setVerifySuccess(true);
+      toast.success(isRTL ? "تم تسجيل الدخول بنجاح! ✓" : "Logged in successfully! ✓");
+      setTimeout(() => navigate("/"), 800);
+    },
+    onError: (err) => {
+      toast.error(err.message || (isRTL ? "خطأ في الخادم" : "Server error"));
+    },
+  });
+
+  // Resend cooldown
   function startResendCooldown(secs = 60) {
     setResendCooldown(secs);
     if (resendTimer.current) clearInterval(resendTimer.current);
@@ -97,50 +113,88 @@ export default function CustomerLogin() {
   }
   useEffect(() => () => { if (resendTimer.current) clearInterval(resendTimer.current); }, []);
 
-  const requestOtp = trpc.customerAuth.requestOtp.useMutation({
-    onSuccess: (data) => {
-      if (data.demoOtp) {
-        setDemoOtp(data.demoOtp);
-        toast.info(
-          isRTL ? `وضع تجريبي — رمزك: ${data.demoOtp}` : `Demo mode — your code: ${data.demoOtp}`,
-          { duration: 30000 }
-        );
-      } else {
-        toast.success(isRTL ? "تم إرسال رمز التحقق إلى هاتفك" : "Verification code sent to your phone");
-      }
+  // Initialize invisible reCAPTCHA
+  function initRecaptcha() {
+    if (!recaptchaRef.current) {
+      recaptchaRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
+        size: "invisible",
+        callback: () => {},
+      });
+    }
+    return recaptchaRef.current;
+  }
+
+  async function sendOtp(phoneNumber: string) {
+    setIsSending(true);
+    try {
+      const verifier = initRecaptcha();
+      const confirmation = await signInWithPhoneNumber(auth, phoneNumber, verifier);
+      confirmationRef.current = confirmation;
       setStep("otp");
       setAttemptsLeft(3);
       setOtp(["", "", "", "", "", ""]);
-      startOtpTimer(data.expiresInSeconds ?? 300);
+      startOtpTimer(300); // 5 minutes
       startResendCooldown(60);
-    },
-    onError: (err) => {
-      const msg = err.message || (isRTL ? "فشل إرسال الرمز" : "Failed to send code");
-      toast.error(msg);
-    },
-  });
+      toast.success(isRTL ? "تم إرسال رمز التحقق إلى هاتفك عبر SMS ✓" : "Verification code sent via SMS ✓");
+    } catch (err: unknown) {
+      console.error("[Firebase Phone Auth]", err);
+      // Reset reCAPTCHA on error
+      recaptchaRef.current = null;
+      const msg = (err as { message?: string })?.message || "";
+      if (msg.includes("invalid-phone-number") || msg.includes("INVALID_PHONE_NUMBER")) {
+        toast.error(isRTL ? "رقم الهاتف غير صالح. تأكد من الصيغة الدولية (+968...)" : "Invalid phone number. Use international format (+968...)");
+      } else if (msg.includes("too-many-requests") || msg.includes("TOO_MANY_ATTEMPTS")) {
+        toast.error(isRTL ? "طلبات كثيرة. انتظر قليلاً وحاول مجدداً." : "Too many requests. Please wait and try again.");
+      } else {
+        toast.error(isRTL ? "فشل إرسال الرمز. تحقق من الرقم وحاول مجدداً." : "Failed to send code. Check the number and try again.");
+      }
+    } finally {
+      setIsSending(false);
+    }
+  }
 
-  const verifyOtp = trpc.customerAuth.verifyOtp.useMutation({
-    onSuccess: (data) => {
-      saveCustomerSession(data.token, data.phone);
-      toast.success(isRTL ? "تم تسجيل الدخول بنجاح! ✓" : "Logged in successfully! ✓");
-      navigate("/");
-    },
-    onError: (err) => {
-      const msg = err.message || (isRTL ? "رمز غير صحيح" : "Incorrect code");
-      toast.error(msg);
-      // Decrement attempts display
+  async function verifyCode(code: string) {
+    if (!confirmationRef.current) {
+      toast.error(isRTL ? "انتهت الجلسة. اطلب رمزاً جديداً." : "Session expired. Request a new code.");
+      return;
+    }
+    setIsVerifying(true);
+    try {
+      const result = await confirmationRef.current.confirm(code);
+      const idToken = await result.user.getIdToken();
+      // Issue server-side session token
+      issueSession.mutate({ idToken, phone });
+    } catch (err: unknown) {
+      console.error("[Firebase OTP verify]", err);
+      const msg = (err as { message?: string })?.message || "";
       setAttemptsLeft((prev) => Math.max(0, prev - 1));
-      // Reset OTP boxes
       setOtp(["", "", "", "", "", ""]);
       setTimeout(() => otpRefs.current[0]?.focus(), 50);
-    },
-  });
+      if (msg.includes("invalid-verification-code") || msg.includes("INVALID_CODE")) {
+        const remaining = attemptsLeft - 1;
+        toast.error(
+          remaining > 0
+            ? (isRTL ? `رمز غير صحيح. متبقي ${remaining} محاولة.` : `Wrong code. ${remaining} attempt${remaining === 1 ? "" : "s"} left.`)
+            : (isRTL ? "تم استنفاد المحاولات. اطلب رمزاً جديداً." : "All attempts used. Request a new code.")
+        );
+      } else if (msg.includes("code-expired") || msg.includes("SESSION_EXPIRED")) {
+        toast.error(isRTL ? "انتهت صلاحية الرمز. اطلب رمزاً جديداً." : "Code expired. Request a new code.");
+      } else {
+        toast.error(isRTL ? "فشل التحقق. حاول مجدداً." : "Verification failed. Try again.");
+      }
+    } finally {
+      setIsVerifying(false);
+    }
+  }
 
   function handlePhoneSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!phone.trim()) return;
-    requestOtp.mutate({ phone });
+    // Normalize: add +968 if no country code
+    let normalized = phone.replace(/\s/g, "");
+    if (!normalized.startsWith("+")) normalized = "+968" + normalized;
+    setPhone(normalized);
+    sendOtp(normalized);
   }
 
   function handleOtpChange(index: number, value: string) {
@@ -148,9 +202,7 @@ export default function CustomerLogin() {
     const next = [...otp];
     next[index] = value.slice(-1);
     setOtp(next);
-    if (value && index < 5) {
-      otpRefs.current[index + 1]?.focus();
-    }
+    if (value && index < 5) otpRefs.current[index + 1]?.focus();
   }
 
   function handleOtpKeyDown(index: number, e: React.KeyboardEvent) {
@@ -169,15 +221,17 @@ export default function CustomerLogin() {
 
   useEffect(() => {
     const code = otp.join("");
-    if (code.length === 6 && !verifyOtp.isPending) {
-      verifyOtp.mutate({ phone, otp: code });
+    if (code.length === 6 && !isVerifying && !verifySuccess) {
+      verifyCode(code);
     }
   }, [otp]);
 
-  const isExpired = step === "otp" && otpRemaining === 0 && !demoOtp;
+  const isExpired = step === "otp" && otpRemaining === 0;
 
   return (
     <div className="mobile-screen bg-gray-50 items-center justify-center px-6" dir={dir}>
+      {/* Invisible reCAPTCHA container */}
+      <div id="recaptcha-container" />
 
       {/* Logo */}
       <div className="flex flex-col items-center mb-8">
@@ -218,7 +272,9 @@ export default function CustomerLogin() {
               autoFocus
             />
             <p className="text-xs text-gray-400 text-center">
-              {isRTL ? "سنرسل رمز تحقق مكون من 6 أرقام" : "We'll send a 6-digit verification code"}
+              {isRTL
+                ? "سنرسل رمز تحقق مكون من 6 أرقام عبر SMS"
+                : "We'll send a 6-digit code via SMS"}
             </p>
           </div>
 
@@ -227,19 +283,19 @@ export default function CustomerLogin() {
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
             <p className="text-xs text-emerald-700">
               {isRTL
-                ? "رمز مشفّر · صالح 5 دقائق فقط · 3 محاولات كحد أقصى"
-                : "Encrypted code · Valid 5 min only · Max 3 attempts"}
+                ? "مشفّر بالكامل عبر Firebase · صالح 5 دقائق · 3 محاولات"
+                : "Fully encrypted via Firebase · Valid 5 min · 3 attempts"}
             </p>
           </div>
 
           <Button
             type="submit"
             size="lg"
-            disabled={!phone.trim() || requestOtp.isPending}
+            disabled={!phone.trim() || isSending}
             className="w-full rounded-2xl font-extrabold text-base h-14"
             style={{ background: "oklch(0.53 0.22 27)" }}
           >
-            {requestOtp.isPending ? (
+            {isSending ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <>
@@ -260,7 +316,6 @@ export default function CustomerLogin() {
       ) : (
         <div className="w-full space-y-4">
           <div className="bg-white rounded-3xl shadow-sm p-6 space-y-5">
-
             {/* Header row */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -274,24 +329,18 @@ export default function CustomerLogin() {
                   </p>
                 </div>
               </div>
-              {/* Countdown timer */}
-              {!demoOtp && (
-                <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
-                  isExpired
-                    ? "bg-red-100 text-red-600"
-                    : otpRemaining < 60
-                    ? "bg-orange-100 text-orange-600"
-                    : "bg-gray-100 text-gray-600"
-                }`}>
-                  <Clock className="w-3.5 h-3.5" />
-                  {isExpired
-                    ? (isRTL ? "انتهت الصلاحية" : "Expired")
-                    : otpLabel}
-                </div>
-              )}
+              {/* Countdown */}
+              <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
+                isExpired ? "bg-red-100 text-red-600"
+                : otpRemaining < 60 ? "bg-orange-100 text-orange-600"
+                : "bg-gray-100 text-gray-600"
+              }`}>
+                <Clock className="w-3.5 h-3.5" />
+                {isExpired ? (isRTL ? "انتهت الصلاحية" : "Expired") : otpLabel}
+              </div>
             </div>
 
-            {/* OTP Input Boxes */}
+            {/* OTP boxes */}
             <div className="flex gap-2 justify-center" dir="ltr" onPaste={handleOtpPaste}>
               {otp.map((digit, i) => (
                 <input
@@ -301,27 +350,24 @@ export default function CustomerLogin() {
                   inputMode="numeric"
                   maxLength={1}
                   value={digit}
-                  disabled={isExpired || attemptsLeft === 0 || verifyOtp.isPending}
+                  disabled={isExpired || attemptsLeft === 0 || isVerifying || verifySuccess}
                   onChange={(e) => handleOtpChange(i, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(i, e)}
                   className={`w-12 h-14 text-center text-xl font-bold border-2 rounded-2xl focus:outline-none transition-colors ${
-                    digit
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-gray-200 text-gray-900"
+                    digit ? "border-primary bg-primary/5 text-primary" : "border-gray-200 text-gray-900"
                   } focus:border-primary disabled:opacity-40 disabled:cursor-not-allowed`}
                 />
               ))}
             </div>
 
-            {/* Status indicators */}
-            {verifyOtp.isPending && (
+            {/* Status */}
+            {isVerifying && (
               <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 {isRTL ? "جارٍ التحقق…" : "Verifying…"}
               </div>
             )}
-
-            {verifyOtp.isSuccess && (
+            {verifySuccess && (
               <div className="flex items-center justify-center gap-2 text-sm text-emerald-600">
                 <CheckCircle2 className="w-4 h-4" />
                 {isRTL ? "تم التحقق بنجاح ✓" : "Verified successfully ✓"}
@@ -333,13 +379,10 @@ export default function CustomerLogin() {
               <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-2">
                 <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0" />
                 <p className="text-xs text-orange-700">
-                  {isRTL
-                    ? `تبقّى ${attemptsLeft} محاولة فقط`
-                    : `${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} remaining`}
+                  {isRTL ? `تبقّى ${attemptsLeft} محاولة فقط` : `${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} remaining`}
                 </p>
               </div>
             )}
-
             {attemptsLeft === 0 && (
               <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
                 <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
@@ -350,34 +393,16 @@ export default function CustomerLogin() {
             )}
           </div>
 
-          {/* Demo mode banner */}
-          {demoOtp && (
-            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 text-center">
-              <p className="text-xs text-amber-600 font-medium mb-1">
-                {isRTL ? "⚠️ وضع تجريبي — لا يوجد SMS" : "⚠️ Demo mode — no SMS sent"}
-              </p>
-              <p className="text-2xl font-black tracking-[0.3em] text-amber-800 font-mono">{demoOtp}</p>
-              <button
-                onClick={() => {
-                  const digits = demoOtp.split("");
-                  setOtp(digits);
-                  setTimeout(() => otpRefs.current[5]?.focus(), 50);
-                }}
-                className="mt-2 text-xs text-amber-700 underline"
-              >
-                {isRTL ? "ملء تلقائياً" : "Auto-fill"}
-              </button>
-            </div>
-          )}
-
           {/* Action buttons */}
           <div className="flex gap-3">
             <button
               onClick={() => {
                 setStep("phone");
-                setDemoOtp(null);
                 setOtp(["", "", "", "", "", ""]);
                 setAttemptsLeft(3);
+                setVerifySuccess(false);
+                confirmationRef.current = null;
+                recaptchaRef.current = null;
               }}
               className="flex-1 text-sm text-gray-400 py-3 rounded-2xl border border-gray-200 bg-white"
             >
@@ -386,19 +411,17 @@ export default function CustomerLogin() {
 
             <button
               onClick={() => {
-                if (resendCooldown > 0) return;
-                requestOtp.mutate({ phone });
+                if (resendCooldown > 0 || isSending) return;
+                confirmationRef.current = null;
+                recaptchaRef.current = null;
+                sendOtp(phone);
               }}
-              disabled={requestOtp.isPending || resendCooldown > 0}
+              disabled={isSending || resendCooldown > 0}
               className="flex-1 text-sm text-primary py-3 rounded-2xl border border-primary/30 bg-primary/5 font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
-              {requestOtp.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4" />
-              )}
+              {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               {resendCooldown > 0
-                ? `${isRTL ? "إعادة الإرسال" : "Resend"} (${resendCooldown}s)`
+                ? `${isRTL ? "إعادة" : "Resend"} (${resendCooldown}s)`
                 : (isRTL ? "إعادة الإرسال" : "Resend")}
             </button>
           </div>

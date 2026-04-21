@@ -18,6 +18,10 @@
     <meta property="og:title" content="🔥 OWASEEL | أًوصّل — توصيل الغاز خلال ٣٠ دقيقة" />
     <meta property="og:description" content="اطلب الغاز الآن — توصيل خلال ٣٠ دقيقة. بدون تسجيل." />
     <meta property="og:type" content="website" />
+    <!-- PWA Manifest & Icons -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
     <!-- Google Fonts: Cairo (Arabic) + Inter (Latin fallback) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -27,6 +31,16 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Register Service Worker for PWA (offline + push notifications)
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(function(reg) { console.log('[SW] Registered:', reg.scope); })
+            .catch(function(err) { console.warn('[SW] Registration failed:', err); });
+        });
+      }
+    </script>
     <script
       defer
       src="%VITE_ANALYTICS_ENDPOINT%/umami"

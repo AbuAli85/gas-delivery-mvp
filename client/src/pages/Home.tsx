@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Flame, ChevronLeft, ChevronRight, ShieldCheck, Zap, Phone, User } from "lucide-react";
+import { Flame, ChevronLeft, ChevronRight, ShieldCheck, Zap, Phone, User, Download, X } from "lucide-react";
 import { getCustomerPhone } from "./CustomerLogin";
 import { FIXED_ORDER_PRICE } from "../../../shared/domain";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,45 @@ import { trpc } from "@/lib/trpc";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
 export default function Home() {
   const [, navigate] = useLocation();
   const customerPhone = getCustomerPhone();
   const { t, dir } = useLanguage();
+  const isRTL = dir === "rtl";
+
+  // PWA install prompt
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+      // Show banner after 3 seconds if not dismissed before
+      const dismissed = localStorage.getItem("pwa-install-dismissed");
+      if (!dismissed) setTimeout(() => setShowInstallBanner(true), 3000);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  async function handleInstall() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === "accepted") setShowInstallBanner(false);
+    setInstallPrompt(null);
+  }
+
+  function dismissInstallBanner() {
+    setShowInstallBanner(false);
+    localStorage.setItem("pwa-install-dismissed", "1");
+  }
 
   const { data: providers } = trpc.providers.list.useQuery(undefined, {
     refetchInterval: 30000,
@@ -26,6 +61,35 @@ export default function Home() {
 
   return (
     <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }} dir={dir}>
+      {/* ── PWA Install Banner ── */}
+      {showInstallBanner && (
+        <div
+          className="fixed bottom-4 left-4 right-4 z-50 rounded-3xl shadow-2xl p-4 flex items-center gap-3"
+          style={{ background: "oklch(0.14 0 0)", border: "1px solid oklch(0.53 0.22 27 / 0.4)" }}
+        >
+          <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "oklch(0.53 0.22 27)" }}>
+            <Download className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-sm font-bold">
+              {isRTL ? "ثبّت التطبيق" : "Install App"}
+            </p>
+            <p className="text-white/50 text-xs">
+              {isRTL ? "أضفه لشاشتك الرئيسية" : "Add to your home screen"}
+            </p>
+          </div>
+          <button
+            onClick={handleInstall}
+            className="text-xs font-bold px-3 py-1.5 rounded-xl text-white"
+            style={{ background: "oklch(0.53 0.22 27)" }}
+          >
+            {isRTL ? "تثبيت" : "Install"}
+          </button>
+          <button onClick={dismissInstallBanner} className="text-white/40 hover:text-white/70">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       {/* ── Hero ── */}
       <div
         className="flex flex-col items-center justify-center px-6 pt-14 pb-8 text-white"
