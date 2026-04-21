@@ -122,20 +122,11 @@ export default function AboutUs() {
         </div>
 
         <div className="flex items-center gap-3 mb-6">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center"
-            style={{
-              background: "oklch(0.71 0.18 54 / 0.2)",
-              border: "2px solid oklch(0.71 0.18 54 / 0.5)",
-              boxShadow: "0 0 24px oklch(0.71 0.18 54 / 0.3)",
-            }}
-          >
-            <Flame className="w-7 h-7 text-orange-400" />
-          </div>
-          <div>
-            <p className="text-orange-400 text-xs font-bold tracking-widest">OWASEEL</p>
-            <p className="text-white font-black text-2xl leading-tight">أًوصّل</p>
-          </div>
+          <img
+            src="/manus-storage/logo-white-nobg_67830600.png"
+            alt="OWASEEL"
+            className="h-12 w-auto object-contain"
+          />
         </div>
 
         <h1 className="text-white font-black text-3xl leading-tight mb-3">{t("about.title")}</h1>

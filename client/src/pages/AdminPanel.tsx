@@ -97,9 +97,11 @@ export default function AdminPanel() {
     return (
       <div className="mobile-screen bg-gray-50 items-center justify-center px-6">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-3xl bg-gray-900 flex items-center justify-center mb-4 shadow-lg">
-            <ShieldCheck className="w-8 h-8 text-orange-400" />
-          </div>
+          <img
+            src="/manus-storage/logo-orange-on-black_735a348b.png"
+            alt="OWASEEL"
+            className="h-20 w-auto object-contain mb-4"
+          />
           <h1 className="text-2xl font-extrabold text-gray-900">لوحة الإدارة</h1>
           <p className="text-sm text-gray-400 mt-1">أدخل رمز المشرف للمتابعة</p>
           {isUnauthorized && (
@@ -149,12 +151,13 @@ export default function AdminPanel() {
         style={{ background: "linear-gradient(135deg, oklch(0.09 0 0), oklch(0.2 0 0))" }}
       >
         <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-orange-400" />
-            <div>
-              <p className="text-orange-400 text-[10px] font-bold tracking-widest leading-none">OWASEEL</p>
-              <h1 className="text-lg font-extrabold leading-tight">لوحة الإدارة</h1>
-            </div>
+          <div className="flex items-center gap-3">
+            <img
+              src="/manus-storage/logo-white-nobg_67830600.png"
+              alt="OWASEEL"
+              className="h-8 w-auto object-contain"
+            />
+            <h1 className="text-lg font-extrabold leading-tight">لوحة الإدارة</h1>
           </div>
           <button
             onClick={() => {

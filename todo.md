@@ -541,3 +541,16 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] PWA: manifest link + apple-touch-icon + SW registration in index.html
 - [x] Firebase Analytics: initAnalytics() helper in firebase.ts (lazy, isSupported guard)
 - [x] PWA icons generated in 8 sizes (72–512px) in client/public/icons/
+
+## Feature: Official OWASEEL Brand Assets Integration
+- [x] Extract and review brand guidelines PDF (colors: #FF751F orange, #0D0D1A dark bg, #1DBED2 water, #00BF63 green)
+- [x] Extract official logos from PNG/SVG ZIP files (8 variants identified)
+- [x] Upload official logos to CDN via manus-upload-file --webdev
+- [x] Replace placeholder flame icon with official OWASEEL logo in Home.tsx header
+- [x] Replace placeholder icon in ProviderDashboard.tsx header (white-nobg logo)
+- [x] Replace placeholder icon in AdminPanel.tsx header + login screen (white-nobg + orange-on-black)
+- [x] Replace placeholder icon in AboutUs.tsx hero header (white-nobg logo)
+- [x] Replace placeholder icon in CustomerLogin.tsx (orange-on-black logo)
+- [x] Regenerate PWA icons using official orange-on-black logo (8 sizes: 72–512px)
+- [x] Updated favicon.ico with official logo
+- [x] Apply official brand colors to CSS variables in index.css (#FF751F → oklch(0.71 0.18 54), bg #0D0D1A → oklch(0.09 0.02 240))

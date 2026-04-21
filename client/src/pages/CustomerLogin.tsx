@@ -235,15 +235,11 @@ export default function CustomerLogin() {
 
       {/* Logo */}
       <div className="flex flex-col items-center mb-8">
-        <div
-          className="w-16 h-16 rounded-3xl flex items-center justify-center mb-4 shadow-lg"
-          style={{ background: "linear-gradient(135deg, oklch(0.12 0 0), oklch(0.53 0.22 27))" }}
-        >
-          <Flame className="w-8 h-8 text-orange-400" />
-        </div>
-        <h1 className="text-2xl font-extrabold text-gray-900">
-          {isRTL ? "أًوصّل" : "OWASEEL"}
-        </h1>
+        <img
+          src="/manus-storage/logo-orange-on-black_735a348b.png"
+          alt="OWASEEL"
+          className="h-20 w-auto object-contain mb-3"
+        />
         <p className="text-sm text-gray-400 mt-1">
           {isRTL ? "سجّل دخولك برقم هاتفك" : "Sign in with your phone number"}
         </p>

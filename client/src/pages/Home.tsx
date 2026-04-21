@@ -101,13 +101,11 @@ export default function Home() {
       >
         {/* Brand mark + language switcher row */}
         <div className="flex items-center gap-2 mb-8 w-full max-w-sm">
-          <div className="w-11 h-11 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center">
-            <Flame className="w-6 h-6 text-orange-400" />
-          </div>
-          <div>
-            <p className="text-[10px] text-white/50 uppercase tracking-widest">OWASEEL</p>
-            <p className="text-base font-bold leading-none">{t("app.name")}</p>
-          </div>
+          <img
+            src="/manus-storage/logo-white-nobg_67830600.png"
+            alt="OWASEEL"
+            className="h-10 w-auto object-contain"
+          />
           <div className="ms-auto">
             <LanguageSwitcher />
           </div>
