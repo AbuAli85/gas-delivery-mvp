@@ -320,10 +320,44 @@ There is no root `README.md` in this repo at time of writing; add one for **loca
 
 ---
 
+## Troubleshooting
+
+### `Cannot find module '.../gas-delivery-mvp/watch'`
+
+You will see **`[Sentry] Instrumented via --import`** and then Node fails trying to load a file named **`watch`** in the project root.
+
+**Cause:** `node` is being started with an extra positional argument `watch` (often copied from `tsx watch ...`). Node interprets the first positional after flags as the **entry script**, so it resolves **`./watch`**, which does not exist.
+
+**Wrong:**
+
+```bash
+node --import ./dist/instrument.js watch
+```
+
+**Right (production):**
+
+```bash
+npm start
+# equivalent:
+node --import ./dist/instrument.js dist/index.js
+```
+
+**Right (development with reload):**
+
+```bash
+npm run dev
+# equivalent: tsx watch server/_core/index.ts — do not replace with bare node + watch
+```
+
+If you use **PM2**, `ecosystem.config`, or systemd, ensure the exec line passes **`dist/index.js`** (after `npm run build`), not the word `watch`.
+
+---
+
 ## Version history
 
 | Date | Notes |
 |------|--------|
 | 2026-04-22 | Expanded deployment + operations guide; aligned with Drizzle/MySQL camelCase schema and repo scripts. |
+| 2026-04-22 | Troubleshooting: Node `--import` + stray `watch` argument. |
 
 **Last updated:** April 22, 2026

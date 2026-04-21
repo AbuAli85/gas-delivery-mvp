@@ -4,6 +4,10 @@
  * In production, this file is pre-compiled to dist/instrument.js and loaded via:
  *   node --import ./dist/instrument.js dist/index.js
  *
+ * Do NOT run `node --import ./dist/instrument.js watch` — Node treats `watch` as the
+ * main script path and tries to load ./watch (see DEPLOYMENT.md troubleshooting).
+ * For dev with reload, use: npm run dev  (tsx watch server/_core/index.ts).
+ *
  * In development, Sentry is initialized directly in server/_core/sentry.ts
  * which is imported at the top of server/_core/index.ts.
  *
