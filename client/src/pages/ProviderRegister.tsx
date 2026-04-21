@@ -73,10 +73,10 @@ function useKeyboardScrollFix() {
     const handleFocus = (e: FocusEvent) => {
       const el = e.target as HTMLElement;
       if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
-        // Small delay to let the keyboard fully open
+        // Longer delay to let the keyboard fully open without interfering with typing
         setTimeout(() => {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-        }, 300);
+          el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 500);
       }
     };
     document.addEventListener("focusin", handleFocus, true);
@@ -233,11 +233,13 @@ export default function ProviderRegister() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="مثال: أحمد بن سالم"
-                  dir="auto"
+                  dir="rtl"
                   autoComplete="name"
                   enterKeyHint="next"
                   spellCheck={false}
-                  className={`${inputClass} [unicode-bidi:plaintext] text-start`}
+                  autoCorrect="off"
+                  autoCapitalize="words"
+                  className={`${inputClass} text-right`}
                 />
               </Field>
               <Field icon={<Phone className="w-4 h-4" />} label="رقم الهاتف (عُمان) *" htmlFor="provider-reg-phone">
@@ -248,11 +250,13 @@ export default function ProviderRegister() {
                   placeholder="+968 9X XXX XXXX"
                   type="tel"
                   dir="ltr"
-                  inputMode="tel"
+                  inputMode="numeric"
                   autoComplete="tel"
                   enterKeyHint="next"
                   spellCheck={false}
-                  className={`${inputClass} [unicode-bidi:plaintext] text-left`}
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  className={`${inputClass} text-left`}
                 />
               </Field>
               <Field icon={<Mail className="w-4 h-4" />} label="البريد الإلكتروني (اختياري)" htmlFor="provider-reg-email">
