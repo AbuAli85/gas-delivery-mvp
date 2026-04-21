@@ -25,6 +25,7 @@ import LocationPicker from "./pages/LocationPicker";
 
 // Customer auth
 import CustomerLogin from "./pages/CustomerLogin";
+import CustomerProfile from "./pages/CustomerProfile";
 
 // Admin
 import AdminPanel from "./pages/AdminPanel";
@@ -51,6 +52,7 @@ function Router() {
       <Route path="/order/placed/:orderId" component={OrderPlaced} />
       <Route path="/order/track/:orderId" component={OrderTracking} />
       <Route path="/customer/login" component={CustomerLogin} />
+      <Route path="/customer/profile" component={CustomerProfile} />
       <Route path="/admin" component={AdminPanel} />
       <Route path="/admin/providers" component={AdminProviders} />
       <Route path="/order/:orderId/review/:providerId" component={RatingScreen} />

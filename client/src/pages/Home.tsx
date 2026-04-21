@@ -204,19 +204,31 @@ export default function Home() {
         </a>
 
         {/* ── Customer Login / Profile ── */}
-        <div className="mt-3 flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
-          <div className="flex items-center gap-2">
-            <User className="w-3.5 h-3.5 text-white/40" />
-            <p className="text-xs text-white/40">
-              {customerPhone ? customerPhone : t("home.account.label")}
-            </p>
+        <div className="mt-3 bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <User className="w-3.5 h-3.5 text-white/40" />
+              <p className="text-xs text-white/40">
+                {customerPhone ? customerPhone : t("home.account.label")}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {customerPhone && (
+                <a
+                  href="/customer/profile"
+                  className="text-xs font-bold text-orange-400 border border-orange-400/30 rounded-lg px-3 py-1 hover:bg-orange-400/10"
+                >
+                  {isRTL ? "حسابي" : "My Account"}
+                </a>
+              )}
+              <a
+                href="/customer/login"
+                className="text-xs font-bold text-white/40 border border-white/10 rounded-lg px-3 py-1 hover:bg-white/10"
+              >
+                {customerPhone ? t("home.account.change") : t("home.account.login")}
+              </a>
+            </div>
           </div>
-          <a
-            href="/customer/login"
-            className="text-xs font-bold text-blue-400 border border-blue-400/30 rounded-lg px-3 py-1 hover:bg-blue-400/10"
-          >
-            {customerPhone ? t("home.account.change") : t("home.account.login")}
-          </a>
         </div>
 
         {/* ── About link ── */}

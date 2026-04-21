@@ -314,3 +314,64 @@ export const otpRequests = mysqlTable("otp_requests", {
 });
 export type OtpRequest = typeof otpRequests.$inferSelect;
 export type InsertOtpRequest = typeof otpRequests.$inferInsert;
+
+// ─── Customers (Registered) ───────────────────────────────────────────────────
+// Optional customer registration for loyalty, offers, and referrals.
+// Guests can still order without registering (no FK constraint on orders).
+export const customers = mysqlTable("customers", {
+  id: int("id").autoincrement().primaryKey(),
+  phone: varchar("phone", { length: 32 }).notNull().unique(),
+  sessionToken: varchar("sessionToken", { length: 128 }).unique(),
+  name: varchar("name", { length: 128 }),
+  email: varchar("email", { length: 320 }),
+  customerType: mysqlEnum("customerType", ["individual", "restaurant", "business"]).default("individual").notNull(),
+  points: int("points").default(0).notNull(),
+  tier: mysqlEnum("tier", ["bronze", "silver", "gold", "platinum"]).default("bronze").notNull(),
+  totalOrders: int("totalOrders").default(0).notNull(),
+  totalSpent: decimal("totalSpent", { precision: 10, scale: 3 }).default("0.000").notNull(),
+  referralCode: varchar("referralCode", { length: 16 }).unique(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Customer = typeof customers.$inferSelect;
+export type InsertCustomer = typeof customers.$inferInsert;
+
+// ─── Customer Offers ──────────────────────────────────────────────────────────
+export const customerOffers = mysqlTable("customer_offers", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 128 }).notNull(),
+  titleAr: varchar("titleAr", { length: 128 }).notNull(),
+  discountType: mysqlEnum("discountType", ["percentage", "fixed", "free_delivery"]).notNull(),
+  discountValue: decimal("discountValue", { precision: 10, scale: 3 }).default("0.000").notNull(),
+  minTier: mysqlEnum("minTier", ["bronze", "silver", "gold", "platinum"]).default("bronze").notNull(),
+  pointsCost: int("pointsCost").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CustomerOffer = typeof customerOffers.$inferSelect;
+export type InsertCustomerOffer = typeof customerOffers.$inferInsert;
+
+// ─── Customer Offer Redemptions ───────────────────────────────────────────────
+export const customerOfferRedemptions = mysqlTable("customer_offer_redemptions", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customerId").notNull(),
+  offerId: int("offerId").notNull(),
+  redeemedAt: timestamp("redeemedAt").defaultNow().notNull(),
+});
+export type CustomerOfferRedemption = typeof customerOfferRedemptions.$inferSelect;
+
+// ─── Referrals ────────────────────────────────────────────────────────────────
+// Tracks who invited whom. status=pending until invitee places first order,
+// then status=rewarded and points are awarded to both parties.
+export const referrals = mysqlTable("referrals", {
+  id: int("id").autoincrement().primaryKey(),
+  inviterId: int("inviterId").notNull(),   // FK → customers.id
+  inviteeId: int("inviteeId").notNull(),   // FK → customers.id
+  status: mysqlEnum("status", ["pending", "rewarded"]).default("pending").notNull(),
+  inviterPoints: int("inviterPoints").default(50).notNull(),   // points awarded to inviter
+  inviteePoints: int("inviteePoints").default(20).notNull(),   // bonus points for invitee
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  rewardedAt: timestamp("rewardedAt"),
+});
+export type Referral = typeof referrals.$inferSelect;
+export type InsertReferral = typeof referrals.$inferInsert;

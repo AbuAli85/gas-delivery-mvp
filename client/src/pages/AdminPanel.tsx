@@ -46,7 +46,8 @@ export default function AdminPanel() {
   const [enteredPin, setEnteredPin] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"orders" | "reviews">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "reviews" | "customers">("orders");
+  const [newOffer, setNewOffer] = useState({ title: "", titleAr: "", discountType: "percentage" as "percentage" | "fixed" | "free_delivery", discountValue: 0, minTier: "bronze" as "bronze" | "silver" | "gold" | "platinum", pointsCost: 0 });
 
   const utils = trpc.useUtils();
 
@@ -64,6 +65,25 @@ export default function AdminPanel() {
     undefined,
     { enabled: !!enteredPin && activeTab === "reviews", retry: false }
   );
+
+  const customerStats = trpc.customers.adminGetStats.useQuery(
+    undefined,
+    { enabled: !!enteredPin && activeTab === "customers", retry: false }
+  );
+
+  const offersQuery = trpc.customers.adminListOffers.useQuery(
+    undefined,
+    { enabled: !!enteredPin && activeTab === "customers", retry: false }
+  );
+
+  const createOffer = trpc.customers.adminCreateOffer.useMutation({
+    onSuccess: () => { toast.success("تم إنشاء العرض"); offersQuery.refetch(); setNewOffer({ title: "", titleAr: "", discountType: "percentage", discountValue: 0, minTier: "bronze", pointsCost: 0 }); },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const toggleOffer = trpc.customers.adminToggleOffer.useMutation({
+    onSuccess: () => offersQuery.refetch(),
+  });
 
   const cancelOrder = trpc.orders.adminCancelOrder.useMutation({
     onSuccess: () => {
@@ -196,6 +216,17 @@ export default function AdminPanel() {
           <Star className="w-4 h-4" />
           التقييمات
         </button>
+        <button
+          onClick={() => setActiveTab("customers")}
+          className={`flex items-center gap-1.5 px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === "customers"
+              ? "border-orange-500 text-orange-600"
+              : "border-transparent text-gray-400"
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          العملاء
+        </button>
         <Link href="/admin/providers">
           <button
             className="flex items-center gap-1.5 px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-400 hover:text-orange-500 transition-colors"
@@ -207,7 +238,147 @@ export default function AdminPanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {activeTab === "reviews" ? (
+        {activeTab === "customers" ? (
+          <div className="space-y-4">
+            {customerStats.isLoading ? (
+              <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>
+            ) : (
+              <>
+                {/* Stats overview */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
+                    <p className="text-2xl font-extrabold text-gray-900">{customerStats.data?.totalCustomers ?? 0}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">إجمالي العملاء</p>
+                  </div>
+                  <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
+                    <p className="text-2xl font-extrabold text-green-600">{customerStats.data?.rewardedReferrals ?? 0}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">إحالات مكافأة</p>
+                  </div>
+                  <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
+                    <p className="text-2xl font-extrabold text-orange-500">{customerStats.data?.totalReferrals ?? 0}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">إجمالي الإحالات</p>
+                  </div>
+                  <div className="bg-white rounded-2xl shadow-sm p-4 text-center">
+                    <p className="text-2xl font-extrabold text-violet-600">
+                      {customerStats.data?.byType?.find(t => t.customerType === "restaurant")?.cnt ?? 0}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">مطاعم</p>
+                  </div>
+                </div>
+
+                {/* Tier breakdown */}
+                <div className="bg-white rounded-2xl shadow-sm p-4">
+                  <p className="text-sm font-bold text-gray-700 mb-3">توزيع المستويات</p>
+                  {(["platinum", "gold", "silver", "bronze"] as const).map((tier) => {
+                    const tierColors = { bronze: "#CD7F32", silver: "#9CA3AF", gold: "#F59E0B", platinum: "#6366F1" };
+                    const tierAr = { bronze: "برونزي", silver: "فضي", gold: "ذهبي", platinum: "بلاتيني" };
+                    const cnt = customerStats.data?.byTier?.find(t => t.tier === tier)?.cnt ?? 0;
+                    const total = customerStats.data?.totalCustomers ?? 1;
+                    return (
+                      <div key={tier} className="flex items-center gap-3 mb-2">
+                        <span className="text-xs w-14 text-gray-500">{tierAr[tier]}</span>
+                        <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${Math.round((cnt / total) * 100)}%`, background: tierColors[tier] }} />
+                        </div>
+                        <span className="text-xs text-gray-500 w-6 text-end">{cnt}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Top customers */}
+                {(customerStats.data?.topCustomers ?? []).length > 0 && (
+                  <div className="bg-white rounded-2xl shadow-sm p-4">
+                    <p className="text-sm font-bold text-gray-700 mb-3">أفضل العملاء</p>
+                    <div className="space-y-2">
+                      {customerStats.data!.topCustomers.map((c, i) => (
+                        <div key={c.id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-400 w-5">{i + 1}.</span>
+                            <div>
+                              <p className="text-xs font-semibold text-gray-800">{c.name ?? c.phone}</p>
+                              <p className="text-xs text-gray-400">{c.totalOrders} طلب · {c.points} نقطة</p>
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold text-orange-500">OMR {parseFloat(String(c.totalSpent)).toFixed(3)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Revenue by zone */}
+                {(customerStats.data?.revenueByZone ?? []).length > 0 && (
+                  <div className="bg-white rounded-2xl shadow-sm p-4">
+                    <p className="text-sm font-bold text-gray-700 mb-3">الإيراد حسب المنطقة</p>
+                    <div className="space-y-2">
+                      {customerStats.data!.revenueByZone.map((z) => (
+                        <div key={z.zoneId} className="flex items-center justify-between">
+                          <span className="text-xs text-gray-600">منطقة #{z.zoneId}</span>
+                          <div className="text-end">
+                            <p className="text-xs font-bold text-orange-500">OMR {parseFloat(String(z.revenue ?? 0)).toFixed(3)}</p>
+                            <p className="text-xs text-gray-400">{z.orderCount} طلب</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Offers management */}
+                <div className="bg-white rounded-2xl shadow-sm p-4">
+                  <p className="text-sm font-bold text-gray-700 mb-3">إدارة العروض</p>
+                  {/* Create offer form */}
+                  <div className="space-y-2 mb-4 p-3 bg-gray-50 rounded-xl">
+                    <input value={newOffer.title} onChange={e => setNewOffer(p => ({...p, title: e.target.value}))} placeholder="Title (EN)" className="w-full border rounded-lg px-3 py-2 text-xs" />
+                    <input value={newOffer.titleAr} onChange={e => setNewOffer(p => ({...p, titleAr: e.target.value}))} placeholder="العنوان (AR)" className="w-full border rounded-lg px-3 py-2 text-xs" />
+                    <div className="flex gap-2">
+                      <select value={newOffer.discountType} onChange={e => setNewOffer(p => ({...p, discountType: e.target.value as "percentage" | "fixed" | "free_delivery"}))} className="flex-1 border rounded-lg px-2 py-2 text-xs">
+                        <option value="percentage">نسبة %</option>
+                        <option value="fixed">ثابت OMR</option>
+                        <option value="free_delivery">توصيل مجاني</option>
+                      </select>
+                      <input type="number" value={newOffer.discountValue} onChange={e => setNewOffer(p => ({...p, discountValue: parseFloat(e.target.value) || 0}))} placeholder="القيمة" className="w-20 border rounded-lg px-2 py-2 text-xs" />
+                    </div>
+                    <div className="flex gap-2">
+                      <select value={newOffer.minTier} onChange={e => setNewOffer(p => ({...p, minTier: e.target.value as "bronze" | "silver" | "gold" | "platinum"}))} className="flex-1 border rounded-lg px-2 py-2 text-xs">
+                        <option value="bronze">برونزي+</option>
+                        <option value="silver">فضي+</option>
+                        <option value="gold">ذهبي+</option>
+                        <option value="platinum">بلاتيني</option>
+                      </select>
+                      <input type="number" value={newOffer.pointsCost} onChange={e => setNewOffer(p => ({...p, pointsCost: parseInt(e.target.value) || 0}))} placeholder="نقاط" className="w-20 border rounded-lg px-2 py-2 text-xs" />
+                    </div>
+                    <button
+                      onClick={() => createOffer.mutate(newOffer)}
+                      disabled={!newOffer.title || !newOffer.titleAr || createOffer.isPending}
+                      className="w-full py-2 rounded-lg text-xs font-bold text-white bg-orange-500 disabled:opacity-50"
+                    >
+                      {createOffer.isPending ? "جارٍ الإنشاء..." : "+ إنشاء عرض"}
+                    </button>
+                  </div>
+                  {/* Offers list */}
+                  <div className="space-y-2">
+                    {(offersQuery.data ?? []).map(offer => (
+                      <div key={offer.id} className="flex items-center justify-between p-2 border rounded-xl">
+                        <div>
+                          <p className="text-xs font-semibold text-gray-800">{offer.titleAr}</p>
+                          <p className="text-xs text-gray-400">{offer.discountType === "percentage" ? `${offer.discountValue}%` : offer.discountType === "fixed" ? `OMR ${offer.discountValue}` : "توصيل مجاني"}</p>
+                        </div>
+                        <button
+                          onClick={() => toggleOffer.mutate({ offerId: offer.id, isActive: !offer.isActive })}
+                          className={`text-xs font-bold px-3 py-1.5 rounded-lg ${offer.isActive ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-400"}`}
+                        >
+                          {offer.isActive ? "مفعّل" : "معطّل"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        ) : activeTab === "reviews" ? (
           <>
             {reviewsQuery.isLoading ? (
               <div className="flex items-center justify-center py-12">

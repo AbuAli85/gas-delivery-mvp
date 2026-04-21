@@ -595,3 +595,16 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Customer types: individual, restaurant, business
 - [x] Tier system: bronze (0-99pts) → silver (100-499pts) → gold (500-999pts) → platinum (1000+pts)
 - [x] Points engine: 10 pts per order delivered
+
+## Feature: Referral System
+- [ ] Schema: add referralCode (unique, 8-char) column to customers table
+- [ ] Schema: add referrals table (id, inviterId, inviteeId, status: pending/rewarded, createdAt, rewardedAt)
+- [ ] Migration: apply referral schema changes to DB
+- [ ] Backend: auto-generate unique referral code on customer registration
+- [ ] Backend: customers.getReferralStats procedure (code, link, total referrals, rewarded count, pending count)
+- [ ] Backend: apply referral code on registration (upsertProfile accepts referralCode param)
+- [ ] Backend: award points to inviter (50 pts) when invitee completes first order (hook into awardOrderPoints)
+- [ ] Backend: award bonus points to invitee (20 pts) on first order if referred
+- [ ] Frontend: CustomerProfile Referral tab — share link, QR-like card, stats (total invited, rewarded)
+- [ ] Frontend: CustomerLogin registration step — optional "Referral code" field
+- [ ] Admin: show total referrals count in Customers tab stats

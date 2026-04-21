@@ -85,6 +85,13 @@
       "when": 1776779243448,
       "tag": "0011_dark_ben_urich",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1776790194543,
+      "tag": "0012_simple_legion",
+      "breakpoints": true
     }
   ]
 }

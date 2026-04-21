@@ -6,7 +6,7 @@
  * Dev mode: OTP shown in a large persistent box on screen (no SMS needed).
  */
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import {
   Phone, ArrowRight, Loader2, CheckCircle2,
   ShieldCheck, Clock, AlertTriangle, RefreshCw, Info
@@ -64,8 +64,12 @@ function useCountdown() {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function CustomerLogin() {
   const [, navigate] = useLocation();
+  const search = useSearch();
   const { dir } = useLanguage();
   const isRTL = dir === "rtl";
+
+  // Read referral code from URL: /customer/login?ref=ABCD1234
+  const refCode = new URLSearchParams(search).get("ref") ?? undefined;
 
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [phone, setPhone] = useState("");
@@ -120,12 +124,20 @@ export default function CustomerLogin() {
     },
   });
 
+  const upsertProfile = trpc.customers.upsertProfile.useMutation();
+
   const verifyOtpMutation = trpc.customerAuth.verifyOtp.useMutation({
     onSuccess: (data) => {
       saveCustomerSession(data.token, data.phone);
       setVerifySuccess(true);
       setDevOtp(null);
       toast.success(isRTL ? "تم تسجيل الدخول بنجاح! ✓" : "Logged in successfully! ✓");
+      // Register/update customer profile (creates account if new, applies referral code)
+      upsertProfile.mutate({
+        sessionToken: data.token,
+        phone: data.phone,
+        referralCode: refCode,
+      });
       setTimeout(() => navigate("/"), 800);
     },
     onError: (err) => {
