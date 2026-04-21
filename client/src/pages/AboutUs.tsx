@@ -272,25 +272,25 @@ export default function AboutUs() {
             <h2 className="text-white font-black text-xl">فريقنا</h2>
           </div>
           <p className="text-white/55 text-sm leading-relaxed">
-            فريق متنوع من المهندسين وخبراء اللوجستيات والمتحمسين لتحسين الحياة اليومية في عُمان.
+            قيادة متمرسة تجمع بين الخبرة الإدارية والرؤية الاستراتيجية لبناء منصة توصيل الطاقة الأولى في عُمان.
           </p>
           <div className="grid grid-cols-3 gap-3">
             <TeamCard
-              initials="س.ع"
-              name="سالم العامري"
-              role="المؤسس والرئيس التنفيذي"
+              initials="ف.ع"
+              name="فهد العامري"
+              role="المؤسس ورئيس مجلس الإدارة"
               color="linear-gradient(135deg, oklch(0.71 0.18 54), oklch(0.55 0.22 40))"
             />
             <TeamCard
-              initials="ن.م"
-              name="نور المسكري"
-              role="مديرة العمليات"
+              initials="م.ح"
+              name="مبارك الحبسي"
+              role="المدير العام"
               color="linear-gradient(135deg, oklch(0.55 0.18 145), oklch(0.40 0.15 160))"
             />
             <TeamCard
-              initials="خ.ب"
-              name="خالد البلوشي"
-              role="مدير التقنية"
+              initials="أ.س"
+              name="أحمد سبحاني"
+              role="الرئيس التنفيذي"
               color="linear-gradient(135deg, oklch(0.55 0.18 260), oklch(0.40 0.15 280))"
             />
           </div>
