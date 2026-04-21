@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { useLanguage } from "@/contexts/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 interface DeliveryLocation {
   lat: number;
@@ -147,10 +148,11 @@ export default function OrderSummary() {
           >
             <ChevronBack className="w-5 h-5 text-white" />
           </button>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-base font-bold text-white">{t("summary.title")}</h1>
             <p className="text-white/50 text-xs">{dir === "rtl" ? "راجع تفاصيل طلبك قبل الدفع" : "Review your order before payment"}</p>
           </div>
+          <LanguageSwitcher />
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import { CheckCircle2, Flame, MapPin, Clock, ChevronRight, ChevronLeft } from "l
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { useLanguage } from "@/contexts/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const WA_ICON = (
   <svg viewBox="0 0 24 24" className="w-4 h-4 fill-green-400">
@@ -51,9 +52,13 @@ export default function OrderPlaced() {
 
   return (
     <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }} dir={dir}>
+      {/* Language switcher row */}
+      <div className="flex justify-end px-4 pt-4">
+        <LanguageSwitcher />
+      </div>
       {/* Hero */}
       <div
-        className="flex flex-col items-center justify-center px-6 pt-16 pb-10 text-white"
+        className="flex flex-col items-center justify-center px-6 pt-8 pb-10 text-white"
         style={{
           background: "linear-gradient(160deg, oklch(0.09 0 0) 0%, oklch(0.48 0.22 27) 100%)",
           minHeight: "42vh",

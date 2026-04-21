@@ -14,6 +14,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import {
   Loader2,
   MapPin,
@@ -530,12 +531,13 @@ export default function LocationPicker() {
           >
             <ChevronLeft className="w-5 h-5 text-white" />
           </button>
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="text-white font-bold text-base">{dir === "rtl" ? "اختر موقع التوصيل" : "Choose Delivery Location"}</p>
             <p className="text-white/50 text-xs">
               {dir === "rtl" ? "اضغط على الخريطة أو اكتب العنوان ثم اضغط بحث" : "Tap the map or type an address then search"}
             </p>
           </div>
+          <LanguageSwitcher />
         </div>
 
         {/* Map */}
@@ -728,10 +730,11 @@ export default function LocationPicker() {
         >
           <ChevronLeft className="w-5 h-5 text-white" />
         </button>
-        <div>
+        <div className="flex-1 min-w-0">
           <p className="text-white font-bold text-lg">{t("location.title")}</p>
           <p className="text-white/50 text-xs">{dir === "rtl" ? "إلى أين نوصّل؟" : "Where should we deliver?"}</p>
         </div>
+        <LanguageSwitcher />
       </div>
 
       <div className="flex-1 px-4 pb-8 overflow-y-auto">

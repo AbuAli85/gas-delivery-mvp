@@ -76,7 +76,7 @@ function App() {
           <TooltipProvider>
             <Toaster position="top-center" richColors />
             <Router />
-            <LanguageSwitcher />
+            <LanguageSwitcher floating />
           </TooltipProvider>
         </ThemeProvider>
       </LanguageProvider>

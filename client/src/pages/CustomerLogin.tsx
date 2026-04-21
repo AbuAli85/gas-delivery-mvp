@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const STORAGE_KEY = "gas_customer_token";
 const STORAGE_PHONE = "gas_customer_phone";
@@ -123,6 +124,9 @@ export default function CustomerLogin() {
         <p className="text-sm text-gray-400 mt-1">
           {isRTL ? "سجّل دخولك برقم هاتفك" : "Sign in with your phone number"}
         </p>
+        <div className="mt-3">
+          <LanguageSwitcher />
+        </div>
       </div>
 
       {step === "phone" ? (

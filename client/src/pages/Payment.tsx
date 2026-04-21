@@ -15,6 +15,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 type PaymentMethod = "cash" | "online" | "bank_transfer";
 
@@ -131,15 +132,18 @@ export default function Payment() {
           >
             <ChevronBack className="w-5 h-5 text-white" />
           </button>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <p className="text-xs text-white/60">{dir === "rtl" ? "الخطوة ٣ من ٣" : "Step 3 of 3"}</p>
             <h1 className="text-lg font-bold text-white">{t("payment.title")}</h1>
           </div>
-          <div className={dir === "rtl" ? "text-left" : "text-right"}>
-            <p className="text-xs text-white/60">{t("payment.total")}</p>
-            <p className="text-xl font-black text-orange-300">
-              OMR {parseFloat(totalPrice).toFixed(3)}
-            </p>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className={dir === "rtl" ? "text-left" : "text-right"}>
+              <p className="text-xs text-white/60">{t("payment.total")}</p>
+              <p className="text-xl font-black text-orange-300">
+                OMR {parseFloat(totalPrice).toFixed(3)}
+              </p>
+            </div>
+            <LanguageSwitcher />
           </div>
         </div>
       </div>

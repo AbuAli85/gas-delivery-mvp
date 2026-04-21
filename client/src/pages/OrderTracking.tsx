@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { MapView } from "@/components/Map";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_STEPS, type OrderStatus } from "../../../shared/domain";
 import { useLanguage } from "@/contexts/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function OrderTracking() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -113,12 +114,15 @@ export default function OrderTracking() {
             {isCancelled ? t("tracking.status.cancelled") : isDelivered ? t("tracking.status.delivered") : dir === "rtl" ? "تتبع مباشر" : "Live Tracking"}
           </p>
         </div>
-        {!isDelivered && !isCancelled && (
-          <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            {dir === "rtl" ? "مباشر" : "Live"}
-          </div>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {!isDelivered && !isCancelled && (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {dir === "rtl" ? "مباشر" : "Live"}
+            </div>
+          )}
+          <LanguageSwitcher />
+        </div>
       </div>
 
       <div className="flex-1 px-4 pb-8 space-y-4">

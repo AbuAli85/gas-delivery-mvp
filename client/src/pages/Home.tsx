@@ -6,6 +6,7 @@ import { FIXED_ORDER_PRICE } from "../../../shared/domain";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { useLanguage } from "@/contexts/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function Home() {
   const [, navigate] = useLocation();
@@ -34,14 +35,17 @@ export default function Home() {
           minHeight: "50vh",
         }}
       >
-        {/* Brand mark */}
-        <div className="flex items-center gap-2 mb-8">
+        {/* Brand mark + language switcher row */}
+        <div className="flex items-center gap-2 mb-8 w-full max-w-sm">
           <div className="w-11 h-11 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center">
             <Flame className="w-6 h-6 text-orange-400" />
           </div>
           <div>
             <p className="text-[10px] text-white/50 uppercase tracking-widest">OWASEEL</p>
             <p className="text-base font-bold leading-none">{t("app.name")}</p>
+          </div>
+          <div className="ms-auto">
+            <LanguageSwitcher />
           </div>
           {serviceStatus ? (
             <div className={`ms-3 flex items-center gap-1.5 rounded-full px-3 py-1 border ${
@@ -62,12 +66,12 @@ export default function Home() {
                     : t("app.closed")}
               </span>
             </div>
-          ) : onlineCount > 0 && (
+          ) : onlineCount > 0 ? (
             <div className="ms-3 flex items-center gap-1.5 bg-green-500/20 border border-green-500/30 rounded-full px-3 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
               <span className="text-[11px] text-green-300 font-semibold">{onlineCount}</span>
             </div>
-          )}
+          ) : null}
         </div>
 
         <h1 className="text-4xl font-extrabold text-center leading-tight mb-3">

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Star, CheckCircle2, ChevronRight, ChevronLeft, MessageSquare } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 const RATING_LABELS_AR: Record<number, string> = {
   1: "سيء جداً",
@@ -135,7 +136,7 @@ export default function RatingScreen() {
           >
             <ChevronBack className="w-5 h-5 text-white" />
           </button>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-white">
               {isRTL ? "قيّم الخدمة" : "Rate the Service"}
             </h1>
@@ -143,6 +144,7 @@ export default function RatingScreen() {
               {isRTL ? `طلب رقم #${orderId}` : `Order #${orderId}`}
             </p>
           </div>
+          <LanguageSwitcher />
         </div>
       </div>
 

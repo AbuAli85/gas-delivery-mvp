@@ -501,3 +501,18 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Apply translations to CustomerLogin.tsx
 - [x] RTL/LTR switching based on language (dir attribute on root div)
 - [x] Structure extensible for Urdu, Hindi, Bangla, Farsi (add lang key + RTL flag to i18n.ts)
+
+## Fix: Language Switcher Position & App-Wide Layout Polish
+- [x] Move LanguageSwitcher from floating bottom-left to top-right of each page header (non-overlapping, always visible)
+- [x] Home.tsx: integrate lang switcher into the top header bar (next to OWASEEL logo)
+- [x] AboutUs.tsx: integrate lang switcher into the back-button header row
+- [x] LocationPicker.tsx: integrate lang switcher into the header row (both choose + map steps)
+- [x] OrderSummary.tsx: integrate lang switcher into the header row
+- [x] Payment.tsx: integrate lang switcher into the header row (next to total price)
+- [x] OrderPlaced.tsx: integrate lang switcher into the top bar above hero
+- [x] OrderTracking.tsx: integrate lang switcher into the header row (next to Live badge)
+- [x] CustomerLogin.tsx: integrate lang switcher below the logo block
+- [x] RatingScreen.tsx: integrate lang switcher into the header row
+- [x] Global floating LanguageSwitcher in App.tsx changed to top-right fixed (fallback for any page without inline switcher)
+- [x] All headers use flex-1 min-w-0 on title div to prevent text overflow
+- [x] Chevron icons already use dir-aware ChevronBack/ChevronFwd pattern on all pages

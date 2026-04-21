@@ -9,6 +9,7 @@ import {
   ArrowRight, ArrowLeft, Clock, Truck, Award, TrendingUp,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 /* ── Stat card ─────────────────────────────────────────────────── */
 function StatCard({ value, label, icon }: { value: string; label: string; icon: React.ReactNode }) {
@@ -109,13 +110,16 @@ export default function AboutUs() {
           background: "linear-gradient(160deg, oklch(0.09 0 0) 0%, oklch(0.18 0.08 54) 60%, oklch(0.12 0.04 54) 100%)",
         }}
       >
-        <button
-          onClick={() => navigate("/")}
-          className="flex items-center gap-1.5 text-white/60 text-sm mb-6 hover:text-white transition-colors"
-        >
-          <BackIcon className="w-4 h-4" />
-          <span>{t("about.back")}</span>
-        </button>
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => navigate("/")}
+            className="flex items-center gap-1.5 text-white/60 text-sm hover:text-white transition-colors"
+          >
+            <BackIcon className="w-4 h-4" />
+            <span>{t("about.back")}</span>
+          </button>
+          <LanguageSwitcher />
+        </div>
 
         <div className="flex items-center gap-3 mb-6">
           <div
