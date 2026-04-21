@@ -627,3 +627,16 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [ ] Enhance settings tab: add logout button, show zone name, add PIN change option
 - [x] Add earnings summary card: today / total deliveries / total OMR
 - [x] Improve order card in history: better visual hierarchy, status badge colors
+
+## Feature: Provider Mission Screen (Active Order)
+- [ ] Build full-screen mission view when provider has an active order (accepted/out_for_delivery)
+- [ ] Show Google Map with customer location pin and provider's current location
+- [ ] "Navigate" button opens Google Maps / Waze with customer coordinates
+- [ ] "Call Customer" button (tel: link) with customer phone number
+- [ ] Order details panel: address, gas amount, price, payment method, order ID
+- [ ] Step-by-step progress bar: Accepted → On the Way → Delivered
+- [ ] "Start Delivery" button to move to out_for_delivery status
+- [ ] "Confirm Delivery" button with confirmation dialog
+- [ ] Provider notes/comment field on delivery confirmation
+- [ ] Mission timer showing elapsed time since acceptance
+- [ ] Customer name display if registered

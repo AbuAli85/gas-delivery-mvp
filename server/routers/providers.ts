@@ -204,10 +204,13 @@ export const providersRouter = router({
         customerLat: order.customerLat,
         customerLng: order.customerLng,
         customerAddress: order.customerAddress,
+        deliveryAddress: order.deliveryAddress,
         customerPhone: order.customerPhone,
+        customerName: order.customerName,
         gasAmount: order.gasAmount,
         totalPrice: order.totalPrice,
         currency: order.currency,
+        paymentMethod: order.paymentMethod,
         estimatedMinutes: order.estimatedMinutes,
         acceptedAt: order.acceptedAt,
         createdAt: order.createdAt,
@@ -342,7 +345,7 @@ export const providersRouter = router({
    * Provider marks order as delivered.
    */
   deliverOrder: publicProcedure
-    .input(z.object({ orderId: z.number(), providerId: z.number(), pinHash: z.string() }))
+    .input(z.object({ orderId: z.number(), providerId: z.number(), pinHash: z.string(), providerNote: z.string().max(500).optional() }))
     .mutation(async ({ input }) => {
       await assertPin(input.providerId, input.pinHash);
       const order = await getOrderById(input.orderId);
@@ -356,6 +359,7 @@ export const providersRouter = router({
       await updateOrder(order.id, {
         status: "delivered",
         deliveredAt: new Date(),
+        ...(input.providerNote ? { providerNote: input.providerNote } : {}),
       });
 
       // Free the provider

@@ -6,11 +6,13 @@ import {
   XCircle, Truck, History, Loader2, Wallet, Star,
   Bell, BellOff, Navigation, ShieldCheck, Settings,
   LogOut, ChevronRight, Zap, TrendingUp, Home,
+  MessageSquare, ExternalLink, AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { getStoredPinHash, clearPinHash } from "@/lib/pinStorage";
 import { WorkingHoursEditor } from "@/components/WorkingHoursEditor";
+import { MapView } from "@/components/Map";
 
 type Tab = "home" | "history" | "settings";
 
@@ -125,64 +127,298 @@ function IncomingOrderCard({
   );
 }
 
-function ActiveOrderCard({
+function MissionScreen({
   order, onStartDelivery, onDeliver, starting, delivering,
 }: {
-  order: { orderId: number; assignmentId: number | null; customerPhone: string | null; customerAddress: string | null; gasAmount: string; totalPrice: string; status: string };
-  onStartDelivery: () => void; onDeliver: () => void; starting: boolean; delivering: boolean;
+  order: {
+    orderId: number; assignmentId: number | null; customerPhone: string | null;
+    customerAddress: string | null; deliveryAddress?: string | null;
+    customerName?: string | null; gasAmount: string; totalPrice: string;
+    status: string; paymentMethod?: string | null; acceptedAt?: Date | string | null;
+    customerLat?: number | null; customerLng?: number | null;
+  };
+  onStartDelivery: () => void;
+  onDeliver: (note?: string) => void;
+  starting: boolean; delivering: boolean;
 }) {
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [note, setNote] = useState("");
+  const [elapsed, setElapsed] = useState(0);
+
+  // Mission timer
+  useEffect(() => {
+    const start = order.acceptedAt ? new Date(order.acceptedAt).getTime() : Date.now();
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, [order.acceptedAt]);
+
+  const fmtTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
+  const lat = order.customerLat ?? 23.5880;
+  const lng = order.customerLng ?? 58.3829;
+  const hasCoords = !!(order.customerLat && order.customerLng);
+
+  const displayAddr = order.deliveryAddress || order.customerAddress || null;
+  const isRawCoords = displayAddr && /^[\d.]+,\s*[\d.]+$/.test(displayAddr.trim());
+
+  const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+  const wazeUrl = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+
+  const pmLabel: Record<string, string> = { cash: "نقداً", online: "أونلاين", bank_transfer: "تحويل بنكي" };
+  const pmColor: Record<string, string> = { cash: "text-emerald-400", online: "text-blue-400", bank_transfer: "text-purple-400" };
+
+  const steps = [
+    { key: "accepted", label: "تم القبول", icon: <CheckCircle2 className="w-4 h-4" /> },
+    { key: "out_for_delivery", label: "في الطريق", icon: <Truck className="w-4 h-4" /> },
+    { key: "delivered", label: "تم التوصيل", icon: <CheckCircle2 className="w-4 h-4" /> },
+  ];
+  const stepIndex = steps.findIndex(s => s.key === order.status);
+
   return (
-    <div
-      className="rounded-3xl overflow-hidden"
-      style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.1)" }}
-    >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-        <div className="flex items-center gap-2">
-          <Truck className="w-4 h-4 text-orange-400" />
-          <span className="text-white font-bold text-sm">الطلب الحالي</span>
+    <div className="space-y-3">
+      {/* Mission header */}
+      <div
+        className="rounded-3xl overflow-hidden"
+        style={{
+          background: "linear-gradient(135deg, oklch(0.14 0.04 27) 0%, oklch(0.12 0 0) 100%)",
+          border: "1px solid rgba(255,150,50,0.2)",
+        }}
+      >
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+          <div className="flex items-center gap-2">
+            <Truck className="w-4 h-4 text-orange-400" />
+            <span className="text-white font-bold text-sm">مهمة #{order.orderId}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5 text-orange-300" />
+            <span className="text-orange-300 font-bold text-sm" dir="ltr">{fmtTime(elapsed)}</span>
+          </div>
         </div>
-        <StatusBadge status={order.status} />
+
+        {/* Step progress */}
+        <div className="px-4 py-3">
+          <div className="flex items-center gap-0">
+            {steps.map((step, i) => {
+              const done = i <= stepIndex;
+              const active = i === stepIndex;
+              return (
+                <div key={step.key} className="flex items-center" style={{ flex: i < steps.length - 1 ? "1" : "0" }}>
+                  <div
+                    className="flex flex-col items-center gap-1"
+                    style={{ minWidth: 56 }}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                      style={{
+                        background: done ? (active ? "oklch(0.62 0.22 27)" : "oklch(0.45 0.18 145 / 0.3)") : "rgba(255,255,255,0.07)",
+                        border: active ? "2px solid oklch(0.62 0.22 27)" : done ? "2px solid oklch(0.45 0.18 145 / 0.5)" : "2px solid rgba(255,255,255,0.1)",
+                        color: done ? (active ? "white" : "oklch(0.65 0.18 145)") : "rgba(255,255,255,0.3)",
+                      }}
+                    >
+                      {step.icon}
+                    </div>
+                    <span className="text-[9px] text-center leading-tight" style={{ color: done ? (active ? "oklch(0.85 0.15 27)" : "rgba(255,255,255,0.5)") : "rgba(255,255,255,0.25)" }}>
+                      {step.label}
+                    </span>
+                  </div>
+                  {i < steps.length - 1 && (
+                    <div
+                      className="flex-1 h-0.5 mb-5 mx-1"
+                      style={{ background: i < stepIndex ? "oklch(0.45 0.18 145 / 0.5)" : "rgba(255,255,255,0.08)" }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
-      <div className="p-4 space-y-3">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Phone className="w-4 h-4 text-white/40 shrink-0" />
-            <span className="text-white font-semibold text-sm" dir="ltr">{order.customerPhone}</span>
+
+      {/* Map */}
+      {hasCoords && (
+        <div
+          className="rounded-3xl overflow-hidden"
+          style={{ height: 200, border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <MapView
+            className="w-full h-full"
+            initialCenter={{ lat, lng }}
+            initialZoom={15}
+            onMapReady={(map) => {
+              mapRef.current = map;
+              new google.maps.marker.AdvancedMarkerElement({
+                map,
+                position: { lat, lng },
+                title: "موقع العميل",
+              });
+            }}
+          />
+        </div>
+      )}
+
+      {/* Order details */}
+      <div
+        className="rounded-3xl p-4 space-y-3"
+        style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.07)" }}
+      >
+        {/* Customer */}
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,150,50,0.12)" }}>
+            <Phone className="w-4 h-4 text-orange-400" />
           </div>
-          <div className="flex items-start gap-2">
-            <MapPin className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
-            <span className="text-white/80 text-sm leading-snug">{order.customerAddress}</span>
+          <div className="flex-1 min-w-0">
+            {order.customerName && <p className="text-white font-semibold text-sm">{order.customerName}</p>}
+            <p className="text-white/70 text-sm" dir="ltr">{order.customerPhone}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Package className="w-4 h-4 text-white/40 shrink-0" />
-            <span className="text-white/80 text-sm">
-              <strong className="text-white">{order.gasAmount}</strong>{" "}
-              {parseFloat(order.gasAmount) === 1 ? "أسطوانة" : "أسطوانات"}{" · "}
+          {order.customerPhone && (
+            <a
+              href={`tel:${order.customerPhone}`}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs text-white"
+              style={{ background: "oklch(0.45 0.18 145 / 0.2)", border: "1px solid oklch(0.45 0.18 145 / 0.4)" }}
+            >
+              <Phone className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-emerald-400">اتصال</span>
+            </a>
+          )}
+        </div>
+
+        <div className="h-px bg-white/5" />
+
+        {/* Address */}
+        {displayAddr && !isRawCoords && (
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,100,50,0.1)" }}>
+              <MapPin className="w-4 h-4 text-orange-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white/40 text-xs mb-0.5">العنوان</p>
+              <p className="text-white/80 text-sm leading-snug">{displayAddr}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Gas + Price + Payment */}
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,255,255,0.05)" }}>
+            <Package className="w-4 h-4 text-white/40" />
+          </div>
+          <div className="flex-1">
+            <p className="text-white/40 text-xs mb-0.5">الطلب</p>
+            <p className="text-white text-sm">
+              <strong>{order.gasAmount}</strong> {parseFloat(order.gasAmount) === 1 ? "أسطوانة" : "أسطوانات"}
+              <span className="text-white/40 mx-1">·</span>
               <strong className="text-orange-300">OMR {parseFloat(order.totalPrice).toFixed(3)}</strong>
+            </p>
+          </div>
+          {order.paymentMethod && (
+            <span className={`text-xs font-bold ${pmColor[order.paymentMethod] || "text-white/40"}`}>
+              {pmLabel[order.paymentMethod] || order.paymentMethod}
             </span>
+          )}
+        </div>
+      </div>
+
+      {/* Navigation buttons */}
+      {hasCoords && (
+        <div className="flex gap-2">
+          <a
+            href={googleMapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white"
+            style={{ background: "oklch(0.25 0.06 250)", border: "1px solid oklch(0.35 0.1 250 / 0.5)" }}
+          >
+            <Navigation className="w-4 h-4" />
+            Google Maps
+          </a>
+          <a
+            href={wazeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white"
+            style={{ background: "oklch(0.25 0.08 145)", border: "1px solid oklch(0.35 0.12 145 / 0.5)" }}
+          >
+            <ExternalLink className="w-4 h-4" />
+            Waze
+          </a>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      {order.status === "accepted" && (
+        <Button
+          className="w-full h-14 rounded-2xl font-black text-white text-base"
+          style={{ background: "oklch(0.45 0.18 270)", boxShadow: "0 4px 20px oklch(0.45 0.18 270 / 0.4)" }}
+          onClick={onStartDelivery}
+          disabled={starting}
+        >
+          {starting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Truck className="w-5 h-5 ml-2" />بدء التوصيل — الآن في الطريق</>}
+        </Button>
+      )}
+
+      {order.status === "out_for_delivery" && !showConfirm && (
+        <Button
+          className="w-full h-14 rounded-2xl font-black text-white text-base"
+          style={{ background: "oklch(0.45 0.18 145)", boxShadow: "0 4px 20px oklch(0.45 0.18 145 / 0.4)" }}
+          onClick={() => setShowConfirm(true)}
+        >
+          <CheckCircle2 className="w-5 h-5 ml-2" />تأكيد التوصيل
+        </Button>
+      )}
+
+      {/* Delivery confirmation dialog */}
+      {showConfirm && (
+        <div
+          className="rounded-3xl p-4 space-y-3"
+          style={{ background: "oklch(0.14 0.04 145 / 0.3)", border: "1px solid oklch(0.45 0.18 145 / 0.4)" }}
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-emerald-400" />
+            <p className="text-white font-bold text-sm">تأكيد إتمام التوصيل</p>
+          </div>
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            <div className="flex items-center gap-2 px-3 pt-3 pb-1">
+              <MessageSquare className="w-3.5 h-3.5 text-white/30" />
+              <p className="text-white/40 text-xs">ملاحظة للإدارة (اختياري)</p>
+            </div>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="مثال: العميل لم يكن موجوداً، تركت الأسطوانة عند الباب..."
+              className="w-full bg-transparent text-white text-sm px-3 pb-3 resize-none outline-none placeholder:text-white/20"
+              rows={3}
+              maxLength={500}
+              dir="rtl"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowConfirm(false)}
+              className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white/50"
+              style={{ background: "rgba(255,255,255,0.05)" }}
+            >
+              إلغاء
+            </button>
+            <Button
+              className="flex-1 h-12 rounded-2xl font-black text-white"
+              style={{ background: "oklch(0.45 0.18 145)" }}
+              onClick={() => { onDeliver(note || undefined); setShowConfirm(false); }}
+              disabled={delivering}
+            >
+              {delivering ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4 ml-1.5" />تأكيد</>}
+            </Button>
           </div>
         </div>
-        {order.status === "accepted" && (
-          <Button
-            className="w-full h-12 rounded-2xl font-bold text-white"
-            style={{ background: "oklch(0.45 0.18 270)" }}
-            onClick={onStartDelivery}
-            disabled={starting}
-          >
-            {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Truck className="w-4 h-4 ml-2" />بدء التوصيل</>}
-          </Button>
-        )}
-        {order.status === "out_for_delivery" && (
-          <Button
-            className="w-full h-12 rounded-2xl font-bold text-white"
-            style={{ background: "oklch(0.45 0.18 145)" }}
-            onClick={onDeliver}
-            disabled={delivering}
-          >
-            {delivering ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4 ml-2" />تأكيد التوصيل</>}
-          </Button>
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -471,10 +707,10 @@ export default function ProviderDashboard() {
               />
             )}
             {activeOrder && (
-              <ActiveOrderCard
+              <MissionScreen
                 order={activeOrder}
                 onStartDelivery={() => startDelivery.mutate({ orderId: activeOrder.orderId, providerId: id, pinHash: pinHash! })}
-                onDeliver={() => deliverOrder.mutate({ orderId: activeOrder.orderId, providerId: id, pinHash: pinHash! })}
+                onDeliver={(note) => deliverOrder.mutate({ orderId: activeOrder.orderId, providerId: id, pinHash: pinHash!, providerNote: note })}
                 starting={startDelivery.isPending}
                 delivering={deliverOrder.isPending}
               />
