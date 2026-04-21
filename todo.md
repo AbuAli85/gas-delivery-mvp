@@ -554,3 +554,10 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Regenerate PWA icons using official orange-on-black logo (8 sizes: 72–512px)
 - [x] Updated favicon.ico with official logo
 - [x] Apply official brand colors to CSS variables in index.css (#FF751F → oklch(0.71 0.18 54), bg #0D0D1A → oklch(0.09 0.02 240))
+
+## Fix: CustomerLogin — Logo & OTP Error
+- [x] Replace flame icon with official OWASEEL logo in CustomerLogin.tsx (logo-orange-on-black)
+- [x] Rewrite CustomerLogin to use server-side requestOtp + verifyOtp (no Firebase Phone Auth client dependency)
+- [x] Dev mode: OTP shown in toast for 15 seconds when FIREBASE_WEB_API_KEY not set
+- [x] Production mode: OTP sent via SMS when Firebase SMS provider configured
+- [x] All error messages translated AR/EN with proper attempt counter

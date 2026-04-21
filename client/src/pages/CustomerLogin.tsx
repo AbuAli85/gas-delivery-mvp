@@ -1,20 +1,15 @@
 /**
- * CustomerLogin — Firebase Phone Auth OTP
- * Real SMS via Firebase Authentication.
- * Features: countdown timer, 3-attempt limit, resend cooldown, security badge.
+ * CustomerLogin — Secure Server-Side OTP Authentication
+ * ────────────────────────────────────────────────────────
+ * Uses server-side requestOtp + verifyOtp procedures (bcrypt-hashed, 5-min expiry, 3 attempts).
+ * Firebase Phone Auth can be layered on top later — no client-side Firebase dependency here.
  */
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import {
-  Flame, Phone, ArrowRight, Loader2, CheckCircle2,
+  Phone, ArrowRight, Loader2, CheckCircle2,
   ShieldCheck, Clock, AlertTriangle, RefreshCw, Lock
 } from "lucide-react";
-import {
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  type ConfirmationResult,
-} from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -76,19 +71,50 @@ export default function CustomerLogin() {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [attemptsLeft, setAttemptsLeft] = useState(3);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [isSending, setIsSending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifySuccess, setVerifySuccess] = useState(false);
 
-  const confirmationRef = useRef<ConfirmationResult | null>(null);
-  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const resendTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { remaining: otpRemaining, label: otpLabel, start: startOtpTimer } = useCountdown();
 
-  // Server-side session issuer (after Firebase verifies the OTP)
-  const issueSession = trpc.customerAuth.issueSession.useMutation({
+  // ── tRPC mutations ──────────────────────────────────────────────────────────
+  const requestOtp = trpc.customerAuth.requestOtp.useMutation({
+    onSuccess: (data) => {
+      setStep("otp");
+      setAttemptsLeft(3);
+      setOtp(["", "", "", "", "", ""]);
+      startOtpTimer(data.expiresInSeconds ?? 300);
+      startResendCooldown(60);
+
+      if (data.demoOtp) {
+        // Dev mode: show OTP in toast
+        toast.success(
+          isRTL
+            ? `وضع تجريبي 🔑 رمزك هو: ${data.demoOtp}`
+            : `Dev mode 🔑 Your code: ${data.demoOtp}`,
+          { duration: 15000 }
+        );
+      } else {
+        toast.success(
+          isRTL ? "تم إرسال رمز التحقق إلى هاتفك عبر SMS ✓" : "Verification code sent via SMS ✓"
+        );
+      }
+    },
+    onError: (err) => {
+      const msg = err.message || "";
+      if (msg.includes("طلبت رموزاً كثيرة") || msg.includes("TOO_MANY_REQUESTS")) {
+        toast.error(isRTL ? "طلبات كثيرة. انتظر 10 دقائق وحاول مجدداً." : "Too many requests. Wait 10 minutes.");
+      } else if (msg.includes("غير صالح") || msg.includes("invalid")) {
+        toast.error(isRTL ? "رقم الهاتف غير صالح. استخدم الصيغة الدولية (+968...)" : "Invalid phone number. Use international format (+968...)");
+      } else {
+        toast.error(isRTL ? "فشل إرسال الرمز. تحقق من الرقم وحاول مجدداً." : "Failed to send code. Check the number and try again.");
+      }
+    },
+  });
+
+  const verifyOtpMutation = trpc.customerAuth.verifyOtp.useMutation({
     onSuccess: (data) => {
       saveCustomerSession(data.token, data.phone);
       setVerifySuccess(true);
@@ -96,11 +122,27 @@ export default function CustomerLogin() {
       setTimeout(() => navigate("/"), 800);
     },
     onError: (err) => {
-      toast.error(err.message || (isRTL ? "خطأ في الخادم" : "Server error"));
+      const msg = err.message || "";
+      setOtp(["", "", "", "", "", ""]);
+      setTimeout(() => otpRefs.current[0]?.focus(), 50);
+
+      if (msg.includes("متبقي")) {
+        const match = msg.match(/متبقي (\d+)/);
+        const left = match ? parseInt(match[1]) : attemptsLeft - 1;
+        setAttemptsLeft(left);
+        toast.error(msg);
+      } else if (msg.includes("استنفاد") || msg.includes("all attempts")) {
+        setAttemptsLeft(0);
+        toast.error(isRTL ? "تم استنفاد المحاولات. اطلب رمزاً جديداً." : "All attempts used. Request a new code.");
+      } else if (msg.includes("انتهت صلاحية") || msg.includes("expired")) {
+        toast.error(isRTL ? "انتهت صلاحية الرمز. اطلب رمزاً جديداً." : "Code expired. Request a new code.");
+      } else {
+        toast.error(msg || (isRTL ? "فشل التحقق. حاول مجدداً." : "Verification failed. Try again."));
+      }
     },
   });
 
-  // Resend cooldown
+  // ── Resend cooldown ─────────────────────────────────────────────────────────
   function startResendCooldown(secs = 60) {
     setResendCooldown(secs);
     if (resendTimer.current) clearInterval(resendTimer.current);
@@ -113,88 +155,14 @@ export default function CustomerLogin() {
   }
   useEffect(() => () => { if (resendTimer.current) clearInterval(resendTimer.current); }, []);
 
-  // Initialize invisible reCAPTCHA
-  function initRecaptcha() {
-    if (!recaptchaRef.current) {
-      recaptchaRef.current = new RecaptchaVerifier(auth, "recaptcha-container", {
-        size: "invisible",
-        callback: () => {},
-      });
-    }
-    return recaptchaRef.current;
-  }
-
-  async function sendOtp(phoneNumber: string) {
-    setIsSending(true);
-    try {
-      const verifier = initRecaptcha();
-      const confirmation = await signInWithPhoneNumber(auth, phoneNumber, verifier);
-      confirmationRef.current = confirmation;
-      setStep("otp");
-      setAttemptsLeft(3);
-      setOtp(["", "", "", "", "", ""]);
-      startOtpTimer(300); // 5 minutes
-      startResendCooldown(60);
-      toast.success(isRTL ? "تم إرسال رمز التحقق إلى هاتفك عبر SMS ✓" : "Verification code sent via SMS ✓");
-    } catch (err: unknown) {
-      console.error("[Firebase Phone Auth]", err);
-      // Reset reCAPTCHA on error
-      recaptchaRef.current = null;
-      const msg = (err as { message?: string })?.message || "";
-      if (msg.includes("invalid-phone-number") || msg.includes("INVALID_PHONE_NUMBER")) {
-        toast.error(isRTL ? "رقم الهاتف غير صالح. تأكد من الصيغة الدولية (+968...)" : "Invalid phone number. Use international format (+968...)");
-      } else if (msg.includes("too-many-requests") || msg.includes("TOO_MANY_ATTEMPTS")) {
-        toast.error(isRTL ? "طلبات كثيرة. انتظر قليلاً وحاول مجدداً." : "Too many requests. Please wait and try again.");
-      } else {
-        toast.error(isRTL ? "فشل إرسال الرمز. تحقق من الرقم وحاول مجدداً." : "Failed to send code. Check the number and try again.");
-      }
-    } finally {
-      setIsSending(false);
-    }
-  }
-
-  async function verifyCode(code: string) {
-    if (!confirmationRef.current) {
-      toast.error(isRTL ? "انتهت الجلسة. اطلب رمزاً جديداً." : "Session expired. Request a new code.");
-      return;
-    }
-    setIsVerifying(true);
-    try {
-      const result = await confirmationRef.current.confirm(code);
-      const idToken = await result.user.getIdToken();
-      // Issue server-side session token
-      issueSession.mutate({ idToken, phone });
-    } catch (err: unknown) {
-      console.error("[Firebase OTP verify]", err);
-      const msg = (err as { message?: string })?.message || "";
-      setAttemptsLeft((prev) => Math.max(0, prev - 1));
-      setOtp(["", "", "", "", "", ""]);
-      setTimeout(() => otpRefs.current[0]?.focus(), 50);
-      if (msg.includes("invalid-verification-code") || msg.includes("INVALID_CODE")) {
-        const remaining = attemptsLeft - 1;
-        toast.error(
-          remaining > 0
-            ? (isRTL ? `رمز غير صحيح. متبقي ${remaining} محاولة.` : `Wrong code. ${remaining} attempt${remaining === 1 ? "" : "s"} left.`)
-            : (isRTL ? "تم استنفاد المحاولات. اطلب رمزاً جديداً." : "All attempts used. Request a new code.")
-        );
-      } else if (msg.includes("code-expired") || msg.includes("SESSION_EXPIRED")) {
-        toast.error(isRTL ? "انتهت صلاحية الرمز. اطلب رمزاً جديداً." : "Code expired. Request a new code.");
-      } else {
-        toast.error(isRTL ? "فشل التحقق. حاول مجدداً." : "Verification failed. Try again.");
-      }
-    } finally {
-      setIsVerifying(false);
-    }
-  }
-
+  // ── Handlers ────────────────────────────────────────────────────────────────
   function handlePhoneSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!phone.trim()) return;
-    // Normalize: add +968 if no country code
+    if (!phone.trim() || requestOtp.isPending) return;
     let normalized = phone.replace(/\s/g, "");
     if (!normalized.startsWith("+")) normalized = "+968" + normalized;
     setPhone(normalized);
-    sendOtp(normalized);
+    requestOtp.mutate({ phone: normalized });
   }
 
   function handleOtpChange(index: number, value: string) {
@@ -221,26 +189,30 @@ export default function CustomerLogin() {
 
   useEffect(() => {
     const code = otp.join("");
-    if (code.length === 6 && !isVerifying && !verifySuccess) {
-      verifyCode(code);
+    if (code.length === 6 && !isVerifying && !verifySuccess && step === "otp") {
+      setIsVerifying(true);
+      verifyOtpMutation.mutate({ phone, otp: code });
     }
   }, [otp]);
 
+  useEffect(() => {
+    if (!verifyOtpMutation.isPending) setIsVerifying(false);
+  }, [verifyOtpMutation.isPending]);
+
   const isExpired = step === "otp" && otpRemaining === 0;
+  const isSending = requestOtp.isPending;
 
   return (
     <div className="mobile-screen bg-gray-50 items-center justify-center px-6" dir={dir}>
-      {/* Invisible reCAPTCHA container */}
-      <div id="recaptcha-container" />
 
-      {/* Logo */}
+      {/* ── Logo ── */}
       <div className="flex flex-col items-center mb-8">
         <img
           src="/manus-storage/logo-orange-on-black_735a348b.png"
           alt="OWASEEL"
-          className="h-20 w-auto object-contain mb-3"
+          className="h-20 w-auto object-contain mb-3 rounded-2xl"
         />
-        <p className="text-sm text-gray-400 mt-1">
+        <p className="text-sm text-gray-500 mt-1 font-medium">
           {isRTL ? "سجّل دخولك برقم هاتفك" : "Sign in with your phone number"}
         </p>
         <div className="mt-3">
@@ -269,8 +241,8 @@ export default function CustomerLogin() {
             />
             <p className="text-xs text-gray-400 text-center">
               {isRTL
-                ? "سنرسل رمز تحقق مكون من 6 أرقام عبر SMS"
-                : "We'll send a 6-digit code via SMS"}
+                ? "سنرسل رمز تحقق مكون من 6 أرقام"
+                : "We'll send a 6-digit verification code"}
             </p>
           </div>
 
@@ -279,8 +251,8 @@ export default function CustomerLogin() {
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
             <p className="text-xs text-emerald-700">
               {isRTL
-                ? "مشفّر بالكامل عبر Firebase · صالح 5 دقائق · 3 محاولات"
-                : "Fully encrypted via Firebase · Valid 5 min · 3 attempts"}
+                ? "مشفّر بالكامل · صالح 5 دقائق · 3 محاولات فقط"
+                : "Fully encrypted · Valid 5 minutes · 3 attempts only"}
             </p>
           </div>
 
@@ -397,8 +369,6 @@ export default function CustomerLogin() {
                 setOtp(["", "", "", "", "", ""]);
                 setAttemptsLeft(3);
                 setVerifySuccess(false);
-                confirmationRef.current = null;
-                recaptchaRef.current = null;
               }}
               className="flex-1 text-sm text-gray-400 py-3 rounded-2xl border border-gray-200 bg-white"
             >
@@ -408,9 +378,7 @@ export default function CustomerLogin() {
             <button
               onClick={() => {
                 if (resendCooldown > 0 || isSending) return;
-                confirmationRef.current = null;
-                recaptchaRef.current = null;
-                sendOtp(phone);
+                requestOtp.mutate({ phone });
               }}
               disabled={isSending || resendCooldown > 0}
               className="flex-1 text-sm text-primary py-3 rounded-2xl border border-primary/30 bg-primary/5 font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50"
@@ -418,9 +386,17 @@ export default function CustomerLogin() {
               {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               {resendCooldown > 0
                 ? `${isRTL ? "إعادة" : "Resend"} (${resendCooldown}s)`
-                : (isRTL ? "إعادة الإرسال" : "Resend")}
+                : (isRTL ? "إعادة الإرسال" : "Resend code")}
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="w-full text-sm text-gray-400 py-2"
+          >
+            {isRTL ? "تخطّي — المتابعة كضيف" : "Skip — Continue as guest"}
+          </button>
         </div>
       )}
     </div>
