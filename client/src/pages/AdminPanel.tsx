@@ -424,7 +424,7 @@ export default function AdminPanel() {
                           />
                         ))}
                       </div>
-                      <div className="text-left">
+                      <div className="text-end">
                         <p className="text-xs text-gray-400">
                           {r.createdAt ? new Date(r.createdAt).toLocaleDateString("ar-OM") : ""}
                         </p>
@@ -541,7 +541,7 @@ export default function AdminPanel() {
                             {order.deliveryAddress || order.customerAddress || "لا يوجد عنوان"}
                           </p>
                         </div>
-                        <div className="text-left shrink-0">
+                        <div className="text-end shrink-0">
                           <p className="text-sm font-bold text-gray-800">
                             OMR {parseFloat(String(order.totalPrice ?? "0")).toFixed(3)}
                           </p>

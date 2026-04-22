@@ -12,6 +12,7 @@
  */
 
 import { useState } from "react";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
@@ -229,7 +230,7 @@ export default function ProviderRegister() {
           <p className="text-white font-bold text-base">انضم كمزوّد — OWASEEL</p>
           <p className="text-white/40 text-xs">سجّل بياناتك وابدأ الاستلام خلال 24 ساعة</p>
         </div>
-        <Flame className="w-6 h-6 text-orange-500" />
+        <LanguageSwitcher />
       </div>
 
       {/* Step indicator */}

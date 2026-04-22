@@ -713,3 +713,18 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [ ] No documented staging environment / promotion process
 - [ ] No automated DB backup / restore runbook in repo
 - [ ] No formal rollback procedure documented
+
+## UI Review & Fixes (Apr 22, 2026)
+- [x] Fix NotFound.tsx: replaced `bg-blue-600` button with brand red, added Arabic translation
+- [x] Fix Payment.tsx: replaced `bg-blue-50/border-blue-200/text-blue-900` bank transfer section with neutral dark theme
+- [x] Fix OrderSummary.tsx: replaced `bg-blue-50/text-blue-*` limited availability warning with amber/neutral theme
+- [x] Fix CustomerLogin.tsx: replaced `bg-blue-50/text-blue-*` dev mode notice with neutral dark theme
+- [x] Fix RatingScreen.tsx: changed `text-left` character counter to `text-start` (RTL-aware)
+- [x] Fix AdminPanel.tsx: changed `text-left` in ratings/orders cards to `text-start`/`text-end`
+- [x] Fix OrderPlaced.tsx: changed `text-left` in provider name card to `text-end`
+- [x] Fix ProviderLogin.tsx: added LanguageSwitcher to header (was missing)
+- [x] Fix ProviderRegister.tsx: added LanguageSwitcher to header (was missing)
+- [x] Fix App.tsx: FloatingLang now only renders on routes without their own inline switcher (eliminates duplication)
+- [x] Fix sentry.ts: added `_initialized` guard to prevent "Multiple Sentry Session Replay instances" error on HMR/StrictMode re-renders
+- [x] Fix sw.js: bumped cache to `owaseel-v3`, excluded Vite dev assets (`?v=` query params, `/@fs/`) from caching, force-reload clients on SW takeover
+- [x] Fix main.tsx: added `controllerchange` listener to auto-reload page when new SW takes over

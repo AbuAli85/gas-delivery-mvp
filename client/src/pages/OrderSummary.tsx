@@ -331,11 +331,11 @@ export default function OrderSummary() {
 
           {/* Limited availability warning (parent zone level) */}
           {inZone && !draft.subZoneLabel && !draft.hasProviders && (
-            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3 mb-4">
-              <Clock className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+            <div className="rounded-2xl p-4 flex items-start gap-3 mb-4" style={{ background: "oklch(0.72 0.19 50 / 0.08)", border: "1px solid oklch(0.72 0.19 50 / 0.25)" }}>
+              <Clock className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "oklch(0.72 0.19 50)" }} />
               <div>
-                <p className="text-sm font-semibold text-blue-800">{dir === "rtl" ? "توافر محدود" : "Limited Availability"}</p>
-                <p className="text-xs text-blue-600 mt-0.5">
+                <p className="text-sm font-semibold" style={{ color: "oklch(0.35 0.15 50)" }}>{dir === "rtl" ? "توافر محدود" : "Limited Availability"}</p>
+                <p className="text-xs mt-0.5" style={{ color: "oklch(0.45 0.12 50)" }}>
                   {dir === "rtl" ? "لا يوجد مزودون متاحون الآن — سيُعالج طلبك عند توفر مزود." : "No providers available now — your order will be processed when one becomes available."}
                 </p>
               </div>

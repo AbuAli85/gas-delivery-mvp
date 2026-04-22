@@ -276,9 +276,9 @@ export default function CustomerLogin() {
           </div>
 
           {/* Dev mode notice */}
-          <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3">
-            <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-            <p className="text-xs text-blue-700 leading-relaxed">
+          <div className="flex items-start gap-2 rounded-2xl px-4 py-3" style={{ background: "oklch(0.72 0.19 50 / 0.08)", border: "1px solid oklch(0.72 0.19 50 / 0.25)" }}>
+            <Info className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "oklch(0.72 0.19 50)" }} />
+            <p className="text-xs leading-relaxed" style={{ color: "oklch(0.35 0.15 50)" }}>
               {isRTL
                 ? "وضع تجريبي: سيظهر الرمز على الشاشة. سيُرسَل عبر SMS بعد تفعيل Firebase Phone Auth."
                 : "Dev mode: code will appear on screen. SMS will be sent once Firebase Phone Auth is activated."}

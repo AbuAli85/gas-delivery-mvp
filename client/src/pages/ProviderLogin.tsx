@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { Flame, Lock, Loader2, ChevronLeft, UserPlus, ClipboardList } from "lucide-react";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -25,17 +26,20 @@ const ORANGE_DIM = "rgba(251,146,60,0.12)";
 // ─── Brand header ─────────────────────────────────────────────────────────────
 function Brand() {
   return (
-    <div className="flex items-center gap-2.5 mb-8">
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center"
-        style={{ background: ORANGE }}
-      >
-        <Flame className="w-5 h-5 text-white" />
+    <div className="flex items-center justify-between w-full mb-8">
+      <div className="flex items-center gap-2.5">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center"
+          style={{ background: ORANGE }}
+        >
+          <Flame className="w-5 h-5 text-white" />
+        </div>
+        <div className="flex flex-col leading-none">
+          <span className="text-[10px] text-white/40 uppercase tracking-widest">OWASEEL</span>
+          <span className="text-white font-extrabold text-lg tracking-tight">أو وصل</span>
+        </div>
       </div>
-      <div className="flex flex-col leading-none">
-        <span className="text-[10px] text-white/40 uppercase tracking-widest">OWASEEL</span>
-        <span className="text-white font-extrabold text-lg tracking-tight">أو وصل</span>
-      </div>
+      <LanguageSwitcher />
     </div>
   );
 }

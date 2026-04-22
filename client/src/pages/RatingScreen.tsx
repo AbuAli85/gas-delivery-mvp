@@ -229,7 +229,7 @@ export default function RatingScreen() {
             rows={3}
             className="w-full text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-red-300"
           />
-          <p className="text-xs text-gray-400 text-left mt-1">{comment.length}/500</p>
+          <p className="text-xs text-gray-400 text-start mt-1">{comment.length}/500</p>
         </div>
       </div>
 

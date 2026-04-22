@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
@@ -38,6 +38,27 @@ import RatingScreen from "./pages/RatingScreen";
 
 // About
 import AboutUs from "./pages/AboutUs";
+
+// Routes that already have an inline LanguageSwitcher in their own header.
+// The floating fallback must NOT render on these routes to avoid duplication.
+const ROUTES_WITH_OWN_LANG_SWITCHER = [
+  "/",
+  "/gas",
+  "/about",
+  "/order/",
+  "/customer/",
+  "/provider/register",
+  "/provider/login",
+];
+
+function FloatingLang() {
+  const [location] = useLocation();
+  const hasOwn = ROUTES_WITH_OWN_LANG_SWITCHER.some(
+    (prefix) => location === prefix || location.startsWith(prefix)
+  );
+  if (hasOwn) return null;
+  return <LanguageSwitcher floating />;
+}
 
 function Router() {
   return (
@@ -93,7 +114,7 @@ function App() {
             <TooltipProvider>
               <Toaster position="top-center" richColors />
               <Router />
-              <LanguageSwitcher floating />
+              <FloatingLang />
             </TooltipProvider>
           </ThemeProvider>
         </LanguageProvider>

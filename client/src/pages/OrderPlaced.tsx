@@ -91,7 +91,7 @@ export default function OrderPlaced() {
               <p className="font-bold text-gray-900">{statusLabel}</p>
             </div>
             {order?.providerName && (
-              <div className="text-left">
+              <div className="text-end">
                 <p className="text-xs text-gray-400">{t("tracking.provider")}</p>
                 <p className="text-sm font-semibold text-gray-800">{order.providerName}</p>
               </div>

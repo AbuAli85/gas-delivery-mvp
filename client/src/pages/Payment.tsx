@@ -65,7 +65,7 @@ export default function Payment() {
       label: t("payment.card"),
       description: dir === "rtl" ? "دفع آمن بالبطاقة (وضع تجريبي)" : "Secure card payment (demo mode)",
       badge: dir === "rtl" ? "فوري" : "Instant",
-      badgeColor: "bg-blue-500",
+      badgeColor: "bg-orange-500",
     },
     {
       id: "bank_transfer" as PaymentMethod,
@@ -186,15 +186,15 @@ export default function Payment() {
 
         {/* Bank Transfer Details */}
         {selected === "bank_transfer" && (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-2">
-            <p className="text-sm font-bold text-blue-800 mb-3">{dir === "rtl" ? "بيانات بنك مسقط" : "Bank Muscat Details"}</p>
+          <div className="rounded-2xl p-4 space-y-2" style={{ background: "oklch(0.97 0.005 65)", border: "1px solid oklch(0.72 0.19 50 / 0.25)" }}>
+            <p className="text-sm font-bold mb-3" style={{ color: "oklch(0.35 0.15 50)" }}>{dir === "rtl" ? "بيانات بنك مسقط" : "Bank Muscat Details"}</p>
             {bankRows.map(([label, value]) => (
               <div key={label} className="flex justify-between text-sm">
-                <span className="font-mono font-semibold text-blue-900">{value}</span>
-                <span className="text-blue-600">{label}</span>
+                <span className="font-mono font-semibold" style={{ color: "oklch(0.20 0.010 265)" }}>{value}</span>
+                <span style={{ color: "oklch(0.45 0.010 265)" }}>{label}</span>
               </div>
             ))}
-            <p className="text-xs text-blue-500 mt-2 pt-2 border-t border-blue-200">
+            <p className="text-xs mt-2 pt-2" style={{ color: "oklch(0.55 0.010 265)", borderTop: "1px solid oklch(0.88 0.004 286.32)" }}>
               {dir === "rtl" ? "يُرسَل الطلب بعد التأكيد اليدوي (خلال ساعة واحدة)." : "Order is sent after manual confirmation (within 1 hour)."}
             </p>
           </div>

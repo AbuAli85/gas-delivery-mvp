@@ -10,7 +10,14 @@ import type React from "react";
 
 const DSN = import.meta.env.VITE_SENTRY_DSN as string | undefined;
 
+// Guard: Sentry.init must only be called once per page load.
+// React HMR and StrictMode can cause useEffect to fire multiple times.
+let _initialized = false;
+
 export function initSentryBrowser() {
+  if (_initialized) return;
+  _initialized = true;
+
   if (!DSN) {
     if (import.meta.env.DEV) {
       console.log("[Sentry] VITE_SENTRY_DSN not set — browser monitoring disabled");
