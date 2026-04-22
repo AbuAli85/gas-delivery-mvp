@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 async function sha256(text: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -120,7 +121,7 @@ export default function ProviderOnboarding() {
           <p className="text-white font-bold text-base">حالة طلب الانضمام</p>
           <p className="text-white/40 text-xs">يتم التحديث كل 30 ثانية</p>
         </div>
-        <Flame className="w-6 h-6 text-orange-500" />
+        <LanguageSwitcher />
       </div>
 
       <div className="px-4 pb-8">

@@ -7,12 +7,13 @@ import { useState } from "react";
 import {
   ShieldCheck, Lock, Loader2, RefreshCw, XCircle, CheckCircle2,
   Package, TrendingUp, Clock, Ban, ChevronDown, ChevronUp,
-  Phone, MapPin, CreditCard, Star, MessageSquare, Users
+  Phone, MapPin, CreditCard, Star, MessageSquare, Users, Home
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { ORDER_STATUS_LABELS, type OrderStatus } from "../../../shared/domain";
 
 const STATUS_FILTER_OPTIONS = [
@@ -115,7 +116,17 @@ export default function AdminPanel() {
 
   if (!enteredPin || isUnauthorized) {
     return (
-      <div className="mobile-screen bg-gray-50 items-center justify-center px-6">
+      <div className="mobile-screen bg-gray-50 items-center justify-center px-6" dir="rtl">
+        {/* Top bar: back + language */}
+        <div className="absolute top-4 inset-x-0 flex items-center justify-between px-4">
+          <LanguageSwitcher />
+          <Link href="/">
+            <button className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
+              <Home className="w-4 h-4" />
+              <span>الرئيسية</span>
+            </button>
+          </Link>
+        </div>
         <div className="flex flex-col items-center mb-8">
           <img
             src="/manus-storage/logo-orange-on-black_bcf6e388.png"

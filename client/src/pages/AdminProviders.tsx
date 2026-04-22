@@ -14,12 +14,13 @@ import {
   UserCheck, UserX, Clock, CheckCircle2, XCircle,
   Phone, Mail, MapPin, Truck, IdCard, Calendar,
   Loader2, RefreshCw, ShieldCheck, Lock, ChevronLeft,
-  Users, AlertCircle, Tag,
+  Users, AlertCircle, Tag, Home,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Link } from "wouter";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 type ProviderStatus = "pending_review" | "approved" | "rejected";
 type Tab = "pending" | "approved" | "rejected";
@@ -279,10 +280,20 @@ export default function AdminProviders() {
   if (!enteredPin || isWrongPin) {
     return (
       <div
-        className="min-h-screen flex flex-col items-center justify-center px-4"
+        className="min-h-screen flex flex-col items-center justify-center px-4 relative"
         style={{ background: "oklch(0.08 0 0)" }}
         dir="rtl"
       >
+        {/* Top bar */}
+        <div className="absolute top-4 inset-x-0 flex items-center justify-between px-4">
+          <LanguageSwitcher />
+          <Link href="/">
+            <button className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 transition-colors">
+              <Home className="w-4 h-4" />
+              <span>الرئيسية</span>
+            </button>
+          </Link>
+        </div>
         <div
           className="w-full max-w-sm rounded-3xl p-6 space-y-5"
           style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.07)" }}

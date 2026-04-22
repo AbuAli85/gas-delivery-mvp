@@ -214,55 +214,57 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-2">
               {customerPhone && (
-                <a
-                  href="/customer/profile"
+                <button
+                  onClick={() => navigate("/customer/profile")}
                   className="text-xs font-bold text-orange-400 border border-orange-400/30 rounded-lg px-3 py-1 hover:bg-orange-400/10"
                 >
                   {isRTL ? "حسابي" : "My Account"}
-                </a>
+                </button>
               )}
-              <a
-                href="/customer/login"
+              <button
+                onClick={() => navigate("/customer/login")}
                 className="text-xs font-bold text-white/40 border border-white/10 rounded-lg px-3 py-1 hover:bg-white/10"
               >
                 {customerPhone ? t("home.account.change") : t("home.account.login")}
-              </a>
+              </button>
             </div>
           </div>
         </div>
 
-        {/* ── About link ── */}
-        <div className="mt-3 flex justify-center">
-          <a
-            href="/about"
-            className="text-xs text-white/40 hover:text-white/70 transition-colors underline underline-offset-2"
+        {/* ── Footer links ── */}
+        <div className="mt-4 rounded-2xl overflow-hidden border border-white/8" style={{ background: "oklch(0.11 0 0)" }}>
+          {/* About row */}
+          <button
+            onClick={() => navigate("/about")}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors border-b border-white/8"
           >
-            {t("home.about.link")}
-          </a>
-        </div>
+            <span className="text-sm text-white/60">{t("home.about.link")}</span>
+            <ChevronBtn className="w-4 h-4 text-white/30" />
+          </button>
 
-        {/* ── Provider portal ── */}
-        <div className="mt-2 flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
-          <p className="text-xs text-white/40">{t("home.provider.portal")}</p>
-          <div className="flex gap-2 flex-wrap">
-            <a
-              href="/provider/login"
-              className="text-xs font-bold text-primary border border-primary/30 rounded-lg px-3 py-1 hover:bg-primary/10"
-            >
-              {t("home.provider.login")}
-            </a>
-            <a
-              href="/provider/register"
-              className="text-xs font-bold text-orange-400 border border-orange-400/30 rounded-lg px-3 py-1 hover:bg-orange-400/10"
-            >
-              {t("home.provider.register")}
-            </a>
-            <a
-              href="/admin"
-              className="text-xs font-bold text-gray-400 border border-gray-500/30 rounded-lg px-3 py-1 hover:bg-gray-500/10"
-            >
-              {t("home.provider.admin")}
-            </a>
+          {/* Provider portal row */}
+          <div className="px-4 py-3">
+            <p className="text-xs text-white/30 mb-2.5">{t("home.provider.portal")}</p>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => navigate("/provider/login")}
+                className="flex-1 text-center text-xs font-bold text-primary border border-primary/30 rounded-xl px-3 py-2 hover:bg-primary/10 transition-colors"
+              >
+                {t("home.provider.login")}
+              </button>
+              <button
+                onClick={() => navigate("/provider/register")}
+                className="flex-1 text-center text-xs font-bold text-orange-400 border border-orange-400/30 rounded-xl px-3 py-2 hover:bg-orange-400/10 transition-colors"
+              >
+                {t("home.provider.register")}
+              </button>
+              <button
+                onClick={() => navigate("/admin")}
+                className="flex-1 text-center text-xs font-bold text-white/40 border border-white/15 rounded-xl px-3 py-2 hover:bg-white/8 transition-colors"
+              >
+                {t("home.provider.admin")}
+              </button>
+            </div>
           </div>
         </div>
       </div>

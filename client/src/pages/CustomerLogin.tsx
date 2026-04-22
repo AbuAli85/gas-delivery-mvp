@@ -6,10 +6,10 @@
  * Dev mode: OTP shown in a large persistent box on screen (no SMS needed).
  */
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useLocation, useSearch } from "wouter";
+import { useLocation, useSearch, Link } from "wouter";
 import {
   Phone, ArrowRight, Loader2, CheckCircle2,
-  ShieldCheck, Clock, AlertTriangle, RefreshCw, Info
+  ShieldCheck, Clock, AlertTriangle, RefreshCw, Info, Home
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
@@ -224,6 +224,17 @@ export default function CustomerLogin() {
   return (
     <div className="mobile-screen bg-gray-50 items-center justify-center px-6" dir={dir}>
 
+      {/* ── Top bar: back + language ── */}
+      <div className="absolute top-4 inset-x-0 flex items-center justify-between px-4">
+        <LanguageSwitcher />
+        <Link href="/">
+          <button className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
+            {isRTL ? <Home className="w-4 h-4" /> : <Home className="w-4 h-4" />}
+            <span>{isRTL ? "الرئيسية" : "Home"}</span>
+          </button>
+        </Link>
+      </div>
+
       {/* ── Logo ── */}
       <div className="flex flex-col items-center mb-8">
         <img
@@ -234,9 +245,6 @@ export default function CustomerLogin() {
         <p className="text-sm text-gray-500 mt-1 font-medium">
           {isRTL ? "سجّل دخولك برقم هاتفك" : "Sign in with your phone number"}
         </p>
-        <div className="mt-3">
-          <LanguageSwitcher />
-        </div>
       </div>
 
       {step === "phone" ? (

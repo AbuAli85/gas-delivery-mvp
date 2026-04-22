@@ -728,3 +728,12 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Fix sentry.ts: added `_initialized` guard to prevent "Multiple Sentry Session Replay instances" error on HMR/StrictMode re-renders
 - [x] Fix sw.js: bumped cache to `owaseel-v3`, excluded Vite dev assets (`?v=` query params, `/@fs/`) from caching, force-reload clients on SW takeover
 - [x] Fix main.tsx: added `controllerchange` listener to auto-reload page when new SW takes over
+
+## مراجعة التصميم والتنقل الشاملة (Apr 22, 2026)
+- [ ] جولة بصرية على جميع الصفحات وتوثيق مشاكل التصميم والتنقل
+- [ ] إصلاح مشاكل التنسيق والخطوط والتصميم
+- [ ] إضافة شريط تنقل سفلي (Bottom Navigation) للعميل يربط: الرئيسية / طلباتي / حسابي
+- [ ] التحقق من وجود زر رجوع واضح في جميع الصفحات الفرعية
+- [ ] التحقق من اتساق الخطوط والمسافات في جميع الصفحات
+- [ ] إصلاح أي صفحة مسدودة (dead end) بدون طريق للخروج
+- [ ] التحقق من عمل جميع روابط التنقل في الصفحة الرئيسية

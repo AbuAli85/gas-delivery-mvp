@@ -284,7 +284,7 @@ export default function ProviderRegister() {
                   id="provider-reg-email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="example@mail.com"
+                  placeholder="name@example.com"
                   type="email"
                   dir="ltr"
                   autoComplete="email"
