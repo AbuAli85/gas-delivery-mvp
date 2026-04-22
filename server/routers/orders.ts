@@ -644,11 +644,13 @@ export const ordersRouter = router({
       const total = all.length;
       const delivered = all.filter((o) => o.status === "delivered").length;
       const cancelled = all.filter((o) => o.status === "cancelled").length;
+      const arrived = all.filter((o) => o.status === "arrived").length;
+      const failed = all.filter((o) => o.status === "failed_delivery").length;
       const pending = all.filter((o) => ["pending", "assigned", "accepted", "out_for_delivery", "arrived"].includes(o.status)).length;
       const revenue = all
         .filter((o) => o.status === "delivered")
         .reduce((sum, o) => sum + parseFloat(String(o.totalPrice ?? "0")), 0);
-      return { total, delivered, cancelled, pending, revenue };
+      return { total, delivered, cancelled, pending, arrived, failed, revenue };
     }),
 });
 // Zone coverage updated: Mon Apr 20 14:24:05 EDT 2026

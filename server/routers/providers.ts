@@ -620,25 +620,30 @@ export const providersRouter = router({
     }),
 
   /**
-   * Provider requests reschedule for a failed order.
-   * Re-enters the assignment flow and tries the next provider.
+   * Admin reschedules a failed order.
+   * Re-enters assignment flow and tries the next provider.
    */
   rescheduleFailedOrder: publicProcedure
-    .input(z.object({ orderId: z.number(), providerId: z.number(), pinHash: z.string() }))
+    .input(z.object({ orderId: z.number(), adminPin: z.string() }))
     .mutation(async ({ input }) => {
-      await assertPin(input.providerId, input.pinHash);
+      if (input.adminPin !== (process.env.ADMIN_PIN ?? "1234")) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "رمز الإدارة غير صحيح." });
+      }
+
       const order = await getOrderById(input.orderId);
       if (!order) throw new TRPCError({ code: "NOT_FOUND" });
-      if (order.assignedProviderId !== input.providerId) {
-        throw new TRPCError({ code: "FORBIDDEN" });
-      }
 
       assertOrderTransition(order.status, "pending");
 
       const currentRejected: number[] = Array.isArray(order.rejectedProviderIds)
         ? (order.rejectedProviderIds as number[])
         : [];
-      const updatedRejected = Array.from(new Set([...currentRejected, input.providerId]));
+      const updatedRejected = Array.from(
+        new Set([
+          ...currentRejected,
+          ...(order.assignedProviderId ? [order.assignedProviderId] : []),
+        ])
+      );
 
       await updateOrder(order.id, {
         status: "pending",
@@ -648,10 +653,17 @@ export const providersRouter = router({
         failureNotes: null,
       });
 
-      await setProviderActiveOrder(input.providerId, null);
+      if (order.assignedProviderId) {
+        await setProviderActiveOrder(order.assignedProviderId, null);
+      }
       await doAssignNext(order.id);
 
-      return { success: true };
+      const refreshed = await getOrderById(order.id);
+      return {
+        success: true,
+        reassigned: refreshed?.status === "assigned",
+        status: refreshed?.status ?? "pending",
+      };
     }),
 
   /**

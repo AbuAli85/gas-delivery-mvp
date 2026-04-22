@@ -46,6 +46,14 @@ Implementation: `scripts/pre-launch-check.sh`. Use this before `npx drizzle-kit 
 - [ ] **PWA**: install + core flows on **iOS Safari** and **Android Chrome** against your HTTPS URL
 - [ ] Run **`npm run prelaunch`** (see [One-command pre-launch validation](#one-command-pre-launch-validation) above) or repeat those steps manually.
 
+### 1.1 Delivery status flow (arrived / failed)
+
+- [ ] Verify provider can mark `arrived` after `out_for_delivery`
+- [ ] Verify provider can mark `failed_delivery` with reason + optional notes
+- [ ] Verify failed orders can be rescheduled from Admin (`rescheduleFailedOrder`)
+- [ ] Verify customer tracking shows failure reason/notes and stops polling on `failed_delivery`
+- [ ] Verify admin list filters include `arrived` and `failed_delivery`
+
 ### 2. Database preparation
 
 - [ ] Full backup (example):
@@ -138,8 +146,11 @@ Use **PM2**, **systemd**, or a container with the same environment as your shell
 1. **Customer**: open site → order flow → location → payment (cash / bank / mock online as configured) → tracking.
 2. **Admin**: `/admin` — order appears; privileged routes require `ADMIN_PIN`.
 3. **Provider**: `/provider/:id/login` — PIN flow (client sends **SHA-256 hex** of the 4-digit PIN; see `verifyPin` in `server/routers/providers.ts`) → accept → start delivery → deliver.
-4. **Commission**: `npm run validate:commission` again.
-5. **Logs**: follow your process manager or platform logs for `ERROR` / failed requests.
+4. **Arrived / failed flow**: on an active mission, test `arrived`, then either:
+   - successful completion (`deliverOrder`), or
+   - failure (`markFailedDelivery`) then Admin reschedule (`rescheduleFailedOrder`).
+5. **Commission**: `npm run validate:commission` again.
+6. **Logs**: follow your process manager or platform logs for `ERROR` / failed requests.
 
 ---
 

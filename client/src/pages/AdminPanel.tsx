@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { Link } from "wouter";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { ORDER_STATUS_LABELS, type OrderStatus } from "../../../shared/domain";
+import { FAILURE_REASON_LABELS, ORDER_STATUS_LABELS, type FailureReason, type OrderStatus } from "../../../shared/domain";
 
 export default function AdminPanel() {
   const { t, dir, lang } = useLanguage();
@@ -121,6 +121,19 @@ export default function AdminPanel() {
       utils.orders.adminStats.invalidate();
     },
     onError: (err) => toast.error(err.message),
+  });
+
+  const rescheduleOrder = trpc.providers.rescheduleFailedOrder.useMutation({
+    onSuccess: (data) => {
+      toast.success(
+        data.reassigned
+          ? (lang === "en" ? "Order rescheduled and reassigned" : "تمت إعادة الجدولة وإسناد الطلب لمزود")
+          : (lang === "en" ? "Order rescheduled (waiting assignment)" : "تمت إعادة الجدولة (بانتظار الإسناد)")
+      );
+      utils.orders.adminListOrders.invalidate();
+      utils.orders.adminStats.invalidate();
+    },
+    onError: (err) => toast.error(err.message || (lang === "en" ? "Reschedule failed" : "فشلت إعادة الجدولة")),
   });
 
   function handlePinSubmit(e: React.FormEvent) {
@@ -499,6 +512,8 @@ export default function AdminPanel() {
                   { icon: CheckCircle2, label: t("admin.stats.delivered"), value: s.delivered, color: "text-emerald-600" },
                   { icon: Clock, label: t("admin.stats.active"), value: s.pending, color: "text-violet-600" },
                   { icon: Ban, label: t("admin.stats.cancelled"), value: s.cancelled, color: "text-red-500" },
+                  { icon: MapPin, label: lang === "en" ? "Arrived" : "وصل", value: s.arrived ?? 0, color: "text-cyan-600" },
+                  { icon: XCircle, label: lang === "en" ? "Failed" : "فشل التوصيل", value: s.failed ?? 0, color: "text-orange-600" },
                 ].map(({ icon: Icon, label, value, color }) => (
                   <div key={label} className="bg-white rounded-2xl shadow-sm p-4">
                     <Icon className={`w-4 h-4 ${color} mb-2`} />
@@ -553,7 +568,7 @@ export default function AdminPanel() {
                     ORDER_STATUS_LABELS_LOCALIZED[order.status as OrderStatus] ?? order.status;
                   const statusClass = STATUS_COLORS[order.status] ?? "bg-gray-100 text-gray-500";
                   const canCancel = !["delivered", "cancelled"].includes(order.status);
-                  const canDeliver = !["delivered", "cancelled", "draft"].includes(order.status);
+                  const canDeliver = !["delivered", "cancelled", "draft", "failed_delivery"].includes(order.status);
 
                   return (
                     <div key={order.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -653,6 +668,31 @@ export default function AdminPanel() {
                             )}
                           </div>
 
+                          {order.status === "failed_delivery" && (
+                            <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 space-y-1">
+                              <p className="text-xs font-semibold text-orange-900">
+                                {lang === "en" ? "Failure Reason" : "سبب الفشل"}
+                              </p>
+                              <p className="text-xs text-orange-700">
+                                {order.failureReason
+                                  ? (
+                                      lang === "en"
+                                        ? String(order.failureReason).replace(/_/g, " ")
+                                        : FAILURE_REASON_LABELS[order.failureReason as FailureReason] ?? order.failureReason
+                                    )
+                                  : "N/A"}
+                              </p>
+                              {order.failureNotes && (
+                                <>
+                                  <p className="text-xs font-semibold text-orange-900 pt-1">
+                                    {lang === "en" ? "Notes" : "ملاحظات"}
+                                  </p>
+                                  <p className="text-xs text-orange-700">{order.failureNotes}</p>
+                                </>
+                              )}
+                            </div>
+                          )}
+
                           {/* Action buttons */}
                           <div className="flex gap-2">
                             {canDeliver && (
@@ -677,6 +717,18 @@ export default function AdminPanel() {
                               >
                                 <XCircle className="w-3.5 h-3.5" />
                                 {t("admin.orders.cancel")}
+                              </button>
+                            )}
+                            {order.status === "failed_delivery" && (
+                              <button
+                                onClick={() =>
+                                  rescheduleOrder.mutate({ adminPin: enteredPin!, orderId: order.id })
+                                }
+                                disabled={rescheduleOrder.isPending}
+                                className="flex-1 flex items-center justify-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl py-2 text-xs font-semibold hover:bg-blue-100 transition-colors"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                {lang === "en" ? "Reschedule" : "إعادة جدولة"}
                               </button>
                             )}
                           </div>
