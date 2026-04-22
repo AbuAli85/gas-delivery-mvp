@@ -60,11 +60,11 @@ export default function Home() {
   const ChevronBtn = dir === "rtl" ? ChevronLeft : ChevronRight;
 
   return (
-    <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }} dir={dir}>
+    <div className="mobile-screen has-bottom-nav" style={{ background: "oklch(0.09 0 0)" }} dir={dir}>
       {/* ── PWA Install Banner ── */}
       {showInstallBanner && (
         <div
-          className="fixed bottom-4 left-4 right-4 z-50 rounded-3xl shadow-2xl p-4 flex items-center gap-3"
+          className="fixed bottom-20 left-4 right-4 z-50 rounded-3xl shadow-2xl p-4 flex items-center gap-3"
           style={{ background: "oklch(0.14 0 0)", border: "1px solid oklch(0.53 0.22 27 / 0.4)" }}
         >
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "oklch(0.53 0.22 27)" }}>

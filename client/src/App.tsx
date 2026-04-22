@@ -7,6 +7,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import LanguageSwitcher from "./components/LanguageSwitcher";
+import CustomerBottomNav from "./components/CustomerBottomNav";
 import { initSentryBrowser, SentryErrorBoundary } from "./lib/sentry";
 
 // Customer pages
@@ -115,6 +116,7 @@ function App() {
               <Toaster position="top-center" richColors />
               <Router />
               <FloatingLang />
+              <CustomerBottomNav />
             </TooltipProvider>
           </ThemeProvider>
         </LanguageProvider>

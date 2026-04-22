@@ -222,7 +222,7 @@ export default function CustomerLogin() {
   const isSending = requestOtp.isPending;
 
   return (
-    <div className="mobile-screen bg-gray-50 items-center justify-center px-6" dir={dir}>
+    <div className="mobile-screen bg-gray-50 has-bottom-nav items-center justify-center px-6" dir={dir}>
 
       {/* ── Top bar: back + language ── */}
       <div className="absolute top-4 inset-x-0 flex items-center justify-between px-4">

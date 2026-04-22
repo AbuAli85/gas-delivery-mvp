@@ -138,7 +138,7 @@ export default function CustomerProfile() {
   if (!customerToken) return null;
 
   return (
-    <div className="mobile-screen bg-gray-50" dir={dir}>
+    <div className="mobile-screen bg-gray-50 has-bottom-nav" dir={dir}>
       {/* Header */}
       <div
         className="px-4 pt-12 pb-5 text-white"

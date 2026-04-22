@@ -201,6 +201,11 @@
     overflow-x: hidden;
   }
 
+  /* Pages with bottom nav need extra padding so content isn't hidden behind it */
+  .has-bottom-nav {
+    padding-bottom: 68px;
+  }
+
   /* Subtle shadow on desktop to give phone-frame feel */
   @media (min-width: 640px) {
     .mobile-screen {
