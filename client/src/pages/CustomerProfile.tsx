@@ -138,9 +138,10 @@ export default function CustomerProfile() {
   async function shareReferralLink() {
     const link = loyaltyQuery.data?.referralLink ?? "";
     const code = loyaltyQuery.data?.referralCode ?? "";
+    const appName = isRTL ? "أو وصل" : "OWASEEL";
     const text = isRTL
-      ? `🔥 اطلب الغاز مع أو وصل! استخدم كودي ${code} واحصل على 20 نقطة مجانية: ${link}`
-      : `🔥 Order gas with OWASEEL! Use my code ${code} and get 20 bonus points: ${link}`;
+      ? `🔥 اطلب الغاز مع ${appName}! استخدم كودي ${code} واحصل على 20 نقطة مجانية: ${link}`
+      : `🔥 Order gas with ${appName}! Use my code ${code} and get 20 bonus points: ${link}`;
     if (navigator.share) {
       await navigator.share({ text, url: link });
     } else {

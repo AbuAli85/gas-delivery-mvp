@@ -87,8 +87,9 @@ function SectionHeading({ title }: { title: string }) {
 export default function AboutUs() {
   const [, navigate] = useLocation();
   const { t, dir } = useLanguage();
+  const isRTL = dir === "rtl";
 
-  const BackIcon = dir === "rtl" ? ChevronRight : ChevronLeft;
+  const BackIcon = isRTL ? ChevronRight : ChevronLeft;
   const ArrowIcon = dir === "rtl" ? ArrowRight : ArrowLeft;
 
   const areas = {
@@ -124,7 +125,7 @@ export default function AboutUs() {
         <div className="flex items-center gap-3 mb-6">
           <img
             src="/manus-storage/logo-orange-nobg_dc89f071.png"
-            alt="OWASEEL"
+            alt={t("app.name")}
             className="h-12 w-auto object-contain"
           />
         </div>
@@ -151,7 +152,7 @@ export default function AboutUs() {
             style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.07)" }}
           >
             <p className="text-white/70 text-sm leading-loose">
-              <span className="text-orange-400 font-bold">OWASEEL</span>{" "}
+              <span className="text-orange-400 font-bold">{t("app.name")}</span>{"\ "}
               {t("about.story.p1").replace("أو وصل", "").replace("OWASEEL", "").trim()}
             </p>
             <p className="text-white/70 text-sm leading-loose mt-3">{t("about.story.p2")}</p>
@@ -312,7 +313,7 @@ export default function AboutUs() {
           </button>
 
           <a
-            href="https://wa.me/96891000000?text=Hello%20OWASEEL"
+            href={`https://wa.me/96891000000?text=${encodeURIComponent(isRTL ? `مرحباً ${t("app.name")}` : `Hello ${t("app.name")}`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center justify-center gap-2 rounded-full py-3.5 font-semibold text-white/70 text-sm transition-all active:scale-95"

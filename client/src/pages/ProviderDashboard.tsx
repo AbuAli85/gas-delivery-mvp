@@ -638,7 +638,7 @@ export default function ProviderDashboard() {
           <div className="flex items-center gap-3 min-w-0">
             <img
               src="/manus-storage/logo-orange-nobg_dc89f071.png"
-              alt="OWASEEL"
+              alt="أو وصل"
               className="h-8 w-auto object-contain shrink-0"
             />
             <div className="min-w-0">

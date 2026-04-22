@@ -103,7 +103,7 @@ export default function Home() {
         <div className="flex items-center gap-2 mb-8 w-full max-w-sm">
           <img
             src="/manus-storage/logo-orange-nobg_dc89f071.png"
-            alt="OWASEEL"
+            alt={t("app.name")}
             className="h-16 w-auto object-contain drop-shadow-lg"
           />
           <div className="ms-auto">

@@ -729,6 +729,11 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Fix sw.js: bumped cache to `owaseel-v3`, excluded Vite dev assets (`?v=` query params, `/@fs/`) from caching, force-reload clients on SW takeover
 - [x] Fix main.tsx: added `controllerchange` listener to auto-reload page when new SW takes over
 
+## إصلاح اسم التطبيق حسب اللغة (Apr 22, 2026)
+- [x] إضافة APP_NAME إلى i18n.ts: ar = "أو وصل"، en = "OWASEEL"
+- [x] تطبيق APP_NAME في جميع الصفحات (Home, ProviderLogin, ProviderRegister, ProviderDashboard, AdminPanel, AboutUs, CustomerLogin, ProviderOnboarding)
+- [x] التحقق من أن الاسم يتغير فعلياً عند تبديل اللغة
+
 ## إصلاح شريط التنقل السفلي (Apr 22, 2026)
 - [x] إصلاح زر "طلباتي" ليفتح تبويب الطلبات مباشرة في CustomerProfile
 - [x] إصلاح الحالة النشطة للشريط عند التنقل بين الصفحات

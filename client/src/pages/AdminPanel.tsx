@@ -130,7 +130,7 @@ export default function AdminPanel() {
         <div className="flex flex-col items-center mb-8">
           <img
             src="/manus-storage/logo-orange-on-black_bcf6e388.png"
-            alt="OWASEEL"
+            alt="أو وصل"
             className="h-20 w-auto object-contain mb-4"
           />
           <h1 className="text-2xl font-extrabold text-gray-900">لوحة الإدارة</h1>
@@ -185,7 +185,7 @@ export default function AdminPanel() {
           <div className="flex items-center gap-3">
             <img
               src="/manus-storage/logo-orange-nobg_dc89f071.png"
-              alt="OWASEEL"
+              alt="أو وصل"
               className="h-8 w-auto object-contain"
             />
             <h1 className="text-lg font-extrabold leading-tight">لوحة الإدارة</h1>

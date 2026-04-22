@@ -65,7 +65,7 @@ function useCountdown() {
 export default function CustomerLogin() {
   const [, navigate] = useLocation();
   const search = useSearch();
-  const { dir } = useLanguage();
+  const { t, dir } = useLanguage();
   const isRTL = dir === "rtl";
 
   // Read referral code from URL: /customer/login?ref=ABCD1234
@@ -239,7 +239,7 @@ export default function CustomerLogin() {
       <div className="flex flex-col items-center mb-8">
         <img
           src="/manus-storage/logo-orange-on-black_bcf6e388.png"
-          alt="OWASEEL"
+          alt={t("app.name")}
           className="h-20 w-auto object-contain mb-3 rounded-2xl"
         />
         <p className="text-sm text-gray-500 mt-1 font-medium">
