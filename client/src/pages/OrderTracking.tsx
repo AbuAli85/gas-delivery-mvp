@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 // MapView removed - using static map to avoid Google Maps API key popup
-import { ORDER_STATUS_LABELS, ORDER_STATUS_STEPS, type OrderStatus } from "../../../shared/domain";
+import { FAILURE_REASON_LABELS, ORDER_STATUS_LABELS, ORDER_STATUS_STEPS, type OrderStatus, type FailureReason } from "../../../shared/domain";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
@@ -34,7 +34,7 @@ export default function OrderTracking() {
       enabled: !!id,
       refetchInterval: (query) => {
         const status = query.state.data?.status;
-        if (status === "delivered" || status === "cancelled") return false;
+        if (status === "delivered" || status === "cancelled" || status === "failed_delivery") return false;
         return 5000;
       },
     }
@@ -63,9 +63,15 @@ export default function OrderTracking() {
   }
 
   const currentStatus = order.status as OrderStatus;
-  const currentStepIndex = ORDER_STATUS_STEPS.indexOf(currentStatus);
+  const stepStatus = currentStatus === "failed_delivery" ? "out_for_delivery" : currentStatus;
+  const currentStepIndex = ORDER_STATUS_STEPS.indexOf(stepStatus);
   const isCancelled = currentStatus === "cancelled";
   const isDelivered = currentStatus === "delivered";
+  const isFailed = currentStatus === "failed_delivery";
+  const isArrived = currentStatus === "arrived";
+  const failureReasonLabel = order.failureReason
+    ? FAILURE_REASON_LABELS[order.failureReason as FailureReason] ?? order.failureReason
+    : null;
 
   function paymentLabel(status: string): string {
     if (status === "confirmed") return dir === "rtl" ? "مدفوع إلكترونياً" : "Paid Online";
@@ -86,7 +92,15 @@ export default function OrderTracking() {
         <div className="flex-1">
           <h1 className="text-lg font-bold text-gray-900">{t("placed.order.id")} #{id}</h1>
           <p className="text-xs text-gray-400">
-            {isCancelled ? t("tracking.status.cancelled") : isDelivered ? t("tracking.status.delivered") : dir === "rtl" ? "تتبع مباشر" : "Live Tracking"}
+            {isCancelled
+              ? t("tracking.status.cancelled")
+              : isFailed
+              ? (dir === "rtl" ? "تعذر التوصيل" : "Delivery Failed")
+              : isDelivered
+              ? t("tracking.status.delivered")
+              : dir === "rtl"
+              ? "تتبع مباشر"
+              : "Live Tracking"}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -115,7 +129,7 @@ export default function OrderTracking() {
           </div>
 
           {/* Progress Steps */}
-          {!isCancelled && (
+          {!isCancelled && !isFailed && (
             <div className="space-y-0">
               {ORDER_STATUS_STEPS.map((step, idx) => {
                 const isCompleted = currentStepIndex > idx;
@@ -168,15 +182,39 @@ export default function OrderTracking() {
             </div>
           )}
 
+          {isArrived && (
+            <div className="bg-amber-50 rounded-2xl p-4 text-sm text-amber-800">
+              {dir === "rtl"
+                ? "المندوب وصل إلى موقع التسليم. يرجى الاستعداد للاستلام."
+                : "Your provider has arrived at the delivery location. Please be ready to receive your order."}
+            </div>
+          )}
+
           {isCancelled && (
             <div className="bg-red-50 rounded-2xl p-4 text-sm text-red-700">
               {dir === "rtl" ? "تم إلغاء هذا الطلب. لا يوجد مزودون متاحون في منطقتك حالياً." : "This order has been cancelled. No providers are currently available in your area."}
             </div>
           )}
+
+          {isFailed && (
+            <div className="bg-red-50 rounded-2xl p-4 text-sm text-red-700 space-y-1">
+              <p className="font-semibold">
+                {dir === "rtl" ? "تعذر إكمال عملية التوصيل." : "We could not complete this delivery."}
+              </p>
+              {failureReasonLabel && (
+                <p>
+                  {dir === "rtl" ? "السبب:" : "Reason:"} <span className="font-medium">{failureReasonLabel}</span>
+                </p>
+              )}
+              {order.failureNotes && (
+                <p className="text-xs text-red-600">{order.failureNotes}</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Live Map — shown when provider is on the way */}
-        {(order.status === "out_for_delivery" || order.status === "accepted") && (
+        {(order.status === "out_for_delivery" || order.status === "accepted" || order.status === "arrived") && (
           <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
             <button
               onClick={() => setShowMap((v) => !v)}
@@ -243,7 +281,7 @@ export default function OrderTracking() {
               </div>
             </div>
           )}
-          {order.estimatedMinutes && !isDelivered && !isCancelled && (
+          {order.estimatedMinutes && !isDelivered && !isCancelled && !isFailed && (
             <div className="flex items-center gap-3">
               <Clock className="w-4 h-4 text-gray-400 shrink-0" />
               <div>
@@ -307,6 +345,18 @@ export default function OrderTracking() {
               {dir === "rtl" ? "اطلب مجدداً" : "Order Again"}
             </Button>
           </div>
+        )}
+
+        {isFailed && (
+          <Button
+            size="lg"
+            variant="outline"
+            className="w-full rounded-2xl font-extrabold text-base border-gray-200 active:scale-95 transition-transform"
+            style={{ height: "56px" }}
+            onClick={() => navigate("/")}
+          >
+            {dir === "rtl" ? "طلب جديد" : "Place New Order"}
+          </Button>
         )}
 
         {/* Cancel Order */}

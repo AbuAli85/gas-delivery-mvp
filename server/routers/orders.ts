@@ -523,6 +523,8 @@ export const ordersRouter = router({
       return {
         orderId: order.id,
         status: order.status as string,
+        failureReason: order.failureReason ?? null,
+        failureNotes: order.failureNotes ?? null,
         paymentStatus: order.paymentStatus,
         paymentMethod: order.paymentMethod,
         estimatedMinutes: order.estimatedMinutes,
@@ -544,6 +546,7 @@ export const ordersRouter = router({
         createdAt: order.createdAt,
         assignedAt: order.assignedAt,
         acceptedAt: order.acceptedAt,
+        arrivedAt: order.arrivedAt,
         deliveredAt: order.deliveredAt,
       };
     }),
@@ -582,7 +585,10 @@ export const ordersRouter = router({
           assignedProviderId: o.assignedProviderId,
           createdAt: o.createdAt,
           acceptedAt: o.acceptedAt,
+          arrivedAt: o.arrivedAt,
           deliveredAt: o.deliveredAt,
+          failureReason: o.failureReason,
+          failureNotes: o.failureNotes,
           smsDeliveryStartedAt: o.smsDeliveryStartedAt,
           smsDeliveredAt: o.smsDeliveredAt,
           smsSid: o.smsSid,
@@ -638,7 +644,7 @@ export const ordersRouter = router({
       const total = all.length;
       const delivered = all.filter((o) => o.status === "delivered").length;
       const cancelled = all.filter((o) => o.status === "cancelled").length;
-      const pending = all.filter((o) => ["pending", "assigned", "accepted", "out_for_delivery"].includes(o.status)).length;
+      const pending = all.filter((o) => ["pending", "assigned", "accepted", "out_for_delivery", "arrived"].includes(o.status)).length;
       const revenue = all
         .filter((o) => o.status === "delivered")
         .reduce((sum, o) => sum + parseFloat(String(o.totalPrice ?? "0")), 0);

@@ -19,6 +19,7 @@ import {
   canTransitionAssignment,
   assertOrderTransition,
   assertAssignmentTransition,
+  FAILURE_REASON_LABELS,
   calculateOrderPrice,
   haversineKm,
   isPointInPolygon,
@@ -42,6 +43,11 @@ describe("Order status transitions", () => {
     ["assigned", "pending"],
     ["assigned", "cancelled"],
     ["accepted", "out_for_delivery"],
+    ["out_for_delivery", "arrived"],
+    ["out_for_delivery", "failed_delivery"],
+    ["arrived", "delivered"],
+    ["arrived", "failed_delivery"],
+    ["failed_delivery", "pending"],
     ["accepted", "cancelled"],
     ["out_for_delivery", "delivered"],
     ["out_for_delivery", "cancelled"],
@@ -55,8 +61,10 @@ describe("Order status transitions", () => {
     ["draft", "accepted"],
     ["draft", "delivered"],
     ["pending", "delivered"],
+    ["pending", "arrived"],
     ["delivered", "pending"],
     ["delivered", "cancelled"],
+    ["failed_delivery", "delivered"],
     ["cancelled", "pending"],
     ["cancelled", "delivered"],
   ];
@@ -73,6 +81,12 @@ describe("Order status transitions", () => {
 
   it("does not throw on valid transition", () => {
     expect(() => assertOrderTransition("draft", "pending")).not.toThrow();
+  });
+
+  it("exposes Arabic labels for failed delivery reasons", () => {
+    expect(FAILURE_REASON_LABELS.customer_unavailable).toBe("العميل غير متاح");
+    expect(FAILURE_REASON_LABELS.wrong_address).toBe("عنوان غير صحيح");
+    expect(FAILURE_REASON_LABELS.other).toBe("سبب آخر");
   });
 });
 

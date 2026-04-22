@@ -22,7 +22,9 @@ type Tab = "home" | "map" | "history" | "settings";
 function StatusBadge({ status, lang }: { status: string; lang: string }) {
   const mapAr: Record<string, { label: string; cls: string }> = {
     delivered:        { label: "تم التوصيل",   cls: "bg-emerald-500/20 text-emerald-300" },
+    failed_delivery:  { label: "تعذر التوصيل", cls: "bg-red-500/20 text-red-300" },
     cancelled:        { label: "ملغي",          cls: "bg-red-500/20 text-red-300" },
+    arrived:          { label: "وصلت",          cls: "bg-amber-500/20 text-amber-300" },
     out_for_delivery: { label: "جارٍ التوصيل", cls: "bg-violet-500/20 text-violet-300" },
     accepted:         { label: "مقبول",         cls: "bg-blue-500/20 text-blue-300" },
     pending:          { label: "قيد الانتظار", cls: "bg-yellow-500/20 text-yellow-300" },
@@ -31,7 +33,9 @@ function StatusBadge({ status, lang }: { status: string; lang: string }) {
   };
   const mapEn: Record<string, { label: string; cls: string }> = {
     delivered:        { label: "Delivered",     cls: "bg-emerald-500/20 text-emerald-300" },
+    failed_delivery:  { label: "Failed Delivery", cls: "bg-red-500/20 text-red-300" },
     cancelled:        { label: "Cancelled",     cls: "bg-red-500/20 text-red-300" },
+    arrived:          { label: "Arrived",       cls: "bg-amber-500/20 text-amber-300" },
     out_for_delivery: { label: "On the Way",    cls: "bg-violet-500/20 text-violet-300" },
     accepted:         { label: "Accepted",      cls: "bg-blue-500/20 text-blue-300" },
     pending:          { label: "Pending",       cls: "bg-yellow-500/20 text-yellow-300" },
@@ -161,7 +165,7 @@ function IncomingOrderCard({
 }
 
 function MissionScreen({
-  order, onStartDelivery, onDeliver, starting, delivering, t, lang,
+  order, onStartDelivery, onMarkArrived, onMarkFailed, onDeliver, starting, arriving, failing, delivering, t, lang,
 }: {
   order: {
     orderId: number; assignmentId: number | null; customerPhone: string | null;
@@ -172,11 +176,16 @@ function MissionScreen({
     deliveryLat?: number | null; deliveryLng?: number | null;
   };
   onStartDelivery: () => void;
+  onMarkArrived: () => void;
+  onMarkFailed: (reason: "customer_unavailable" | "wrong_address" | "customer_refused" | "unsafe_location" | "payment_issue" | "other", notes?: string) => void;
   onDeliver: (note?: string) => void;
-  starting: boolean; delivering: boolean;
+  starting: boolean; arriving: boolean; failing: boolean; delivering: boolean;
   t: (key: string) => string; lang: string;
 }) {
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showFailedDialog, setShowFailedDialog] = useState(false);
+  const [failureReason, setFailureReason] = useState<"customer_unavailable" | "wrong_address" | "customer_refused" | "unsafe_location" | "payment_issue" | "other">("customer_unavailable");
+  const [failureNotes, setFailureNotes] = useState("");
   const [note, setNote] = useState("");
   const [elapsed, setElapsed] = useState(0);
 
@@ -212,6 +221,7 @@ function MissionScreen({
   const steps = [
     { key: "accepted", label: t("provider.mission.step.accepted"), icon: <CheckCircle2 className="w-4 h-4" /> },
     { key: "out_for_delivery", label: t("provider.mission.step.on_way"), icon: <Truck className="w-4 h-4" /> },
+    { key: "arrived", label: lang === "ar" ? "وصلت" : "Arrived", icon: <MapPin className="w-4 h-4" /> },
     { key: "delivered", label: t("provider.mission.step.delivered"), icon: <CheckCircle2 className="w-4 h-4" /> },
   ];
   const stepIndex = steps.findIndex(s => s.key === order.status);
@@ -397,14 +407,48 @@ function MissionScreen({
         </Button>
       )}
 
-      {order.status === "out_for_delivery" && !showConfirm && (
-        <Button
-          className="w-full h-14 rounded-2xl font-black text-white text-base"
-          style={{ background: "oklch(0.45 0.18 145)", boxShadow: "0 4px 20px oklch(0.45 0.18 145 / 0.4)" }}
-          onClick={() => setShowConfirm(true)}
-        >
-          <CheckCircle2 className={`w-5 h-5 ${lang === "ar" ? "ml-2" : "mr-2"}`} />{t("provider.mission.confirm.delivery")}
-        </Button>
+      {order.status === "out_for_delivery" && !showConfirm && !showFailedDialog && (
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            className="h-12 rounded-2xl font-bold text-white text-sm"
+            style={{ background: "oklch(0.62 0.18 75)" }}
+            onClick={onMarkArrived}
+            disabled={arriving || failing}
+          >
+            {arriving
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <><MapPin className={`w-4 h-4 ${lang === "ar" ? "ml-1.5" : "mr-1.5"}`} />{lang === "ar" ? "وصلت" : "Arrived"}</>}
+          </Button>
+          <Button
+            className="h-12 rounded-2xl font-bold text-white text-sm bg-red-600 hover:bg-red-700"
+            onClick={() => setShowFailedDialog(true)}
+            disabled={arriving || failing}
+          >
+            <XCircle className={`w-4 h-4 ${lang === "ar" ? "ml-1.5" : "mr-1.5"}`} />
+            {lang === "ar" ? "فشل التوصيل" : "Fail Delivery"}
+          </Button>
+        </div>
+      )}
+
+      {order.status === "arrived" && !showConfirm && !showFailedDialog && (
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            className="h-12 rounded-2xl font-black text-white text-sm"
+            style={{ background: "oklch(0.45 0.18 145)", boxShadow: "0 4px 20px oklch(0.45 0.18 145 / 0.4)" }}
+            onClick={() => setShowConfirm(true)}
+          >
+            <CheckCircle2 className={`w-4 h-4 ${lang === "ar" ? "ml-1.5" : "mr-1.5"}`} />
+            {t("provider.mission.confirm.delivery")}
+          </Button>
+          <Button
+            className="h-12 rounded-2xl font-bold text-white text-sm bg-red-600 hover:bg-red-700"
+            onClick={() => setShowFailedDialog(true)}
+            disabled={failing}
+          >
+            <XCircle className={`w-4 h-4 ${lang === "ar" ? "ml-1.5" : "mr-1.5"}`} />
+            {lang === "ar" ? "فشل التوصيل" : "Fail Delivery"}
+          </Button>
+        </div>
       )}
 
       {/* Delivery confirmation dialog */}
@@ -450,6 +494,55 @@ function MissionScreen({
               disabled={delivering}
             >
               {delivering ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className={`w-4 h-4 ${lang === "ar" ? "ml-1.5" : "mr-1.5"}`} />{t("provider.mission.confirm.btn")}</>}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {showFailedDialog && (
+        <div
+          className="rounded-3xl p-4 space-y-3"
+          style={{ background: "rgba(127,29,29,0.2)", border: "1px solid rgba(248,113,113,0.4)" }}
+        >
+          <p className="text-white font-bold text-sm">
+            {lang === "ar" ? "تحديد سبب فشل التوصيل" : "Select failure reason"}
+          </p>
+          <select
+            value={failureReason}
+            onChange={(e) => setFailureReason(e.target.value as typeof failureReason)}
+            className="w-full rounded-xl px-3 py-2 text-sm bg-black/30 text-white border border-white/10"
+          >
+            <option value="customer_unavailable">{lang === "ar" ? "العميل غير متاح" : "Customer unavailable"}</option>
+            <option value="wrong_address">{lang === "ar" ? "عنوان غير صحيح" : "Wrong address"}</option>
+            <option value="customer_refused">{lang === "ar" ? "رفض العميل الاستلام" : "Customer refused"}</option>
+            <option value="unsafe_location">{lang === "ar" ? "الموقع غير آمن" : "Unsafe location"}</option>
+            <option value="payment_issue">{lang === "ar" ? "مشكلة في الدفع" : "Payment issue"}</option>
+            <option value="other">{lang === "ar" ? "سبب آخر" : "Other"}</option>
+          </select>
+          <textarea
+            value={failureNotes}
+            onChange={(e) => setFailureNotes(e.target.value)}
+            placeholder={lang === "ar" ? "ملاحظات إضافية (اختياري)" : "Additional notes (optional)"}
+            className="w-full rounded-xl px-3 py-2 text-sm bg-black/30 text-white border border-white/10 placeholder:text-white/40"
+            rows={3}
+            maxLength={500}
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              className="h-11 rounded-xl text-sm bg-white/10 hover:bg-white/15"
+              onClick={() => setShowFailedDialog(false)}
+            >
+              {lang === "ar" ? "إلغاء" : "Cancel"}
+            </Button>
+            <Button
+              className="h-11 rounded-xl text-sm bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                onMarkFailed(failureReason, failureNotes || undefined);
+                setShowFailedDialog(false);
+              }}
+              disabled={failing}
+            >
+              {failing ? <Loader2 className="w-4 h-4 animate-spin" /> : (lang === "ar" ? "تأكيد الفشل" : "Confirm Failure")}
             </Button>
           </div>
         </div>
@@ -596,6 +689,22 @@ export default function ProviderDashboard() {
       startLocationUpdates();
     },
     onError: (err) => toast.error(err.message || t("provider.start.error")),
+  });
+  const markArrived = trpc.providers.markArrived.useMutation({
+    onSuccess: () => {
+      toast.success(lang === "ar" ? "تم تسجيل الوصول" : "Arrival marked");
+      utils.providers.getActiveOrders.invalidate({ providerId: id });
+    },
+    onError: (err) => toast.error(err.message || (lang === "ar" ? "تعذر تسجيل الوصول" : "Could not mark arrival")),
+  });
+  const markFailedDelivery = trpc.providers.markFailedDelivery.useMutation({
+    onSuccess: () => {
+      toast.success(lang === "ar" ? "تم تسجيل فشل التوصيل" : "Failed delivery recorded");
+      utils.providers.getActiveOrders.invalidate({ providerId: id });
+      utils.providers.getById.invalidate({ providerId: id });
+      if ((activeOrders?.length ?? 0) <= 1) stopLocationUpdates();
+    },
+    onError: (err) => toast.error(err.message || (lang === "ar" ? "تعذر تسجيل الفشل" : "Could not record failure")),
   });
   const deliverOrder = trpc.providers.deliverOrder.useMutation({
     onSuccess: () => {
@@ -786,8 +895,14 @@ export default function ProviderDashboard() {
                     key={order.orderId}
                     order={order}
                     onStartDelivery={() => startDelivery.mutate({ orderId: order.orderId, providerId: id, pinHash: pinHash! })}
+                    onMarkArrived={() => markArrived.mutate({ orderId: order.orderId, providerId: id, pinHash: pinHash! })}
+                    onMarkFailed={(failureReason, failureNotes) =>
+                      markFailedDelivery.mutate({ orderId: order.orderId, providerId: id, pinHash: pinHash!, failureReason, failureNotes })
+                    }
                     onDeliver={(note) => deliverOrder.mutate({ orderId: order.orderId, providerId: id, pinHash: pinHash!, providerNote: note })}
                     starting={startDelivery.isPending}
+                    arriving={markArrived.isPending}
+                    failing={markFailedDelivery.isPending}
                     delivering={deliverOrder.isPending}
                     t={t}
                     lang={lang}

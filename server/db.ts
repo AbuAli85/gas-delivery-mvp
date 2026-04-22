@@ -874,7 +874,7 @@ export async function getSubZoneCoverageStats(): Promise<
 // ─── Multi-Order Provider Support ─────────────────────────────────────────────
 
 /**
- * Get all active orders for a provider (accepted or out_for_delivery).
+ * Get all active orders for a provider (accepted / out_for_delivery / arrived).
  * Used to check concurrent order count and proximity for multi-order eligibility.
  */
 export async function getProviderActiveOrders(providerId: number): Promise<Order[]> {
@@ -886,7 +886,11 @@ export async function getProviderActiveOrders(providerId: number): Promise<Order
     .where(
       and(
         eq(orders.assignedProviderId, providerId),
-        or(eq(orders.status, "accepted"), eq(orders.status, "out_for_delivery"))
+        or(
+          eq(orders.status, "accepted"),
+          eq(orders.status, "out_for_delivery"),
+          eq(orders.status, "arrived")
+        )
       )
     );
 }

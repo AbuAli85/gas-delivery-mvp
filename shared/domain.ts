@@ -12,7 +12,9 @@ export type OrderStatus =
   | "assigned"
   | "accepted"
   | "out_for_delivery"
+  | "arrived"
   | "delivered"
+  | "failed_delivery"
   | "cancelled";
 
 export type PaymentStatus = "pending" | "confirmed" | "failed" | "refunded";
@@ -32,8 +34,10 @@ const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending:          ["assigned", "cancelled"],
   assigned:         ["accepted", "pending", "cancelled"],  // pending = reassign after rejection
   accepted:         ["out_for_delivery", "cancelled"],
-  out_for_delivery: ["delivered", "cancelled"],
+  out_for_delivery: ["arrived", "delivered", "failed_delivery", "cancelled"],
+  arrived:          ["delivered", "failed_delivery", "cancelled"],
   delivered:        [],
+  failed_delivery:  ["pending", "cancelled"],
   cancelled:        [],
 };
 
@@ -203,7 +207,9 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   assigned:         "تم تعيين مزود",
   accepted:         "تم قبول الطلب",
   out_for_delivery: "في الطريق إليك",
+  arrived:          "وصل المندوب",
   delivered:        "تم التوصيل",
+  failed_delivery:  "تعذر التوصيل",
   cancelled:        "تم الإلغاء",
 };
 
@@ -212,5 +218,23 @@ export const ORDER_STATUS_STEPS: OrderStatus[] = [
   "assigned",
   "accepted",
   "out_for_delivery",
+  "arrived",
   "delivered",
 ];
+
+export type FailureReason =
+  | "customer_unavailable"
+  | "wrong_address"
+  | "customer_refused"
+  | "unsafe_location"
+  | "payment_issue"
+  | "other";
+
+export const FAILURE_REASON_LABELS: Record<FailureReason, string> = {
+  customer_unavailable: "العميل غير متاح",
+  wrong_address: "عنوان غير صحيح",
+  customer_refused: "رفض العميل الاستلام",
+  unsafe_location: "الموقع غير آمن",
+  payment_issue: "مشكلة في الدفع",
+  other: "سبب آخر",
+};

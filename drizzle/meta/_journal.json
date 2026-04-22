@@ -113,6 +113,13 @@
       "when": 1776801200000,
       "tag": "0015_fast_path_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1776816000000,
+      "tag": "0016_add_delivery_statuses",
+      "breakpoints": true
     }
   ]
 }

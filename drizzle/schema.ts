@@ -84,7 +84,7 @@ export type Provider = typeof providers.$inferSelect;
 export type InsertProvider = typeof providers.$inferInsert;
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
-// Status flow: draft → pending → assigned → accepted → out_for_delivery → delivered
+// Status flow: draft → pending → assigned → accepted → out_for_delivery → arrived → delivered
 //              draft → cancelled  (before payment)
 //              pending → cancelled (no providers available)
 export const orders = mysqlTable("orders", {
@@ -111,7 +111,9 @@ export const orders = mysqlTable("orders", {
     "assigned",
     "accepted",
     "out_for_delivery",
+    "arrived",
     "delivered",
+    "failed_delivery",
     "cancelled",
   ])
     .default("draft")
@@ -151,6 +153,16 @@ export const orders = mysqlTable("orders", {
   assignedAt: timestamp("assignedAt"),
   acceptedAt: timestamp("acceptedAt"),
   deliveredAt: timestamp("deliveredAt"),
+  arrivedAt: timestamp("arrivedAt"),
+  failureReason: mysqlEnum("failureReason", [
+    "customer_unavailable",
+    "wrong_address",
+    "customer_refused",
+    "unsafe_location",
+    "payment_issue",
+    "other",
+  ]),
+  failureNotes: text("failureNotes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

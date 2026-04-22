@@ -127,6 +127,15 @@ const withPin = z.object({
     .regex(/^[0-9a-f]{64}$/, "صيغة غير صالحة"),
 });
 
+const failureReasonSchema = z.enum([
+  "customer_unavailable",
+  "wrong_address",
+  "customer_refused",
+  "unsafe_location",
+  "payment_issue",
+  "other",
+]);
+
 // ─── Helper: assert PIN is valid ──────────────────────────────────────────────
 async function assertPin(providerId: number, pinHash: string): Promise<void> {
   const valid = await verifyProviderPin(providerId, pinHash);
@@ -477,6 +486,25 @@ export const providersRouter = router({
     }),
 
   /**
+   * Provider marks order as arrived at destination.
+   */
+  markArrived: publicProcedure
+    .input(z.object({ orderId: z.number(), providerId: z.number(), pinHash: z.string() }))
+    .mutation(async ({ input }) => {
+      await assertPin(input.providerId, input.pinHash);
+      const order = await getOrderById(input.orderId);
+      if (!order) throw new TRPCError({ code: "NOT_FOUND" });
+      if (order.assignedProviderId !== input.providerId) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      assertOrderTransition(order.status, "arrived");
+      await updateOrder(order.id, { status: "arrived", arrivedAt: new Date() });
+
+      return { success: true };
+    }),
+
+  /**
    * Provider marks order as delivered.
    */
   deliverOrder: publicProcedure
@@ -549,6 +577,79 @@ export const providersRouter = router({
           })
           .catch(err => console.error("[SMS] Failed to send order-delivered SMS:", err));
       }
+
+      return { success: true };
+    }),
+
+  /**
+   * Provider marks order as failed delivery and logs a reason.
+   */
+  markFailedDelivery: publicProcedure
+    .input(
+      z.object({
+        orderId: z.number(),
+        providerId: z.number(),
+        pinHash: z.string(),
+        failureReason: failureReasonSchema,
+        failureNotes: z.string().max(500).optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      await assertPin(input.providerId, input.pinHash);
+      const order = await getOrderById(input.orderId);
+      if (!order) throw new TRPCError({ code: "NOT_FOUND" });
+      if (order.assignedProviderId !== input.providerId) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      assertOrderTransition(order.status, "failed_delivery");
+
+      await updateOrder(order.id, {
+        status: "failed_delivery",
+        failureReason: input.failureReason,
+        failureNotes: input.failureNotes ?? null,
+      });
+
+      await setProviderActiveOrder(input.providerId, null);
+      const assignment = await getActiveAssignment(order.id);
+      if (assignment) {
+        await updateAssignment(assignment.id, { status: "completed", respondedAt: new Date() });
+      }
+
+      return { success: true };
+    }),
+
+  /**
+   * Provider requests reschedule for a failed order.
+   * Re-enters the assignment flow and tries the next provider.
+   */
+  rescheduleFailedOrder: publicProcedure
+    .input(z.object({ orderId: z.number(), providerId: z.number(), pinHash: z.string() }))
+    .mutation(async ({ input }) => {
+      await assertPin(input.providerId, input.pinHash);
+      const order = await getOrderById(input.orderId);
+      if (!order) throw new TRPCError({ code: "NOT_FOUND" });
+      if (order.assignedProviderId !== input.providerId) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      assertOrderTransition(order.status, "pending");
+
+      const currentRejected: number[] = Array.isArray(order.rejectedProviderIds)
+        ? (order.rejectedProviderIds as number[])
+        : [];
+      const updatedRejected = Array.from(new Set([...currentRejected, input.providerId]));
+
+      await updateOrder(order.id, {
+        status: "pending",
+        assignedProviderId: null,
+        rejectedProviderIds: updatedRejected as unknown as null,
+        failureReason: null,
+        failureNotes: null,
+      });
+
+      await setProviderActiveOrder(input.providerId, null);
+      await doAssignNext(order.id);
 
       return { success: true };
     }),
@@ -831,7 +932,7 @@ export const providersRouter = router({
     .query(async ({ input }) => {
       const order = await getOrderById(input.orderId);
       if (!order || !order.assignedProviderId) return null;
-      if (order.status !== "out_for_delivery" && order.status !== "accepted") return null;
+      if (order.status !== "out_for_delivery" && order.status !== "accepted" && order.status !== "arrived") return null;
       const loc = await getProviderLocation(order.assignedProviderId);
       if (!loc) return null;
       return { lat: loc.lat, lng: loc.lng, updatedAt: loc.updatedAt };

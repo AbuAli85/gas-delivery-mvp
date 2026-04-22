@@ -34,7 +34,9 @@ export default function AdminPanel() {
     { value: "assigned", label: lang === "en" ? "Assigned" : "مُسنَد" },
     { value: "accepted", label: lang === "en" ? "Accepted" : "مقبول" },
     { value: "out_for_delivery", label: lang === "en" ? "On the Way" : "في الطريق" },
+    { value: "arrived", label: lang === "en" ? "Arrived" : "وصل" },
     { value: "delivered", label: lang === "en" ? "Delivered" : "مُسلَّم" },
+    { value: "failed_delivery", label: lang === "en" ? "Failed" : "فشل التوصيل" },
     { value: "cancelled", label: lang === "en" ? "Cancelled" : "ملغي" },
   ];
 
@@ -44,7 +46,9 @@ export default function AdminPanel() {
     assigned: "bg-blue-100 text-blue-700",
     accepted: "bg-indigo-100 text-indigo-700",
     out_for_delivery: "bg-violet-100 text-violet-700",
+    arrived: "bg-amber-100 text-amber-700",
     delivered: "bg-emerald-100 text-emerald-700",
+    failed_delivery: "bg-red-100 text-red-700",
     cancelled: "bg-red-100 text-red-600",
   };
 
@@ -56,7 +60,7 @@ export default function AdminPanel() {
     ? {
         draft: "Draft", pending: "Pending", assigned: "Assigned",
         accepted: "Accepted", out_for_delivery: "On the Way",
-        delivered: "Delivered", cancelled: "Cancelled",
+        arrived: "Arrived", delivered: "Delivered", failed_delivery: "Failed Delivery", cancelled: "Cancelled",
       }
     : ORDER_STATUS_LABELS;
 
