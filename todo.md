@@ -729,6 +729,13 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Fix sw.js: bumped cache to `owaseel-v3`, excluded Vite dev assets (`?v=` query params, `/@fs/`) from caching, force-reload clients on SW takeover
 - [x] Fix main.tsx: added `controllerchange` listener to auto-reload page when new SW takes over
 
+## إصلاح شريط التنقل السفلي (Apr 22, 2026)
+- [x] إصلاح زر "طلباتي" ليفتح تبويب الطلبات مباشرة في CustomerProfile
+- [x] إصلاح الحالة النشطة للشريط عند التنقل بين الصفحات
+- [x] إصلاح ارتفاع الشريط ليكون 64px مع حشو آمن للأجهزة
+- [x] التحقق من عدم تداخل المحتوى مع الشريط في جميع الصفحات الثلاث
+- [x] تحسين تصميم الشريط (حجم الأيقونات، الخط، الألوان)
+
 ## مراجعة التصميم والتنقل الشاملة (Apr 22, 2026)
 - [x] جولة بصرية على جميع الصفحات وتوثيق مشاكل التصميم والتنقل
 - [x] إصلاح مشاكل التنسيق والخطوط والتصميم

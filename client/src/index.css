@@ -202,8 +202,9 @@
   }
 
   /* Pages with bottom nav need extra padding so content isn't hidden behind it */
+  /* 64px nav + 8px breathing room + safe-area-inset-bottom for notched phones */
   .has-bottom-nav {
-    padding-bottom: 68px;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
 
   /* Subtle shadow on desktop to give phone-frame feel */

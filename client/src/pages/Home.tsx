@@ -64,8 +64,8 @@ export default function Home() {
       {/* ── PWA Install Banner ── */}
       {showInstallBanner && (
         <div
-          className="fixed bottom-20 left-4 right-4 z-50 rounded-3xl shadow-2xl p-4 flex items-center gap-3"
-          style={{ background: "oklch(0.14 0 0)", border: "1px solid oklch(0.53 0.22 27 / 0.4)" }}
+          className="fixed left-4 right-4 z-50 rounded-3xl shadow-2xl p-4 flex items-center gap-3"
+          style={{ bottom: "calc(72px + env(safe-area-inset-bottom, 0px))", background: "oklch(0.14 0 0)", border: "1px solid oklch(0.53 0.22 27 / 0.4)" }}
         >
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: "oklch(0.53 0.22 27)" }}>
             <Download className="w-5 h-5 text-white" />

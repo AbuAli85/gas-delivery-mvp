@@ -4,7 +4,7 @@
  * Route: /customer/profile
  */
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import {
   User, Package, Gift, Users, ChevronLeft, ChevronRight,
   Copy, Check, Share2, LogOut, Edit3, Save, X
@@ -40,8 +40,26 @@ export default function CustomerProfile() {
   const customerPhone = getCustomerPhone();
   const customerToken = getCustomerToken();
 
-  const [activeTab, setActiveTab] = useState<"profile" | "orders" | "offers" | "referrals">("profile");
+  // Support deep-linking from bottom nav: /customer/profile?tab=orders
+  const search = useSearch();
+  const initialTab = (() => {
+    const p = new URLSearchParams(search).get("tab");
+    if (p === "orders" || p === "offers" || p === "referrals") return p;
+    return "profile";
+  })() as "profile" | "orders" | "offers" | "referrals";
+
+  const [activeTab, setActiveTab] = useState<"profile" | "orders" | "offers" | "referrals">(initialTab);
   const [editing, setEditing] = useState(false);
+
+  // Sync tab when URL query param changes (e.g. back-nav from bottom bar)
+  useEffect(() => {
+    const p = new URLSearchParams(search).get("tab");
+    if (p === "orders" || p === "offers" || p === "referrals") {
+      setActiveTab(p);
+    } else if (!p) {
+      setActiveTab("profile");
+    }
+  }, [search]);
   const [copied, setCopied] = useState(false);
   const [editForm, setEditForm] = useState({ name: "", email: "", customerType: "individual" as "individual" | "restaurant" | "business" });
 
@@ -218,7 +236,11 @@ export default function CustomerProfile() {
           return (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab);
+                // Keep URL in sync so bottom nav active state reflects current tab
+                navigate(`/customer/profile?tab=${tab}`, { replace: true });
+              }}
               className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors ${
                 activeTab === tab
                   ? "border-orange-500 text-orange-600"
