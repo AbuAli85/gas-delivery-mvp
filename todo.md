@@ -60,7 +60,7 @@
 - [x] Single active assignment invariant
 - [x] Rejection reassignment chain (3 providers → null)
 - [x] Auth logout test (preserved)
-- [x] Total: **84** Vitest cases in `server/**/*.test.ts` (verify: `rg "^\s*it\(" server -g "*.test.ts"` → 84 matches)
+- [x] Total: **87** Vitest cases in `server/**/*.test.ts` (verify: `rg "^\s*it\(" server -g "*.test.ts"` → 87 matches)
 
 ## Phase 7: Polish & Delivery
 - [x] Mobile-first CSS: max-w-md centered, large touch targets ≥48px
@@ -127,7 +127,7 @@
 - [x] Performance panel: delivered / accepted / rejected stats
 - [x] Low acceptance rate warning (< 60% with >= 5 orders)
 
-### Tests (Vitest — 84 cases in `server/*.test.ts` as of Apr 2026; includes Phase 2 coverage below)
+### Tests (Vitest — 87 cases in `server/*.test.ts` as of Apr 2026; includes Phase 2 coverage below)
 - [x] Payment method domain logic (cash/online/bank_transfer)
 - [x] Commission calculation + accumulation + 3-decimal formatting
 - [x] providerCommissionStatus transitions (unpaid → pending_settlement → settled)
@@ -162,7 +162,7 @@
 - [x] OrderSummary edit button → back to LocationPicker
 - [x] Home CTA navigates to /order/location
 
-### Tests (same Vitest suite as Phase 6 — flexible delivery + location tests counted in the 84 total)
+### Tests (same Vitest suite as Phase 6 — flexible delivery + location tests counted in the 87 total)
 - [x] Zone resolution uses delivery coords (not ordering coords)
 - [x] Returns null for coords outside Muscat
 - [x] Different zones for different delivery locations
@@ -614,7 +614,7 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] Fix: moved setProviderActiveOrder call from doAssignNext to acceptOrder procedure
 - [x] Fix: cleaned stale 'pending' assignments for delivered/cancelled orders in DB
 - [x] Fix: cleared stale activeOrderId for providers whose orders were already delivered
-- [x] All **84** Vitest cases passing in `server/*.test.ts` (verify: `rg "^\s*it\(" server -g "*.test.ts"`)
+- [x] All **87** Vitest cases passing in `server/*.test.ts` (verify: `rg "^\s*it\(" server -g "*.test.ts"`)
 
 ## Performance: Database Indexing (COMPLETE — Apr 22, 2026)
 - [x] Migration `0015_fast_path_indexes.sql` (MySQL-compatible; no partial-index `WHERE` clauses)
@@ -669,7 +669,7 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] CustomerProfile order history shows gasAmount
 - [x] OrderPlaced shows cylinder count when > 1
 - [x] getOrderStatus returns gasAmount
-- [x] All **84** tests passing in `server/*.test.ts` (verify: `rg "^\s*it\(" server -g "*.test.ts"`)
+- [x] All **87** tests passing in `server/*.test.ts` (verify: `rg "^\s*it\(" server -g "*.test.ts"`)
 
 ## End-to-End Order Lifecycle Audit & Fixes (Apr 21, 2026)
 - [x] Fix getIncomingOrder to return deliveryLat/Lng/Address, customerName, paymentMethod
@@ -756,3 +756,10 @@ Each wilayat may have different provider availability, so we need sub-zone granu
 - [x] التحقق من اتساق الخطوط والمسافات في جميع الصفحات
 - [x] إصلاح أي صفحة مسدودة (dead end) بدون طريق للخروج
 - [x] التحقق من عمل جميع روابط التنقل في الصفحة الرئيسية
+
+## Security Hardening: Customer Admin Endpoints (Apr 22, 2026)
+- [x] Protect `customers.adminGetStats` with required server-side `adminPin` validation
+- [x] Protect `customers.adminListOffers` with required server-side `adminPin` validation
+- [x] Protect `customers.adminCreateOffer` with required server-side `adminPin` validation
+- [x] Protect `customers.adminToggleOffer` with required server-side `adminPin` validation
+- [x] Update `AdminPanel` client calls to send `adminPin` for all customer admin procedures

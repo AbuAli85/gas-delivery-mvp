@@ -67,6 +67,12 @@ async function addPoints(db: DbType, customerId: number, pts: number) {
     .where(eq(customers.id, customerId));
 }
 
+function assertAdminPin(adminPin: string): void {
+  if (adminPin !== ADMIN_PIN) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "رمز الإدارة غير صحيح." });
+  }
+}
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 export const customersRouter = router({
@@ -352,9 +358,9 @@ export const customersRouter = router({
   // ── Admin Procedures ───────────────────────────────────────────────────────
 
   adminGetStats: publicProcedure
-    .input(z.object({ adminPin: z.string().optional() }).optional())
+    .input(z.object({ adminPin: z.string() }))
     .query(async ({ input }) => {
-      // Note: admin pin check is done on the client side via the existing pattern
+      assertAdminPin(input.adminPin);
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
@@ -424,15 +430,19 @@ export const customersRouter = router({
       };
     }),
 
-  adminListOffers: publicProcedure.query(async () => {
-    const db = await getDb();
-    if (!db) return [];
-    return db.select().from(customerOffers).orderBy(desc(customerOffers.createdAt));
-  }),
+  adminListOffers: publicProcedure
+    .input(z.object({ adminPin: z.string() }))
+    .query(async ({ input }) => {
+      assertAdminPin(input.adminPin);
+      const db = await getDb();
+      if (!db) return [];
+      return db.select().from(customerOffers).orderBy(desc(customerOffers.createdAt));
+    }),
 
   adminCreateOffer: publicProcedure
     .input(
       z.object({
+        adminPin: z.string(),
         title: z.string().min(1),
         titleAr: z.string().min(1),
         discountType: z.enum(["percentage", "fixed", "free_delivery"]),
@@ -442,6 +452,7 @@ export const customersRouter = router({
       })
     )
     .mutation(async ({ input }) => {
+      assertAdminPin(input.adminPin);
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
       await db.insert(customerOffers).values({
@@ -456,8 +467,9 @@ export const customersRouter = router({
     }),
 
   adminToggleOffer: publicProcedure
-    .input(z.object({ offerId: z.number(), isActive: z.boolean() }))
+    .input(z.object({ adminPin: z.string(), offerId: z.number(), isActive: z.boolean() }))
     .mutation(async ({ input }) => {
+      assertAdminPin(input.adminPin);
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
       await db

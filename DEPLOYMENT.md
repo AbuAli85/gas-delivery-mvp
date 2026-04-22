@@ -18,7 +18,7 @@ bash scripts/pre-launch-check.sh
 
 **What it runs (stops on first hard failure):**
 
-1. `npm test` — Vitest suite (expect **84** cases under `server/**/*.test.ts`)
+1. `npm test` — Vitest suite (expect **87** cases under `server/**/*.test.ts`)
 2. `npm run check` — TypeScript `--noEmit`
 3. `npm run build` — Vite client + server bundle
 4. **Env:** requires `DATABASE_URL` and `JWT_SECRET` (from the shell or a sourced `.env`). Warns if `ADMIN_PIN` is missing or `1234`, and if `FIREBASE_WEB_API_KEY` is missing.
@@ -40,7 +40,7 @@ Implementation: `scripts/pre-launch-check.sh`. Use this before `npx drizzle-kit 
 
 ### 1. Code quality
 
-- [ ] All tests pass: `npm test` (expect **84** Vitest cases in `server/**/*.test.ts`; verify with `rg "^\s*it\(" server -g "*.test.ts"`)
+- [ ] All tests pass: `npm test` (expect **87** Vitest cases in `server/**/*.test.ts`; verify with `rg "^\s*it\(" server -g "*.test.ts"`)
 - [ ] No TypeScript errors: `npm run check`
 - [ ] No blocking errors in browser DevTools on staging
 - [ ] **PWA**: install + core flows on **iOS Safari** and **Android Chrome** against your HTTPS URL

@@ -83,12 +83,12 @@ export default function AdminPanel() {
   );
 
   const customerStats = trpc.customers.adminGetStats.useQuery(
-    undefined,
+    { adminPin: enteredPin ?? "" },
     { enabled: !!enteredPin && activeTab === "customers", retry: false }
   );
 
   const offersQuery = trpc.customers.adminListOffers.useQuery(
-    undefined,
+    { adminPin: enteredPin ?? "" },
     { enabled: !!enteredPin && activeTab === "customers", retry: false }
   );
 
@@ -378,7 +378,7 @@ export default function AdminPanel() {
                       <input type="number" value={newOffer.pointsCost} onChange={e => setNewOffer(p => ({...p, pointsCost: parseInt(e.target.value) || 0}))} placeholder={lang === "en" ? "Points" : "نقاط"} className="w-20 border rounded-lg px-2 py-2 text-xs" />
                     </div>
                     <button
-                      onClick={() => createOffer.mutate(newOffer)}
+                      onClick={() => createOffer.mutate({ adminPin: enteredPin!, ...newOffer })}
                       disabled={!newOffer.title || !newOffer.titleAr || createOffer.isPending}
                       className="w-full py-2 rounded-lg text-xs font-bold text-white bg-orange-500 disabled:opacity-50"
                     >
@@ -394,7 +394,7 @@ export default function AdminPanel() {
                           <p className="text-xs text-gray-400">{offer.discountType === "percentage" ? `${offer.discountValue}%` : offer.discountType === "fixed" ? `OMR ${offer.discountValue}` : t("admin.offers.free.delivery")}</p>
                         </div>
                         <button
-                          onClick={() => toggleOffer.mutate({ offerId: offer.id, isActive: !offer.isActive })}
+                          onClick={() => toggleOffer.mutate({ adminPin: enteredPin!, offerId: offer.id, isActive: !offer.isActive })}
                           className={`text-xs font-bold px-3 py-1.5 rounded-lg ${offer.isActive ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-400"}`}
                         >
                           {offer.isActive ? t("admin.offers.active") : t("admin.offers.inactive")}
