@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useLocation } from "wouter";
 import { toast } from "sonner";
 import {
@@ -14,12 +14,13 @@ import { trpc } from "@/lib/trpc";
 import { getStoredPinHash, clearPinHash } from "@/lib/pinStorage";
 import { WorkingHoursEditor } from "@/components/WorkingHoursEditor";
 import { ProviderMapView } from "./ProviderMapView";
-// MapView replaced with static map for mission screen
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type Tab = "home" | "map" | "history" | "settings";
 
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
+function StatusBadge({ status, lang }: { status: string; lang: string }) {
+  const mapAr: Record<string, { label: string; cls: string }> = {
     delivered:        { label: "تم التوصيل",   cls: "bg-emerald-500/20 text-emerald-300" },
     cancelled:        { label: "ملغي",          cls: "bg-red-500/20 text-red-300" },
     out_for_delivery: { label: "جارٍ التوصيل", cls: "bg-violet-500/20 text-violet-300" },
@@ -28,6 +29,16 @@ function StatusBadge({ status }: { status: string }) {
     expired:          { label: "منتهي",         cls: "bg-gray-500/20 text-gray-400" },
     rejected:         { label: "مرفوض",         cls: "bg-red-500/20 text-red-300" },
   };
+  const mapEn: Record<string, { label: string; cls: string }> = {
+    delivered:        { label: "Delivered",     cls: "bg-emerald-500/20 text-emerald-300" },
+    cancelled:        { label: "Cancelled",     cls: "bg-red-500/20 text-red-300" },
+    out_for_delivery: { label: "On the Way",    cls: "bg-violet-500/20 text-violet-300" },
+    accepted:         { label: "Accepted",      cls: "bg-blue-500/20 text-blue-300" },
+    pending:          { label: "Pending",       cls: "bg-yellow-500/20 text-yellow-300" },
+    expired:          { label: "Expired",       cls: "bg-gray-500/20 text-gray-400" },
+    rejected:         { label: "Rejected",      cls: "bg-red-500/20 text-red-300" },
+  };
+  const map = lang === "en" ? mapEn : mapAr;
   const info = map[status] ?? { label: status, cls: "bg-gray-500/20 text-gray-400" };
   return (
     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${info.cls}`}>
@@ -51,13 +62,14 @@ function StatCard({ icon, value, label, accent }: {
   );
 }
 
-const ACCEPT_WINDOW_SEC = 5 * 60; // 5 minutes — matches server-side expiry
+const ACCEPT_WINDOW_SEC = 5 * 60;
 
 function IncomingOrderCard({
-  incoming, onAccept, onReject, accepting, rejecting,
+  incoming, onAccept, onReject, accepting, rejecting, t, lang,
 }: {
   incoming: { orderId: number; assignmentId: number; customerPhone: string | null; customerAddress: string | null; deliveryAddress?: string | null; customerName?: string | null; gasAmount: string; totalPrice: string; assignmentCreatedAt?: Date | string | null };
   onAccept: () => void; onReject: () => void; accepting: boolean; rejecting: boolean;
+  t: (key: string) => string; lang: string;
 }) {
   const calcRemaining = () => {
     if (!incoming.assignmentCreatedAt) return ACCEPT_WINDOW_SEC;
@@ -66,10 +78,15 @@ function IncomingOrderCard({
   };
   const [countdown, setCountdown] = useState(calcRemaining);
   useEffect(() => {
-    const t = setInterval(() => setCountdown(calcRemaining()), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setCountdown(calcRemaining()), 1000);
+    return () => clearInterval(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incoming.assignmentCreatedAt]);
+
+  const gasAmt = parseFloat(incoming.gasAmount);
+  const cylinderLabel = gasAmt === 1
+    ? t("provider.incoming.cylinder.single")
+    : t("provider.incoming.cylinder.plural");
 
   return (
     <div
@@ -83,7 +100,7 @@ function IncomingOrderCard({
       <div className="flex items-center justify-between px-4 py-2" style={{ background: "oklch(0.62 0.22 27)" }}>
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-white animate-pulse" />
-          <span className="text-white font-bold text-sm">طلب جديد!</span>
+          <span className="text-white font-bold text-sm">{t("provider.incoming.new")}</span>
         </div>
         <div className="flex items-center gap-1">
           <Clock className="w-3.5 h-3.5 text-white/80" />
@@ -102,7 +119,7 @@ function IncomingOrderCard({
           </div>
           {incoming.customerName && (
             <div className="flex items-center gap-2">
-              <span className="text-white/40 text-xs">العميل:</span>
+              <span className="text-white/40 text-xs">{t("provider.incoming.customer")}</span>
               <span className="text-white/70 text-sm font-medium">{incoming.customerName}</span>
             </div>
           )}
@@ -110,7 +127,7 @@ function IncomingOrderCard({
             <Package className="w-4 h-4 text-white/40 shrink-0" />
             <span className="text-white/80 text-sm">
               <strong className="text-white">{incoming.gasAmount}</strong>{" "}
-              {parseFloat(incoming.gasAmount) === 1 ? "أسطوانة" : "أسطوانات"}{" · "}
+              {cylinderLabel}{" · "}
               <strong className="text-orange-300">OMR {parseFloat(incoming.totalPrice).toFixed(3)}</strong>
             </span>
           </div>
@@ -128,14 +145,14 @@ function IncomingOrderCard({
             onClick={onAccept}
             disabled={accepting || rejecting}
           >
-            {accepting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4 ml-1" />قبول</>}
+            {accepting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className={`w-4 h-4 ${lang === "ar" ? "ml-1" : "mr-1"}`} />{t("provider.incoming.accept")}</>}
           </Button>
           <Button
             className="h-12 rounded-2xl font-bold text-sm border border-red-500/30 text-red-400 bg-transparent hover:bg-red-500/10"
             onClick={onReject}
             disabled={accepting || rejecting}
           >
-            {rejecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><XCircle className="w-4 h-4 ml-1" />رفض</>}
+            {rejecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><XCircle className={`w-4 h-4 ${lang === "ar" ? "ml-1" : "mr-1"}`} />{t("provider.incoming.reject")}</>}
           </Button>
         </div>
       </div>
@@ -144,7 +161,7 @@ function IncomingOrderCard({
 }
 
 function MissionScreen({
-  order, onStartDelivery, onDeliver, starting, delivering,
+  order, onStartDelivery, onDeliver, starting, delivering, t, lang,
 }: {
   order: {
     orderId: number; assignmentId: number | null; customerPhone: string | null;
@@ -157,16 +174,16 @@ function MissionScreen({
   onStartDelivery: () => void;
   onDeliver: (note?: string) => void;
   starting: boolean; delivering: boolean;
+  t: (key: string) => string; lang: string;
 }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [note, setNote] = useState("");
   const [elapsed, setElapsed] = useState(0);
 
-  // Mission timer
   useEffect(() => {
     const start = order.acceptedAt ? new Date(order.acceptedAt).getTime() : Date.now();
-    const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(timer);
   }, [order.acceptedAt]);
 
   const fmtTime = (s: number) => {
@@ -175,7 +192,6 @@ function MissionScreen({
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
 
-  // Prefer deliveryLat/deliveryLng (actual delivery point) over customerLat/customerLng
   const lat = order.deliveryLat ?? order.customerLat ?? 23.5880;
   const lng = order.deliveryLng ?? order.customerLng ?? 58.3829;
   const hasCoords = !!(lat !== 23.5880 || lng !== 58.3829) && !!(order.deliveryLat ?? order.customerLat);
@@ -186,15 +202,24 @@ function MissionScreen({
   const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
   const wazeUrl = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
 
-  const pmLabel: Record<string, string> = { cash: "نقداً", online: "أونلاين", bank_transfer: "تحويل بنكي" };
+  const pmLabel: Record<string, string> = {
+    cash: t("provider.payment.cash"),
+    online: t("provider.payment.online"),
+    bank_transfer: t("provider.payment.transfer"),
+  };
   const pmColor: Record<string, string> = { cash: "text-emerald-400", online: "text-blue-400", bank_transfer: "text-purple-400" };
 
   const steps = [
-    { key: "accepted", label: "تم القبول", icon: <CheckCircle2 className="w-4 h-4" /> },
-    { key: "out_for_delivery", label: "في الطريق", icon: <Truck className="w-4 h-4" /> },
-    { key: "delivered", label: "تم التوصيل", icon: <CheckCircle2 className="w-4 h-4" /> },
+    { key: "accepted", label: t("provider.mission.step.accepted"), icon: <CheckCircle2 className="w-4 h-4" /> },
+    { key: "out_for_delivery", label: t("provider.mission.step.on_way"), icon: <Truck className="w-4 h-4" /> },
+    { key: "delivered", label: t("provider.mission.step.delivered"), icon: <CheckCircle2 className="w-4 h-4" /> },
   ];
   const stepIndex = steps.findIndex(s => s.key === order.status);
+
+  const gasAmt = parseFloat(order.gasAmount);
+  const cylinderLabel = gasAmt === 1
+    ? t("provider.incoming.cylinder.single")
+    : t("provider.incoming.cylinder.plural");
 
   return (
     <div className="space-y-3">
@@ -210,7 +235,7 @@ function MissionScreen({
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
           <div className="flex items-center gap-2">
             <Truck className="w-4 h-4 text-orange-400" />
-            <span className="text-white font-bold text-sm">مهمة #{order.orderId}</span>
+            <span className="text-white font-bold text-sm">{t("provider.mission.prefix")}{order.orderId}</span>
           </div>
           <div className="flex items-center gap-2">
             <Clock className="w-3.5 h-3.5 text-orange-300" />
@@ -226,10 +251,7 @@ function MissionScreen({
               const active = i === stepIndex;
               return (
                 <div key={step.key} className="flex items-center" style={{ flex: i < steps.length - 1 ? "1" : "0" }}>
-                  <div
-                    className="flex flex-col items-center gap-1"
-                    style={{ minWidth: 56 }}
-                  >
+                  <div className="flex flex-col items-center gap-1" style={{ minWidth: 56 }}>
                     <div
                       className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
                       style={{
@@ -265,12 +287,12 @@ function MissionScreen({
         >
           <img
             src={`/api/maps/maps/api/staticmap?center=${lat},${lng}&zoom=15&size=600x300&scale=2&maptype=roadmap&markers=color:red%7Clabel:C%7C${lat},${lng}&style=element:geometry%7Ccolor:0x212121&style=element:labels.icon%7Cvisibility:off&style=element:labels.text.fill%7Ccolor:0x757575&style=element:labels.text.stroke%7Ccolor:0x212121&style=feature:road%7Celement:geometry%7Ccolor:0x484848&style=feature:water%7Celement:geometry%7Ccolor:0x000000`}
-            alt="موقع العميل"
+            alt={t("provider.mission.map.alt")}
             className="w-full h-full object-cover"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
           <div className="absolute bottom-2 right-2 bg-black/70 rounded-xl px-2 py-1">
-            <span className="text-white/70 text-xs">موقع العميل</span>
+            <span className="text-white/70 text-xs">{t("provider.mission.map.alt")}</span>
           </div>
         </div>
       )}
@@ -296,7 +318,7 @@ function MissionScreen({
               style={{ background: "oklch(0.45 0.18 145 / 0.2)", border: "1px solid oklch(0.45 0.18 145 / 0.4)" }}
             >
               <Phone className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-emerald-400">اتصال</span>
+              <span className="text-emerald-400">{t("provider.mission.call")}</span>
             </a>
           )}
         </div>
@@ -310,7 +332,7 @@ function MissionScreen({
               <MapPin className="w-4 h-4 text-orange-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white/40 text-xs mb-0.5">العنوان</p>
+              <p className="text-white/40 text-xs mb-0.5">{t("provider.mission.address.label")}</p>
               <p className="text-white/80 text-sm leading-snug">{displayAddr}</p>
             </div>
           </div>
@@ -322,9 +344,9 @@ function MissionScreen({
             <Package className="w-4 h-4 text-white/40" />
           </div>
           <div className="flex-1">
-            <p className="text-white/40 text-xs mb-0.5">الطلب</p>
+            <p className="text-white/40 text-xs mb-0.5">{t("provider.mission.order.label")}</p>
             <p className="text-white text-sm">
-              <strong>{order.gasAmount}</strong> {parseFloat(order.gasAmount) === 1 ? "أسطوانة" : "أسطوانات"}
+              <strong>{order.gasAmount}</strong> {cylinderLabel}
               <span className="text-white/40 mx-1">·</span>
               <strong className="text-orange-300">OMR {parseFloat(order.totalPrice).toFixed(3)}</strong>
             </p>
@@ -371,7 +393,7 @@ function MissionScreen({
           onClick={onStartDelivery}
           disabled={starting}
         >
-          {starting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Truck className="w-5 h-5 ml-2" />بدء التوصيل — الآن في الطريق</>}
+          {starting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Truck className={`w-5 h-5 ${lang === "ar" ? "ml-2" : "mr-2"}`} />{t("provider.mission.start")}</>}
         </Button>
       )}
 
@@ -381,7 +403,7 @@ function MissionScreen({
           style={{ background: "oklch(0.45 0.18 145)", boxShadow: "0 4px 20px oklch(0.45 0.18 145 / 0.4)" }}
           onClick={() => setShowConfirm(true)}
         >
-          <CheckCircle2 className="w-5 h-5 ml-2" />تأكيد التوصيل
+          <CheckCircle2 className={`w-5 h-5 ${lang === "ar" ? "ml-2" : "mr-2"}`} />{t("provider.mission.confirm.delivery")}
         </Button>
       )}
 
@@ -393,7 +415,7 @@ function MissionScreen({
         >
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-emerald-400" />
-            <p className="text-white font-bold text-sm">تأكيد إتمام التوصيل</p>
+            <p className="text-white font-bold text-sm">{t("provider.mission.confirm.title")}</p>
           </div>
           <div
             className="rounded-2xl overflow-hidden"
@@ -401,16 +423,16 @@ function MissionScreen({
           >
             <div className="flex items-center gap-2 px-3 pt-3 pb-1">
               <MessageSquare className="w-3.5 h-3.5 text-white/30" />
-              <p className="text-white/40 text-xs">ملاحظة للإدارة (اختياري)</p>
+              <p className="text-white/40 text-xs">{t("provider.mission.note.label")}</p>
             </div>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="مثال: العميل لم يكن موجوداً، تركت الأسطوانة عند الباب..."
+              placeholder={t("provider.mission.note.placeholder")}
               className="w-full bg-transparent text-white text-sm px-3 pb-3 resize-none outline-none placeholder:text-white/20"
               rows={3}
               maxLength={500}
-              dir="rtl"
+              dir={lang === "ar" ? "rtl" : "ltr"}
             />
           </div>
           <div className="flex gap-2">
@@ -419,7 +441,7 @@ function MissionScreen({
               className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white/50"
               style={{ background: "rgba(255,255,255,0.05)" }}
             >
-              إلغاء
+              {t("provider.mission.cancel")}
             </button>
             <Button
               className="flex-1 h-12 rounded-2xl font-black text-white"
@@ -427,7 +449,7 @@ function MissionScreen({
               onClick={() => { onDeliver(note || undefined); setShowConfirm(false); }}
               disabled={delivering}
             >
-              {delivering ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4 ml-1.5" />تأكيد</>}
+              {delivering ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className={`w-4 h-4 ${lang === "ar" ? "ml-1.5" : "mr-1.5"}`} />{t("provider.mission.confirm.btn")}</>}
             </Button>
           </div>
         </div>
@@ -437,6 +459,7 @@ function MissionScreen({
 }
 
 export default function ProviderDashboard() {
+  const { t, dir, lang } = useLanguage();
   const { providerId } = useParams<{ providerId: string }>();
   const [, navigate] = useLocation();
   const id = parseInt(providerId ?? "0", 10);
@@ -450,9 +473,7 @@ export default function ProviderDashboard() {
 
   const utils = trpc.useUtils();
 
-  // Push notifications
   const [pushSubscribed, setPushSubscribed] = useState(false);
-  // PIN change state
   const [showPinChange, setShowPinChange] = useState(false);
   const [pinChangeStep, setPinChangeStep] = useState<"current" | "new" | "confirm">("current");
   const [currentPinDigits, setCurrentPinDigits] = useState(["" ,"","",""]);
@@ -465,7 +486,7 @@ export default function ProviderDashboard() {
     if (!vapidData?.publicKey) return;
     try {
       const permission = await Notification.requestPermission();
-      if (permission !== "granted") { toast.error("لم يتم منح إذن الإشعارات"); return; }
+      if (permission !== "granted") { toast.error(t("provider.settings.notifications.error")); return; }
       const reg = await navigator.serviceWorker.register("/sw.js");
       await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({
@@ -480,9 +501,9 @@ export default function ProviderDashboard() {
         auth: json.keys?.auth ?? "",
       });
       setPushSubscribed(true);
-      toast.success("تم تفعيل الإشعارات!");
-    } catch { toast.error("فشل تفعيل الإشعارات"); }
-  }, [vapidData, id, pinHash, savePushSub]);
+      toast.success(t("provider.settings.notifications.success"));
+    } catch { toast.error(t("provider.settings.notifications.fail")); }
+  }, [vapidData, id, pinHash, savePushSub, t]);
 
   useEffect(() => {
     if (!navigator.serviceWorker) return;
@@ -493,7 +514,6 @@ export default function ProviderDashboard() {
     });
   }, []);
 
-  // Location tracking
   const locationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const updateLocation = trpc.providers.updateLocation.useMutation();
 
@@ -515,7 +535,6 @@ export default function ProviderDashboard() {
 
   useEffect(() => () => stopLocationUpdates(), [stopLocationUpdates]);
 
-  // Queries
   const { data: provider, isLoading: providerLoading } = trpc.providers.getById.useQuery(
     { providerId: id }, { enabled: !!id, refetchInterval: 15_000 }
   );
@@ -526,8 +545,6 @@ export default function ProviderDashboard() {
   const { data: activeOrders } = trpc.providers.getActiveOrders.useQuery(
     { providerId: id }, { enabled: !!id, refetchInterval: 8_000 }
   );
-  // backward-compat alias
-  const activeOrder = activeOrders?.[0] ?? null;
   const { data: history } = trpc.providers.getOrderHistory.useQuery(
     { providerId: id }, { enabled: !!id && activeTab === "history" }
   );
@@ -535,83 +552,74 @@ export default function ProviderDashboard() {
     { providerId: id }, { enabled: !!id }
   );
 
-  // Mutations
   const toggleAvailability = trpc.providers.toggleAvailability.useMutation({
     onSuccess: (data) => {
-      toast.success(data.isAvailable ? "أنت الآن متاح" : "أنت الآن غير متاح");
+      toast.success(data.isAvailable ? t("provider.toggle.available") : t("provider.toggle.unavailable"));
       utils.providers.getById.invalidate({ providerId: id });
     },
     onError: (err) => {
       if (err.data?.code === "UNAUTHORIZED") { clearPinHash(id); navigate(`/provider/${id}/login`); }
-      else toast.error("فشل تحديث الحالة");
+      else toast.error(t("provider.toggle.error"));
     },
   });
   const changePin = trpc.providers.changePin.useMutation({
     onSuccess: () => {
-      toast.success("تم تغيير الرمز بنجاح!");
+      toast.success(t("provider.settings.pin.success"));
       setShowPinChange(false);
       setPinChangeStep("current");
       setCurrentPinDigits(["","","",""]);
       setNewPinDigits(["","","",""]);
       setConfirmPinDigits(["","","",""]);
-      // Update stored PIN hash
-      const newHash = newPinDigits.join("");
-      if (newHash.length === 4) {
-        import("@/lib/pinStorage").then(({ storePinHash }) => {
-          // hash is already computed in the submit handler
-        });
-      }
     },
-    onError: (err) => toast.error(err.message || "فشل تغيير الرمز"),
+    onError: (err) => toast.error(err.message || t("provider.settings.pin.error.digits")),
   });
 
   const acceptOrder = trpc.providers.acceptOrder.useMutation({
     onSuccess: () => {
-      toast.success("تم قبول الطلب!");
+      toast.success(t("provider.accept.success"));
       utils.providers.getIncomingOrder.invalidate({ providerId: id });
       utils.providers.getActiveOrders.invalidate({ providerId: id });
     },
-    onError: (err) => toast.error(err.message || "فشل قبول الطلب"),
+    onError: (err) => toast.error(err.message || t("provider.accept.error")),
   });
   const rejectOrder = trpc.providers.rejectOrder.useMutation({
     onSuccess: () => {
-      toast.info("تم رفض الطلب.");
+      toast.info(t("provider.reject.success"));
       utils.providers.getIncomingOrder.invalidate({ providerId: id });
     },
-    onError: (err) => toast.error(err.message || "فشل رفض الطلب"),
+    onError: (err) => toast.error(err.message || t("provider.reject.error")),
   });
   const startDelivery = trpc.providers.startDelivery.useMutation({
     onSuccess: () => {
-      toast.success("بدأ التوصيل!");
+      toast.success(t("provider.start.success"));
       utils.providers.getActiveOrders.invalidate({ providerId: id });
       startLocationUpdates();
     },
-    onError: (err) => toast.error(err.message || "فشل بدء التوصيل"),
+    onError: (err) => toast.error(err.message || t("provider.start.error")),
   });
   const deliverOrder = trpc.providers.deliverOrder.useMutation({
     onSuccess: () => {
-      toast.success("تم التوصيل! عمل رائع.");
+      toast.success(t("provider.deliver.success"));
       utils.providers.getActiveOrders.invalidate({ providerId: id });
       utils.providers.getById.invalidate({ providerId: id });
-      // Stop location if no more active orders
       if ((activeOrders?.length ?? 0) <= 1) stopLocationUpdates();
     },
-    onError: (err) => toast.error(err.message || "فشل تأكيد التوصيل"),
+    onError: (err) => toast.error(err.message || t("provider.deliver.error")),
   });
 
   if (providerLoading) {
     return (
       <div className="mobile-screen items-center justify-center" style={{ background: "oklch(0.09 0 0)" }}>
         <Loader2 className="w-8 h-8 animate-spin text-orange-400" />
-        <p className="text-white/50 text-sm mt-3">جارٍ التحميل…</p>
+        <p className="text-white/50 text-sm mt-3">{t("provider.loading")}</p>
       </div>
     );
   }
   if (!provider) {
     return (
       <div className="mobile-screen items-center justify-center px-6 text-center" style={{ background: "oklch(0.09 0 0)" }}>
-        <p className="text-white font-semibold">المزود غير موجود</p>
-        <p className="text-white/40 text-sm mt-2">تحقق من الرابط وحاول مجدداً.</p>
+        <p className="text-white font-semibold">{t("provider.not.found")}</p>
+        <p className="text-white/40 text-sm mt-2">{t("provider.not.found.sub")}</p>
       </div>
     );
   }
@@ -623,8 +631,15 @@ export default function ProviderDashboard() {
   const commission = parseFloat(String(provider.totalCommission ?? "0")).toFixed(3);
   const avgRating = ratingStats?.avg ?? 0;
 
+  const pmLabelShort: Record<string, string> = {
+    cash: t("provider.payment.cash"),
+    online: t("provider.payment.online"),
+    bank_transfer: t("provider.payment.transfer.short"),
+  };
+  const pmColor: Record<string, string> = { cash: "text-emerald-400", online: "text-blue-400", bank_transfer: "text-purple-400" };
+
   return (
-    <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }}>
+    <div className="mobile-screen" style={{ background: "oklch(0.09 0 0)" }} dir={dir}>
 
       {/* Header */}
       <div
@@ -638,7 +653,7 @@ export default function ProviderDashboard() {
           <div className="flex items-center gap-3 min-w-0">
             <img
               src="/manus-storage/logo-orange-nobg_dc89f071.png"
-              alt="أو وصل"
+              alt={t("app.name")}
               className="h-8 w-auto object-contain shrink-0"
             />
             <div className="min-w-0">
@@ -646,34 +661,37 @@ export default function ProviderDashboard() {
             </div>
           </div>
 
-          {/* Availability toggle */}
-          <button
-            onClick={() => toggleAvailability.mutate({ providerId: id, pinHash: pinHash! })}
-            disabled={toggleAvailability.isPending}
-            className="flex items-center gap-2 rounded-full px-3 py-2 transition-all shrink-0"
-            style={{
-              background: provider.isAvailable ? "oklch(0.45 0.18 145 / 0.2)" : "rgba(255,255,255,0.07)",
-              border: provider.isAvailable ? "1px solid oklch(0.45 0.18 145 / 0.5)" : "1px solid rgba(255,255,255,0.12)",
-            }}
-          >
-            {toggleAvailability.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin text-white/50" />
-            ) : (
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{
-                  background: provider.isAvailable ? "oklch(0.65 0.18 145)" : "oklch(0.45 0 0)",
-                  boxShadow: provider.isAvailable ? "0 0 8px oklch(0.65 0.18 145 / 0.6)" : "none",
-                }}
-              />
-            )}
-            <span
-              className="text-xs font-bold"
-              style={{ color: provider.isAvailable ? "oklch(0.75 0.18 145)" : "rgba(255,255,255,0.4)" }}
+          <div className="flex items-center gap-2 shrink-0">
+            <LanguageSwitcher />
+            {/* Availability toggle */}
+            <button
+              onClick={() => toggleAvailability.mutate({ providerId: id, pinHash: pinHash! })}
+              disabled={toggleAvailability.isPending}
+              className="flex items-center gap-2 rounded-full px-3 py-2 transition-all"
+              style={{
+                background: provider.isAvailable ? "oklch(0.45 0.18 145 / 0.2)" : "rgba(255,255,255,0.07)",
+                border: provider.isAvailable ? "1px solid oklch(0.45 0.18 145 / 0.5)" : "1px solid rgba(255,255,255,0.12)",
+              }}
             >
-              {provider.isAvailable ? "متاح" : "غير متاح"}
-            </span>
-          </button>
+              {toggleAvailability.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin text-white/50" />
+              ) : (
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{
+                    background: provider.isAvailable ? "oklch(0.65 0.18 145)" : "oklch(0.45 0 0)",
+                    boxShadow: provider.isAvailable ? "0 0 8px oklch(0.65 0.18 145 / 0.6)" : "none",
+                  }}
+                />
+              )}
+              <span
+                className="text-xs font-bold"
+                style={{ color: provider.isAvailable ? "oklch(0.75 0.18 145)" : "rgba(255,255,255,0.4)" }}
+              >
+                {provider.isAvailable ? t("provider.available") : t("provider.unavailable")}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Stats row */}
@@ -681,26 +699,26 @@ export default function ProviderDashboard() {
           <StatCard
             icon={<Truck className="w-4 h-4 text-orange-400" />}
             value={String(provider.totalOrders ?? 0)}
-            label="توصيلة"
+            label={t("provider.stat.deliveries")}
             accent="bg-orange-500/15"
           />
           <StatCard
             icon={<TrendingUp className="w-4 h-4 text-blue-400" />}
             value={`${acceptRate}%`}
-            label="نسبة القبول"
+            label={t("provider.stat.acceptance")}
             accent="bg-blue-500/15"
           />
           <StatCard
             icon={<Wallet className="w-4 h-4 text-emerald-400" />}
             value={commission}
-            label="عمولة OMR"
+            label={t("provider.stat.commission")}
             accent="bg-emerald-500/15"
           />
           {avgRating > 0 && (
             <StatCard
               icon={<Star className="w-4 h-4 text-amber-400" />}
               value={avgRating.toFixed(1)}
-              label="التقييم"
+              label={t("provider.stat.rating")}
               accent="bg-amber-500/15"
             />
           )}
@@ -713,10 +731,10 @@ export default function ProviderDashboard() {
         style={{ background: "oklch(0.11 0 0)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
         {([
-          { id: "home" as Tab,     icon: <Home className="w-4 h-4" />,     label: "الرئيسية" },
-          { id: "map" as Tab,      icon: <Map className="w-4 h-4" />,      label: "الخريطة" },
-          { id: "history" as Tab,  icon: <History className="w-4 h-4" />,  label: "السجل" },
-          { id: "settings" as Tab, icon: <Settings className="w-4 h-4" />, label: "الإعدادات" },
+          { id: "home" as Tab,     icon: <Home className="w-4 h-4" />,     label: t("provider.tab.home") },
+          { id: "map" as Tab,      icon: <Map className="w-4 h-4" />,      label: t("provider.tab.map") },
+          { id: "history" as Tab,  icon: <History className="w-4 h-4" />,  label: t("provider.tab.history") },
+          { id: "settings" as Tab, icon: <Settings className="w-4 h-4" />, label: t("provider.tab.settings") },
         ] as const).map((tab) => (
           <button
             key={tab.id}
@@ -746,9 +764,10 @@ export default function ProviderDashboard() {
                 onReject={() => rejectOrder.mutate({ assignmentId: incoming.assignmentId, providerId: id, pinHash: pinHash! })}
                 accepting={acceptOrder.isPending}
                 rejecting={rejectOrder.isPending}
+                t={t}
+                lang={lang}
               />
             )}
-            {/* Multiple active orders — render each as a MissionScreen card */}
             {activeOrders && activeOrders.length > 0 && (
               <div className="space-y-3">
                 {activeOrders.length > 1 && (
@@ -758,7 +777,7 @@ export default function ProviderDashboard() {
                   >
                     <Flame className="w-4 h-4 text-orange-400 shrink-0" />
                     <span className="text-orange-300 font-bold text-sm">
-                      {activeOrders.length} طلبات نشطة — رتب حسب الأقدمية
+                      {activeOrders.length} {t("provider.multi.orders")}
                     </span>
                   </div>
                 )}
@@ -770,6 +789,8 @@ export default function ProviderDashboard() {
                     onDeliver={(note) => deliverOrder.mutate({ orderId: order.orderId, providerId: id, pinHash: pinHash!, providerNote: note })}
                     starting={startDelivery.isPending}
                     delivering={deliverOrder.isPending}
+                    t={t}
+                    lang={lang}
                   />
                 ))}
               </div>
@@ -780,7 +801,6 @@ export default function ProviderDashboard() {
                 style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.06)" }}
               >
                 {provider.isAvailable ? (
-                  /* Animated waiting state */
                   <div className="flex flex-col items-center">
                     <div className="relative mb-5">
                       <div
@@ -789,7 +809,6 @@ export default function ProviderDashboard() {
                       >
                         <Flame className="w-9 h-9 text-orange-400" style={{ animation: "pulse 2s ease-in-out infinite" }} />
                       </div>
-                      {/* Ripple rings */}
                       <div
                         className="absolute inset-0 rounded-full"
                         style={{
@@ -798,8 +817,8 @@ export default function ProviderDashboard() {
                         }}
                       />
                     </div>
-                    <p className="text-white font-bold text-base mb-1">في انتظار الطلبات…</p>
-                    <p className="text-white/40 text-sm">ستظهر الطلبات الجديدة هنا تلقائياً</p>
+                    <p className="text-white font-bold text-base mb-1">{t("provider.waiting.title")}</p>
+                    <p className="text-white/40 text-sm">{t("provider.waiting.subtitle")}</p>
                     <div className="flex items-center gap-1.5 mt-3">
                       {[0, 1, 2].map((i) => (
                         <div
@@ -811,7 +830,6 @@ export default function ProviderDashboard() {
                     </div>
                   </div>
                 ) : (
-                  /* Offline state */
                   <div className="flex flex-col items-center">
                     <div
                       className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
@@ -819,15 +837,15 @@ export default function ProviderDashboard() {
                     >
                       <Flame className="w-8 h-8 text-white/15" />
                     </div>
-                    <p className="text-white/70 font-semibold mb-1">أنت غير متاح حالياً</p>
-                    <p className="text-white/30 text-sm mb-4">فعّل التوافر لبدء استقبال الطلبات</p>
+                    <p className="text-white/70 font-semibold mb-1">{t("provider.offline.title")}</p>
+                    <p className="text-white/30 text-sm mb-4">{t("provider.offline.subtitle")}</p>
                     <button
                       onClick={() => toggleAvailability.mutate({ providerId: id, pinHash: pinHash! })}
                       disabled={toggleAvailability.isPending}
                       className="px-6 py-2.5 rounded-2xl text-sm font-bold text-white"
                       style={{ background: "oklch(0.62 0.22 27)" }}
                     >
-                      {toggleAvailability.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "تفعيل التوافر"}
+                      {toggleAvailability.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t("provider.offline.activate")}
                     </button>
                   </div>
                 )}
@@ -843,7 +861,7 @@ export default function ProviderDashboard() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Star className="w-4 h-4 text-amber-400" />
-                    <span className="text-white font-bold text-sm">التقييمات</span>
+                    <span className="text-white font-bold text-sm">{t("provider.ratings.title")}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <span className="text-amber-400 font-black text-lg">{ratingStats.avg.toFixed(1)}</span>
@@ -881,10 +899,10 @@ export default function ProviderDashboard() {
             <ProviderMapView providerId={id} />
           </div>
         )}
+
         {/* HISTORY TAB */}
         {activeTab === "history" && (
           <div className="p-4 space-y-3">
-            {/* Earnings summary */}
             {history && history.length > 0 && (() => {
               const delivered = history.filter(h => h?.status === "delivered");
               const totalEarned = delivered.reduce((s, h) => s + parseFloat(String(h?.totalPrice ?? "0")), 0);
@@ -898,19 +916,19 @@ export default function ProviderDashboard() {
                   style={{ background: "linear-gradient(135deg, oklch(0.16 0.06 27) 0%, oklch(0.13 0 0) 100%)", border: "1px solid rgba(255,150,50,0.15)" }}
                 >
                   <div className="flex-1 text-center">
-                    <p className="text-white/40 text-xs mb-1">اليوم</p>
+                    <p className="text-white/40 text-xs mb-1">{t("provider.history.today")}</p>
                     <p className="text-orange-300 font-black text-lg leading-tight">{todayEarned.toFixed(3)}</p>
                     <p className="text-white/30 text-xs">OMR</p>
                   </div>
                   <div className="w-px bg-white/10" />
                   <div className="flex-1 text-center">
-                    <p className="text-white/40 text-xs mb-1">إجمالي التوصيلات</p>
+                    <p className="text-white/40 text-xs mb-1">{t("provider.history.total.deliveries")}</p>
                     <p className="text-white font-black text-lg leading-tight">{delivered.length}</p>
-                    <p className="text-white/30 text-xs">طلب</p>
+                    <p className="text-white/30 text-xs">{t("provider.history.order")}</p>
                   </div>
                   <div className="w-px bg-white/10" />
                   <div className="flex-1 text-center">
-                    <p className="text-white/40 text-xs mb-1">الإجمالي</p>
+                    <p className="text-white/40 text-xs mb-1">{t("provider.history.total")}</p>
                     <p className="text-emerald-400 font-black text-lg leading-tight">{totalEarned.toFixed(3)}</p>
                     <p className="text-white/30 text-xs">OMR</p>
                   </div>
@@ -930,8 +948,8 @@ export default function ProviderDashboard() {
                 <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(255,255,255,0.04)" }}>
                   <History className="w-7 h-7 text-white/15" />
                 </div>
-                <p className="text-white/50 font-semibold text-sm mb-1">لا توجد طلبات بعد</p>
-                <p className="text-white/25 text-xs">ستظهر طلباتك المكتملة هنا</p>
+                <p className="text-white/50 font-semibold text-sm mb-1">{t("provider.history.empty.title")}</p>
+                <p className="text-white/25 text-xs">{t("provider.history.empty.subtitle")}</p>
               </div>
             ) : (
               <div
@@ -944,11 +962,14 @@ export default function ProviderDashboard() {
                   const displayAddr = isCoords ? null : addr;
                   const gas = (item as any)?.gasAmount;
                   const pm = (item as any)?.paymentMethod;
-                  const pmLabel: Record<string, string> = { cash: "نقداً", online: "أونلاين", bank_transfer: "تحويل" };
-                  const pmColor: Record<string, string> = { cash: "text-emerald-400", online: "text-blue-400", bank_transfer: "text-purple-400" };
                   const dt = item?.deliveredAt || item?.createdAt;
-                  const dateStr = dt ? new Date(dt).toLocaleDateString("ar-OM", { month: "short", day: "numeric" }) : null;
-                  const timeStr = dt ? new Date(dt).toLocaleTimeString("ar-OM", { hour: "2-digit", minute: "2-digit" }) : null;
+                  const locale = lang === "en" ? "en-GB" : "ar-OM";
+                  const dateStr = dt ? new Date(dt).toLocaleDateString(locale, { month: "short", day: "numeric" }) : null;
+                  const timeStr = dt ? new Date(dt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : null;
+                  const gasAmt = gas ? parseFloat(String(gas)) : 0;
+                  const cylinderLabel = gasAmt === 1
+                    ? t("provider.history.cylinder.single")
+                    : t("provider.history.cylinder.plural");
                   return (
                     <div
                       key={item?.orderId}
@@ -964,7 +985,7 @@ export default function ProviderDashboard() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-white text-sm font-bold">طلب #{item?.orderId}</p>
+                            <p className="text-white text-sm font-bold">{t("provider.history.order.prefix")}{item?.orderId}</p>
                             <p className="text-orange-300 text-sm font-black shrink-0">
                               OMR {parseFloat(item?.totalPrice ?? "0").toFixed(3)}
                             </p>
@@ -973,14 +994,14 @@ export default function ProviderDashboard() {
                             <p className="text-white/50 text-xs truncate mt-0.5">{displayAddr}</p>
                           )}
                           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                            <StatusBadge status={item?.status ?? ""} />
+                            <StatusBadge status={item?.status ?? ""} lang={lang} />
                             {gas && (
                               <span className="text-white/40 text-xs">
-                                {gas} {parseFloat(String(gas)) === 1 ? "أسطوانة" : "أسطوانات"}
+                                {gas} {cylinderLabel}
                               </span>
                             )}
-                            {pm && pmLabel[pm] && (
-                              <span className={`text-xs font-semibold ${pmColor[pm] || "text-white/40"}`}>{pmLabel[pm]}</span>
+                            {pm && pmLabelShort[pm] && (
+                              <span className={`text-xs font-semibold ${pmColor[pm] || "text-white/40"}`}>{pmLabelShort[pm]}</span>
                             )}
                             {dateStr && (
                               <span className="text-white/25 text-xs mr-auto">{dateStr} · {timeStr}</span>
@@ -1005,19 +1026,19 @@ export default function ProviderDashboard() {
               className="rounded-3xl p-4 space-y-3"
               style={{ background: "oklch(0.13 0 0)", border: "1px solid rgba(255,255,255,0.06)" }}
             >
-              <p className="text-white/50 text-xs font-semibold uppercase tracking-wide">معلومات الحساب</p>
+              <p className="text-white/50 text-xs font-semibold uppercase tracking-wide">{t("provider.settings.account")}</p>
               <div className="space-y-2.5">
                 <div className="flex items-center gap-3">
                   <ShieldCheck className="w-4 h-4 text-orange-400 shrink-0" />
                   <div>
-                    <p className="text-white/40 text-xs">الاسم</p>
+                    <p className="text-white/40 text-xs">{t("provider.settings.name")}</p>
                     <p className="text-white text-sm font-semibold">{provider.name}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Phone className="w-4 h-4 text-orange-400 shrink-0" />
                   <div>
-                    <p className="text-white/40 text-xs">الهاتف</p>
+                    <p className="text-white/40 text-xs">{t("provider.settings.phone")}</p>
                     <p className="text-white text-sm font-semibold" dir="ltr">{provider.phone}</p>
                   </div>
                 </div>
@@ -1025,7 +1046,7 @@ export default function ProviderDashboard() {
                   <div className="flex items-center gap-3">
                     <Navigation className="w-4 h-4 text-orange-400 shrink-0" />
                     <div>
-                      <p className="text-white/40 text-xs">البريد الإلكتروني</p>
+                      <p className="text-white/40 text-xs">{t("provider.settings.email")}</p>
                       <p className="text-white text-sm font-semibold" dir="ltr">{provider.email}</p>
                     </div>
                   </div>
@@ -1034,7 +1055,7 @@ export default function ProviderDashboard() {
                   <div className="flex items-center gap-3">
                     <Globe className="w-4 h-4 text-orange-400 shrink-0" />
                     <div>
-                      <p className="text-white/40 text-xs">المنطقة</p>
+                      <p className="text-white/40 text-xs">{t("provider.settings.zone")}</p>
                       <p className="text-white text-sm font-semibold">{(provider as any).zoneName}</p>
                       {(provider as any).subZoneNames?.length > 0 && (
                         <p className="text-white/40 text-xs mt-0.5">{(provider as any).subZoneNames.join(" · ")}</p>
@@ -1057,7 +1078,7 @@ export default function ProviderDashboard() {
                 >
                   <div className="flex items-center gap-3">
                     <Key className="w-4 h-4 text-orange-400" />
-                    <span className="text-white font-semibold text-sm">تغيير الرمز السري</span>
+                    <span className="text-white font-semibold text-sm">{t("provider.settings.pin.change")}</span>
                   </div>
                   <ChevronRight className="w-4 h-4 text-white/20" />
                 </button>
@@ -1066,14 +1087,14 @@ export default function ProviderDashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Key className="w-4 h-4 text-orange-400" />
-                      <span className="text-white font-bold text-sm">تغيير الرمز السري</span>
+                      <span className="text-white font-bold text-sm">{t("provider.settings.pin.change")}</span>
                     </div>
-                    <button onClick={() => { setShowPinChange(false); setPinChangeStep("current"); }} className="text-white/30 text-xs">إلغاء</button>
+                    <button onClick={() => { setShowPinChange(false); setPinChangeStep("current"); }} className="text-white/30 text-xs">{t("provider.settings.pin.cancel")}</button>
                   </div>
                   <p className="text-white/50 text-xs">
-                    {pinChangeStep === "current" && "أدخل الرمز الحالي"}
-                    {pinChangeStep === "new" && "أدخل الرمز الجديد (4 أرقام)"}
-                    {pinChangeStep === "confirm" && "أكّد الرمز الجديد"}
+                    {pinChangeStep === "current" && t("provider.settings.pin.current")}
+                    {pinChangeStep === "new" && t("provider.settings.pin.new")}
+                    {pinChangeStep === "confirm" && t("provider.settings.pin.confirm")}
                   </p>
                   <div className="flex gap-2 justify-center" dir="ltr">
                     {(pinChangeStep === "current" ? currentPinDigits : pinChangeStep === "new" ? newPinDigits : confirmPinDigits).map((d, i) => (
@@ -1107,20 +1128,19 @@ export default function ProviderDashboard() {
                       };
                       if (pinChangeStep === "current") {
                         const pin = currentPinDigits.join("");
-                        if (pin.length < 4) { toast.error("أدخل 4 أرقام"); return; }
+                        if (pin.length < 4) { toast.error(t("provider.settings.pin.error.digits")); return; }
                         setPinChangeStep("new");
                       } else if (pinChangeStep === "new") {
                         const pin = newPinDigits.join("");
-                        if (pin.length < 4) { toast.error("أدخل 4 أرقام"); return; }
+                        if (pin.length < 4) { toast.error(t("provider.settings.pin.error.digits")); return; }
                         setPinChangeStep("confirm");
                       } else {
                         const newPin = newPinDigits.join("");
                         const confirmPin = confirmPinDigits.join("");
-                        if (newPin !== confirmPin) { toast.error("الرمزان غير متطابقان"); return; }
+                        if (newPin !== confirmPin) { toast.error(t("provider.settings.pin.error.mismatch")); return; }
                         const currentHash = await sha256(currentPinDigits.join(""));
                         const newHash = await sha256(newPin);
                         changePin.mutate({ providerId: id, pinHash: currentHash, newPinHash: newHash });
-                        // Update stored session
                         const { storePinHash } = await import("@/lib/pinStorage");
                         storePinHash(id, newHash);
                       }
@@ -1129,7 +1149,7 @@ export default function ProviderDashboard() {
                     className="w-full py-3 rounded-2xl text-sm font-bold text-white"
                     style={{ background: "oklch(0.62 0.22 27)" }}
                   >
-                    {changePin.isPending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : pinChangeStep === "confirm" ? "حفظ الرمز الجديد" : "التالي"}
+                    {changePin.isPending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : pinChangeStep === "confirm" ? t("provider.settings.pin.save") : t("provider.settings.pin.next")}
                   </button>
                 </div>
               )}
@@ -1147,10 +1167,10 @@ export default function ProviderDashboard() {
                     : <BellOff className="w-5 h-5 text-white/30" />}
                   <div>
                     <p className="text-white font-semibold text-sm">
-                      {pushSubscribed ? "الإشعارات مفعّلة" : "الإشعارات معطّلة"}
+                      {pushSubscribed ? t("provider.settings.notifications.on") : t("provider.settings.notifications.off")}
                     </p>
                     <p className="text-white/40 text-xs">
-                      {pushSubscribed ? "ستصلك إشعارات الطلبات الجديدة" : "فعّل لتلقي إشعارات فورية"}
+                      {pushSubscribed ? t("provider.settings.notifications.on.sub") : t("provider.settings.notifications.off.sub")}
                     </p>
                   </div>
                 </div>
@@ -1160,7 +1180,7 @@ export default function ProviderDashboard() {
                     className="text-xs font-bold px-3 py-1.5 rounded-xl"
                     style={{ background: "oklch(0.62 0.22 27 / 0.2)", color: "oklch(0.75 0.22 27)" }}
                   >
-                    تفعيل
+                    {t("provider.settings.notifications.enable")}
                   </button>
                 )}
               </div>
@@ -1173,7 +1193,7 @@ export default function ProviderDashboard() {
             >
               <div className="px-4 pt-4 pb-2 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-orange-400" />
-                <p className="text-white font-bold text-sm">ساعات العمل</p>
+                <p className="text-white font-bold text-sm">{t("provider.settings.hours")}</p>
               </div>
               <div className="px-4 pb-4">
                 <WorkingHoursEditor providerId={id} pinHash={pinHash ?? ""} />
@@ -1188,7 +1208,7 @@ export default function ProviderDashboard() {
             >
               <div className="flex items-center gap-3">
                 <LogOut className="w-4 h-4 text-red-400" />
-                <span className="text-red-400 font-semibold text-sm">تسجيل الخروج</span>
+                <span className="text-red-400 font-semibold text-sm">{t("provider.settings.logout")}</span>
               </div>
               <ChevronRight className="w-4 h-4 text-red-400/40" />
             </button>
